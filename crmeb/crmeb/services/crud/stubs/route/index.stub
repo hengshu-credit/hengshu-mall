@@ -1,0 +1,1 @@
+Route::get('{%ROUTE%}', 'crud.{%ROUTE_PATH%}{%CONTROLLER%}/index')->option(['real_name' => '{%MENUS%}列表接口']);

@@ -1,0 +1,52 @@
+<?php
+/**
+ *  +----------------------------------------------------------------------
+ *  | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
+ *  +----------------------------------------------------------------------
+ *  | Copyright (c) 2016~{%YEAR%} https://www.crmeb.com All rights reserved.
+ *  +----------------------------------------------------------------------
+ *  | Licensed CRMEB并不是自由软件，未经许可不能去掉CRMEB相关版权
+ *  +----------------------------------------------------------------------
+ *  | Author: CRMEB Team <admin@crmeb.com>
+ *  +----------------------------------------------------------------------
+ */
+
+/**
+ * {%MODEL_NAME%}
+ * @author crud自动生成代码
+ * @date {%DATE%}
+ */
+
+namespace app\adminapi\controller\crud{%PATH%};
+
+use app\adminapi\controller\AuthController;
+use think\facade\App;
+{%USE_PHP%}
+/**
+ * Class {%NAME_CAMEL%}
+ * @date {%DATE%}
+ * @package app\adminapi\controller\crud{%PATH%}
+ */
+class {%NAME_CAMEL%} extends AuthController
+{
+
+    /**
+     * @var {%NAME_CAMEL%}Services
+     */
+    protected $service;
+
+    /**
+     * {%NAME_CAMEL%}Controller constructor.
+     * @param App $app
+     * @param {%NAME_CAMEL%}Services $service
+     */
+    public function __construct(App $app, {%NAME_CAMEL%}Services $service)
+    {
+        parent::__construct($app);
+        $this->service = $service;
+    }
+
+
+{%CONTENT_PHP%}
+
+}

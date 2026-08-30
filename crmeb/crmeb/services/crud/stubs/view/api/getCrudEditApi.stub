@@ -1,0 +1,11 @@
+/**
+ * 获取编辑表单数据
+ * @param id
+ * @return {*}
+ */
+export function get{%NAME_STUDLY%}EditApi(id) {
+    return request({
+        url: `{%ROUTE%}/${id}/edit`,
+        method: 'get'
+    });
+}

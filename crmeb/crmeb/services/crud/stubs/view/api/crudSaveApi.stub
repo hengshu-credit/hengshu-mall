@@ -1,0 +1,12 @@
+/**
+ * 添加数据
+ * @param data
+ * @return {*}
+ */
+export function {%NAME_CAMEL%}SaveApi(data) {
+    return request({
+        url: '{%ROUTE%}',
+        method: 'post',
+        data
+    });
+}

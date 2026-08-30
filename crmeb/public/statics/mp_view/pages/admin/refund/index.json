@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "售后退款",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "split-order": "/pages/admin/components/splitOrder/index"
+  }
+}

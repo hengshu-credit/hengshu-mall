@@ -1,0 +1,9 @@
+    /**
+     * 创建
+     * @return \think\Response
+     * @date {%DATE%}
+     */
+    public function create()
+    {
+        return app('json')->success($this->service->getCrudForm());
+    }

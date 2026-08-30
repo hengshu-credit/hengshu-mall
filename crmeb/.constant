@@ -1,0 +1,3 @@
+<?php
+define('INSTALL_DATE',1788042245);
+define('SERIALNUMBER','Lpgw8y');

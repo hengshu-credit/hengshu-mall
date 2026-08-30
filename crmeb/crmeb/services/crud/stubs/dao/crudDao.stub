@@ -1,0 +1,43 @@
+<?php
+/**
+ *  +----------------------------------------------------------------------
+ *  | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
+ *  +----------------------------------------------------------------------
+ *  | Copyright (c) 2016~{%YEAR%} https://www.crmeb.com All rights reserved.
+ *  +----------------------------------------------------------------------
+ *  | Licensed CRMEB并不是自由软件，未经许可不能去掉CRMEB相关版权
+ *  +----------------------------------------------------------------------
+ *  | Author: CRMEB Team <admin@crmeb.com>
+ *  +----------------------------------------------------------------------
+ */
+
+/**
+ * {%MODEL_NAME%}
+ * @author crud自动生成代码
+ * @date {%TIME%}
+ */
+
+namespace app\dao\crud{%PATH%};
+
+
+use app\dao\BaseDao;
+{%USE_PHP%}
+/**
+ * Class {%NAME_CAMEL%}Dao
+ * @date {%DATE%}
+ * @package app\dao\crud{%path%}
+ */
+class {%NAME_CAMEL%}Dao extends BaseDao
+{
+
+    /**
+     * 设置模型
+     * @return string
+     * @date {%DATE%}
+     */
+    protected function setModel(): string
+    {
+        return {%NAME_CAMEL%}::class;
+    }
+{%CONTENT_PHP%}
+}

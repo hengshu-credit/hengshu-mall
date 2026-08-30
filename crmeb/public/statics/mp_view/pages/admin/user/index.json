@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "用户详情",
+  "usingComponents": {
+    "edit-lable": "/pages/admin/user/components/userLable/index",
+    "edit-balance": "/pages/admin/user/components/editBalance/index",
+    "member": "/pages/admin/user/components/member/index",
+    "coupon": "/pages/admin/user/components/coupon/index"
+  }
+}

@@ -1,0 +1,1 @@
+Route::get('{%ROUTE%}/create', 'crud.{%ROUTE_PATH%}{%CONTROLLER%}/create')->option(['real_name' => '{%MENUS%}获取创建表单接口']);

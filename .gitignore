@@ -1,0 +1,78 @@
+/.git
+/.idea
+.vscode/
+*.log
+*.DS_Store
+*.iml
+
+# CRMEB运行时
+/crmeb/runtime/*
+/crmeb/backup/*
+/crmeb/public/install.lock
+crmeb/public/uploads/*
+
+
+# Docker数据
+/docker-compose/mysql/data/
+/docker-compose/mysql/log/
+/docker-compose/nginx/log/
+/docker-compose-universal/*/mysql/
+/docker-compose-universal/*/data/
+
+# 构建产物
+/template/admin/dist/
+/template/admin/node_modules/
+/template/uni-app/node_modules/
+/template/uni-app/unpackage/
+/template/uni-app/.hbuilderx/
+/crmeb/.idea/
+
+# 备份文件
+*_backup/
+
+# Docker Compose
+/docker-compose-dev/
+/help/docker/mysql/data/
+
+# 配置文件(敏感信息)
+crmeb/.env
+crmeb/.constant
+crmeb/supervisord.log
+crmeb/supervisord.pid
+
+crmeb/start.sh
+crmeb/supervisord.conf
+crmeb/my.cnf
+crmeb/redis.conf
+crmeb/vhost.conf
+crmeb/php-ini-overrides.ini
+crmeb/php-fpm.conf
+
+# 代码助手规则文件
+.codebuddy/rules/dockerfile-buid.mdc
+.codebuddy/rules/docker-compose-buid.mdc
+
+.trae/rules/docker.md
+.trae/rules/dockerinone.md
+
+
+.trae/skills/dockercompose/ALLINONE_SKILL.md
+.gitignore
+crmeb/Dockerfile
+crmeb/nginx.conf
+crmeb/.env.example
+crmeb/.dockerignore
+
+crmeb/backup/readme.md
+crmeb/runtime/readme.md
+crmeb/runtime/cache/readme.md
+crmeb/runtime/log/readme.md
+crmeb/runtime/session/readme.md
+crmeb/runtime/temp/readme.md
+
+
+.codebuddy/rules/git-commit-standard.mdc
+.codebuddy/rules/readme.mdc
+Dockerfile
+.codebuddy/models.json
+.codebuddy/rules/project-intro.mdc

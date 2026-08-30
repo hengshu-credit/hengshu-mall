@@ -1,0 +1,8 @@
+{
+  "component": true,
+  "usingComponents": {
+    "easy-loadimage": "/components/easy-loadimage/easy-loadimage",
+    "count-down": "/components/countDown/index",
+    "common-wrapper": "/subpackage/diyComponents/commonWrapper"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "订单核销",
+  "usingComponents": {
+    "write-off-switching": "/pages/admin/components/writeOffSwitching/index"
+  }
+}

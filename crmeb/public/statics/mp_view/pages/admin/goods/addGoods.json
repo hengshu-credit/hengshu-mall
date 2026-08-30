@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "添加商品",
+  "usingComponents": {
+    "nav-bar": "/components/NavBar",
+    "classify": "/pages/admin/goods/components/classify/index"
+  }
+}
