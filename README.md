@@ -1,4 +1,3 @@
-[![输入图片说明](help/resource/pic/sheji.jpg)](https://www.crmeb.com/theme/activity?from=giteephp)
 <div align="center" >
     <img src="https://www.crmeb.com/static/images/dark_logo.png" />
 </div>
@@ -309,34 +308,4 @@ docker-compose一键部署：https://doc.crmeb.com/single_open/open_v54/20145
 视频教程：https://www.bilibili.com/video/BV1kh4y1872K/
 
 技术社区：https://www.crmeb.com/ask/thread/list/147
-
----
-
-###  📞 CRMEB互动
-#### CRMEB开源技术交流群（扫码进群可领取开源版接口文档、产品功能清单、思维脑图！）
-![输入图片说明](help/resource/pic/开源PHP1.jpg)
-#### 技术社区！找方法、提bug、看官方消息、拿活跃大奖！都在 <a href="https://www.crmeb.com/ask/?from=giteephp" target="_blank">CRMEB 技术社区</a> 应有尽有
-
-
-
-
----
-
-❤️ 以商业之名，护航开源之心
-
-
-###  📕 专业私域会员电商系统
-
-[![输入图片说明](help/resource/pic/PRO版2.jpg)](https://www.crmeb.com/index/pro?from=giteephp)
-
-
-
-###  📕 做平台推荐高性价比多商户系统
-
-[![输入图片说明](help/resource/pic/duoshanghu2.jpg)](https://www.crmeb.com/index/merchant?from=giteephp)
-
----
-
-
-[返回顶部 :fa-arrow-circle-up: ](https://gitee.com/ZhongBangKeJi/CRMEB#%E9%A1%B9%E7%9B%AE%E4%BB%8B%E7%BB%8D)
 
