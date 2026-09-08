@@ -11,17 +11,13 @@
 namespace app\listener\order;
 
 
-use app\jobs\AgentJob;
-use app\jobs\notice\PrintJob;
-use app\jobs\OrderInvoiceJob;
-use app\jobs\OrderJob;
-use app\jobs\ProductLogJob;
 use app\services\activity\seckill\StoreSeckillServices;
 use app\services\activity\coupon\StoreCouponIssueServices;
 use app\services\order\StoreOrderCartInfoServices;
 use app\services\order\StoreOrderDeliveryServices;
 use app\services\order\StoreOrderInvoiceServices;
 use app\services\order\StoreOrderServices;
+use app\services\order\OrderPaymentDispatchServices;
 use app\services\order\StoreOrderStatusServices;
 use app\services\pay\PayServices;
 use app\services\product\product\StoreProductCouponServices;
@@ -69,7 +65,7 @@ class OrderPaySuccessListener implements ListenerInterface
             $invoiceInfo->is_pay = 1;
             if ($invoiceInfo->save() && sys_config('elec_invoice', 1) == 1 && sys_config('auto_invoice', 1) == 1) {
                 //自动开票
-                OrderInvoiceJob::dispatchSecs(10, 'autoInvoice', [$invoiceInfo['id']]);
+                app()->make(OrderPaymentDispatchServices::class)->stage((int)$orderInfo['id'], 'invoice');
             }
         }
 
@@ -92,16 +88,8 @@ class OrderPaySuccessListener implements ListenerInterface
             $capitalFlowServices->setFlow($orderInfo, 'order');
         }
 
-        //小票打印
-        PrintJob::dispatch([$orderInfo['id'], 1]);
-
-        //支付成功后发送消息
-        OrderJob::dispatch([$orderInfo]);
-
-        //支付成功处理自己、上级分销等级升级
-        AgentJob::dispatch([(int)$orderInfo['uid']]);
-
-        //商品日志记录支付记录
-        ProductLogJob::dispatch(['pay', ['uid' => $orderInfo['uid'], 'order_id' => $orderInfo['id']]]);
+        foreach (['print', 'order', 'agent', 'product'] as $step) {
+            app()->make(OrderPaymentDispatchServices::class)->stage((int)$orderInfo['id'], $step);
+        }
     }
 }

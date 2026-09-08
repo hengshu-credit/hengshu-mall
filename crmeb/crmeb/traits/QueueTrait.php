@@ -52,7 +52,7 @@ trait QueueTrait
             } else if (static::queueName()) {
                 $queue->setQueueName(static::queueName());
             }
-            return $queue->push();
+            return static::pushPaymentAware($queue);
         } else {
             $className = '\\' . __CLASS__;
             $res = new $className();
@@ -86,7 +86,22 @@ trait QueueTrait
             } else if (static::queueName()) {
                 $queue->setQueueName(static::queueName());
             }
-            return $queue->push();
+            return static::pushPaymentAware($queue);
+        }
+    }
+
+    /** Ordinary jobs retain their existing result contract; payment stages track publication failures. */
+    protected static function pushPaymentAware(Queue $queue)
+    {
+        try {
+            $result = $queue->push();
+            if ($result === false && \app\services\order\OrderPaymentDispatchServices::isPublishing()) {
+                throw new \RuntimeException('Unable to publish payment job');
+            }
+            return $result;
+        } catch (\Throwable $error) {
+            \app\services\order\OrderPaymentDispatchServices::recordQueueFailure();
+            throw $error;
         }
     }
 }

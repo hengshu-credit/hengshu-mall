@@ -11,7 +11,6 @@
 
 namespace app\services\order;
 
-use app\jobs\MiniOrderJob;
 use app\services\activity\coupon\StoreCouponIssueServices;
 use app\services\activity\integral\StoreIntegralOrderServices;
 use app\services\BaseServices;
@@ -803,13 +802,7 @@ class StoreOrderDeliveryServices extends BaseServices
             ]);
         }
         if ($orderInfo['is_channel'] == 1 && $orderInfo['pay_type'] == 'weixin') {
-            MiniOrderJob::dispatchSecs(10, 'doJob', [
-                $orderInfo['order_id'],
-                3,
-                [['item_desc' => $orderInfo['virtual_type'] == 1 ? '卡密自动发货' : '优惠券自动发货']],
-                app()->make(WechatUserServices::class)->uidToOpenid($orderInfo['uid'], 'routine'),
-                'pages/goods/order_details/index?order_id=' . $orderInfo['order_id']
-            ]);
+            app()->make(OrderPaymentDispatchServices::class)->stageAfterCommit((int)$orderInfo['id'], 'virtual_shipping');
         }
     }
 

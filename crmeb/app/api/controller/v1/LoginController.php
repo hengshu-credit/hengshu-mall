@@ -14,6 +14,7 @@ namespace app\api\controller\v1;
 use app\Request;
 use app\services\message\notice\SmsService;
 use app\services\wechat\WechatServices;
+use app\services\user\AppleIdentityVerifier;
 use think\facade\Config;
 use crmeb\services\CacheService;
 use app\services\user\LoginServices;
@@ -464,12 +465,23 @@ class LoginController
      */
     public function appleLogin(Request $request, WechatServices $services)
     {
-        [$openId, $phone, $email, $captcha] = $request->postMore([
+        [$openId, $phone, $identityToken, $captcha] = $request->postMore([
             ['openId', ''],
             ['phone', ''],
-            ['email', ''],
+            ['identityToken', ''],
             ['captcha', '']
         ], true);
+        // Verify proof before phone binding or local account lookup, on every request.
+        if (!is_string($identityToken) || $identityToken === '' || !is_string($openId)) {
+            return app('json')->fail('Apple登录验证失败，请重新授权');
+        }
+        try {
+            $claims = app()->make(AppleIdentityVerifier::class)->verify($identityToken, $openId);
+        } catch (\Throwable $e) {
+            return app('json')->fail('Apple登录验证失败，请重新授权');
+        }
+        $openId = $claims['sub'];
+        $email = is_string($claims['email'] ?? null) ? $claims['email'] : '';
         if ($phone) {
             if (!$captcha) {
                 return app('json')->fail('请输入验证码');
@@ -482,10 +494,6 @@ class LoginController
             if ($verifyCode != $captcha) {
                 CacheService::delete('code_' . $phone);
                 return app('json')->fail('验证码错误');
-            }
-        } else {
-            if (!$openId) {
-                return app('json')->fail('参数错误');
             }
         }
         if ($email == '') $email = substr(md5($openId), 0, 12);

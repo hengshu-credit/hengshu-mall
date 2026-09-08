@@ -88,6 +88,39 @@ class StoreOrderServices extends BaseServices
     }
 
     /**
+     * Select a payer only while the order is still unpaid. Callbacks use the same row lock.
+     */
+    public function preparePayment(string $orderId, int $uid, int $channel, bool $friend = false): array
+    {
+        if ($uid <= 0 || $orderId === '') throw new ApiException('参数错误');
+        $orderInfo = $this->transaction(function () use ($orderId, $uid, $channel, $friend) {
+            $order = $this->dao->getOneForUpdate(['order_id' => $orderId]);
+            if (!$order) throw new ApiException('订单不存在');
+            if ($order['paid']) return $order->toArray();
+            if (!empty($order['is_cancel']) || !empty($order['is_del']) || !empty($order['is_system_del'])) {
+                throw new ApiException('订单已经超过系统支付时间，无法支付，请重新下单');
+            }
+            if (!$friend && (int)$order['uid'] !== $uid) throw new ApiException('非法操作');
+            $order->is_channel = $channel;
+            if ($uid !== (int)$order['pay_uid']) {
+                $order->order_id = app()->make(StoreOrderCreateServices::class)->getNewOrderId('cp');
+            }
+            $order->pay_uid = $uid;
+            if (!$order->save()) throw new ApiException('订单支付失败');
+            return $order->toArray();
+        });
+        if ($orderInfo['paid']) {
+            // A balance payment has no gateway retry. Resume pending delivery without
+            // changing its payer or charging again when the client retries payment.
+            \crmeb\utils\AfterCommit::defer(function () use ($orderInfo) {
+                app()->make(OrderPaymentDispatchServices::class)->flush((int)$orderInfo['id']);
+            });
+            throw new ApiException('订单已支付');
+        }
+        return $orderInfo;
+    }
+
+    /**
      * 获取列表
      * @param array $where
      * @param array $field

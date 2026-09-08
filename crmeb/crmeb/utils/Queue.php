@@ -155,9 +155,14 @@ class Queue
             return $this->setError('需要执行的队列类必须存在');
         }
         $jodValue = $this->getValues($data);
-        $res = QueueThink::{$this->action()}(...$jodValue);
+        $publisher = null;
+        if (\app\services\order\OrderPaymentDispatchServices::isPublishing()) {
+            $publisher = QueueThink::connection();
+            if ($publisher instanceof \think\queue\connector\Redis) $publisher = CheckedRedisQueue::wrap($publisher);
+        }
+        $res = $publisher ? $publisher->{$this->action()}(...$jodValue) : QueueThink::{$this->action()}(...$jodValue);
         if (!$res) {
-            $res = QueueThink::{$this->action()}(...$jodValue);
+            $res = $publisher ? $publisher->{$this->action()}(...$jodValue) : QueueThink::{$this->action()}(...$jodValue);
             if (!$res) {
                 Log::error('加入队列失败，参数：' . json_encode($this->getValues($data)));
             }

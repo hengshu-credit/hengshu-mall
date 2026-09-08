@@ -435,13 +435,22 @@ class StoreOrderRefundServices extends BaseServices
      */
     public function yueRefund($order, array $refundData)
     {
-        /** @var UserServices $userServices */
-        $userServices = app()->make(UserServices::class);
-        $userMoney = $userServices->value(['uid' => $order['uid']], 'now_money');
-        $res = $userServices->bcInc($order['uid'], 'now_money', $refundData['refund_price'], 'uid');
-        /** @var UserMoneyServices $userMoneyServices */
-        $userMoneyServices = app()->make(UserMoneyServices::class);
-        return $res && $userMoneyServices->income('pay_product_refund', $order['uid'], $refundData['refund_price'], bcadd((string)$userMoney, (string)$refundData['refund_price'], 2), $order['id']);
+        $payerUid = (int)($order['pay_uid'] ?? 0);
+        if ($payerUid <= 0) $payerUid = (int)$order['uid'];
+        return $this->transaction(function () use ($payerUid, $order, $refundData) {
+            /** @var UserServices $userServices */
+            $userServices = app()->make(UserServices::class);
+            $user = $userServices->getOneForUpdate(['uid' => $payerUid]);
+            if (!$user) throw new AdminException('用户不存在');
+            $res = $userServices->bcInc($payerUid, 'now_money', $refundData['refund_price'], 'uid');
+            /** @var UserMoneyServices $userMoneyServices */
+            $userMoneyServices = app()->make(UserMoneyServices::class);
+            $balance = bcadd((string)$user['now_money'], (string)$refundData['refund_price'], 2);
+            if (!$res || !$userMoneyServices->income('pay_product_refund', $payerUid, $refundData['refund_price'], $balance, $order['id'])) {
+                throw new AdminException('余额退款失败');
+            }
+            return true;
+        });
     }
 
     /**

@@ -57,10 +57,13 @@ class UserInvoiceServices extends BaseServices
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public function getInvoice(int $id, int $uid = 0)
+    public function getInvoice(int $id, int $uid)
     {
-        $invoice = $this->dao->getOne(['id' => $id, 'is_del' => 0]);
-        if (!$invoice || ($uid && $invoice['uid'] != $uid)) {
+        if ($uid <= 0) {
+            throw new ApiException('非法操作');
+        }
+        $invoice = $this->dao->getOne(['id' => $id, 'uid' => $uid, 'is_del' => 0]);
+        if (!$invoice) {
             return [];
         }
         return $invoice->toArray();
@@ -105,6 +108,9 @@ class UserInvoiceServices extends BaseServices
      */
     public function getUserList(int $uid, $where)
     {
+        if ($uid <= 0) {
+            throw new ApiException('非法操作');
+        }
         [$page, $limit] = $this->getPageValue();
         $where['is_del'] = 0;
         $where['uid'] = $uid;
@@ -122,6 +128,9 @@ class UserInvoiceServices extends BaseServices
      */
     public function getUserDefaultInvoice(int $uid, int $type, string $field = '*')
     {
+        if ($uid <= 0) {
+            throw new ApiException('非法操作');
+        }
         return $this->dao->getOne(['uid' => $uid, 'is_default' => 1, 'is_del' => 0, 'type' => $type], $field);
     }
 
@@ -136,7 +145,13 @@ class UserInvoiceServices extends BaseServices
      */
     public function saveInvoice(int $uid, array $data)
     {
+        if ($uid <= 0) {
+            throw new ApiException('非法操作');
+        }
         $id = (int)$data['id'];
+        if ($id && !$this->getInvoice($id, $uid)) {
+            throw new ApiException('数据不存在');
+        }
         $data['uid'] = $uid;
         unset($data['id']);
         $invoice = $this->dao->get(['uid' => $uid, 'name' => $data['name'], 'drawer_phone' => $data['drawer_phone'], 'is_del' => 0]);
@@ -144,7 +159,7 @@ class UserInvoiceServices extends BaseServices
             if ($invoice && $id != $invoice['id']) {
                 throw new ApiException('该发票已经存在');
             }
-            if ($this->dao->update($id, $data, 'id')) {
+            if ($this->dao->update(['id' => $id, 'uid' => $uid, 'is_del' => 0], $data)) {
                 if ($data['is_default']) {
                     $this->setDefaultInvoice($uid, $id);
                 }
@@ -178,11 +193,8 @@ class UserInvoiceServices extends BaseServices
      */
     public function setDefaultInvoice(int $uid, int $id)
     {
-        if (!$invoice = $this->getInvoice($id)) {
+        if (!$invoice = $this->getInvoice($id, $uid)) {
             throw new ApiException('数据不存在');
-        }
-        if ($invoice['uid'] != $uid) {
-            throw new ApiException('非法操作');
         }
         if (!$this->dao->setDefault($uid, $id, $invoice['header_type'], $invoice['type'])) {
             throw new ApiException('设置默认发票失败');
@@ -197,11 +209,8 @@ class UserInvoiceServices extends BaseServices
      */
     public function delInvoice(int $uid, int $id)
     {
-        if ($invoice = $this->getInvoice($id)) {
-            if ($invoice['uid'] != $uid) {
-                throw new ApiException('非法操作');
-            }
-            if (!$this->dao->update($id, ['is_del' => 1])) {
+        if ($invoice = $this->getInvoice($id, $uid)) {
+            if (!$this->dao->update(['id' => $id, 'uid' => $uid, 'is_del' => 0], ['is_del' => 1])) {
                 throw new ApiException('删除失败');
             }
         }

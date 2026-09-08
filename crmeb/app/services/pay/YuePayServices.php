@@ -37,20 +37,35 @@ class YuePayServices extends BaseServices
         if (!$orderInfo) {
             throw new ApiException('订单不存在');
         }
-        if ($orderInfo['paid']) {
-            throw new ApiException('订单已支付');
-        }
         $type = 'pay_product';
         if (isset($orderInfo['member_type'])) {
             $type = 'pay_member';
         }
-        /** @var UserServices $services */
         $services = app()->make(UserServices::class);
-        $userInfo = $services->getUserInfo($uid);
-        if ($userInfo['now_money'] < $orderInfo['pay_price']) {
-            return ['status' => 'pay_deficiency', 'msg' => '余额不足' . floatval($orderInfo['pay_price'])];
-        }
-        $this->transaction(function () use ($services, $orderInfo, $userInfo, $type) {
+        $orderServices = app()->make($type === 'pay_product' ? StoreOrderSuccessServices::class : OtherOrderServices::class);
+        return $this->transaction(function () use ($services, $orderServices, $orderInfo, $uid, $type) {
+            // Lock the order before the account for both balance payments and callbacks.
+            $currentOrder = $orderServices->getOneForUpdate(['id' => $orderInfo['id']]);
+            if (!$currentOrder) throw new ApiException('订单不存在');
+            if ($currentOrder['paid']) {
+                if ($type === 'pay_product') {
+                    $orderServices->paySuccess($currentOrder->toArray(), $currentOrder['pay_type']);
+                }
+                return ['status' => true];
+            }
+            $orderInfo = $currentOrder->toArray();
+            if (!empty($orderInfo['is_cancel']) || !empty($orderInfo['is_del']) || !empty($orderInfo['is_system_del'])) {
+                throw new ApiException('订单已失效');
+            }
+            $userInfo = $services->getOneForUpdate(['uid' => (int)$uid]);
+            if (!$userInfo) throw new ApiException('用户不存在');
+            if (bccomp((string)$userInfo['now_money'], (string)$orderInfo['pay_price'], 2) < 0) {
+                return ['status' => 'pay_deficiency', 'msg' => '余额不足' . floatval($orderInfo['pay_price'])];
+            }
+            if ($type === 'pay_product') {
+                $orderInfo['pay_uid'] = (int)$uid;
+                $orderServices->update($orderInfo['id'], ['pay_uid' => (int)$uid]);
+            }
             $res = false !== $services->bcDec($userInfo['uid'], 'now_money', $orderInfo['pay_price'], 'uid');
             /** @var UserMoneyServices $userMoneyServices */
             $userMoneyServices = app()->make(UserMoneyServices::class);
@@ -74,7 +89,7 @@ class YuePayServices extends BaseServices
             if (!$res) {
                 throw new ApiException('余额支付失败');
             }
+            return ['status' => true];
         });
-        return ['status' => true];
     }
 }

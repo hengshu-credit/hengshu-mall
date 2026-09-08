@@ -67,6 +67,7 @@ function baseRequest(url, method, data, {
 						showCancel: false,
 						confirmText: i18n.t(`我知道了`)
 					});
+					reject(res.data);
 				} else
 					reject(res.data.msg || i18n.t(`系统错误`));
 			},

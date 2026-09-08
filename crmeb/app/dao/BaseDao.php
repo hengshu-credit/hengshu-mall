@@ -223,6 +223,14 @@ abstract class BaseDao
     }
 
     /**
+     * Read current values while holding a row lock. The caller must own a transaction.
+     */
+    public function getOneForUpdate(array $where, ?string $field = '*')
+    {
+        return $this->getModel()->where($where)->field($field)->lock(true)->find();
+    }
+
+    /**
      * 获取单个字段值
      * @param $where
      * @param string|null $field
@@ -472,7 +480,7 @@ abstract class BaseDao
      */
     public function bcInc($key, string $incField, string $inc, string $keyField = null, int $acc = 2)
     {
-        return $this->bc($key, $incField, $inc, $keyField, 1);
+        return $this->bc($key, $incField, $inc, $keyField, 1, $acc);
     }
 
     /**
@@ -489,7 +497,7 @@ abstract class BaseDao
      */
     public function bcDec($key, string $decField, string $dec, string $keyField = null, int $acc = 2)
     {
-        return $this->bc($key, $decField, $dec, $keyField, 2);
+        return $this->bc($key, $decField, $dec, $keyField, 2, $acc);
     }
 
     /**
@@ -507,21 +515,24 @@ abstract class BaseDao
      */
     public function bc($key, string $incField, string $inc, string $keyField = null, int $type = 1, int $acc = 2)
     {
-        if ($keyField === null) {
-            $result = $this->get($key);
-        } else {
-            $result = $this->getOne([$keyField => $key]);
-        }
-        if (!$result) return false;
-        $new = 0;
-        if ($type === 1) {
-            $new = bcadd($result[$incField], $inc, $acc);
-        } else if ($type === 2) {
-            if ($result[$incField] < $inc) return false;
-            $new = bcsub($result[$incField], $inc, $acc);
-        }
-        $result->{$incField} = $new;
-        return false !== $result->save();
+        $model = $this->getModel();
+        $where = $keyField !== null ? [$keyField => $key] : (is_array($key) ? $key : [$model->getPk() => $key]);
+        // Keep the read, exact decimal arithmetic and write on the same connection.
+        // A transaction without FOR UPDATE would still allow lost balance updates.
+        return $model->db()->transaction(function () use ($where, $incField, $inc, $type, $acc) {
+            $result = $this->getOneForUpdate($where);
+            if (!$result) return false;
+            if ($type === 1) {
+                $new = bcadd((string)$result[$incField], $inc, $acc);
+            } elseif ($type === 2) {
+                if (bccomp((string)$result[$incField], $inc, $acc) < 0) return false;
+                $new = bcsub((string)$result[$incField], $inc, $acc);
+            } else {
+                return false;
+            }
+            $result->{$incField} = $new;
+            return false !== $result->save();
+        });
     }
 
     /**

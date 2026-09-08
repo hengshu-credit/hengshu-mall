@@ -253,18 +253,17 @@ class StoreOrderController
             ['quitUrl', ''],
             ['type', 0]
         ], true);
+        if (!$uni) return app('json')->fail('参数错误');
         $payLock = CacheService::get('PAY_LOCK_' . $uni);
         if ($payLock) return app('json')->fail('订单支付中，请勿重复支付');
         CacheService::set('PAY_LOCK_' . $uni, 'PAY_LOCK', 2);
-        if (!$uni) return app('json')->fail('参数错误');
-        $orderInfo = $this->services->get(['order_id' => $uni]);
-        if ($orderInfo->is_cancel == 1 || $orderInfo->is_del == 1 || $orderInfo->is_system_del == 1) return app('json')->fail('订单已经超过系统支付时间，无法支付，请重新下单');
-        $uid = $type == 1 ? (int)$request->uid() : $orderInfo->uid;
-        $orderInfo->is_channel = $this->getChennel[$request->getFromType()] ?? ($request->isApp() ? 0 : 1);
-        $orderInfo->order_id = $uid != $orderInfo->pay_uid ? app()->make(StoreOrderCreateServices::class)->getNewOrderId('cp') : $uni;
-        $orderInfo->pay_uid = $uid;
-        $orderInfo->save();
-        $orderInfo = $orderInfo->toArray();
+        $orderInfo = $this->services->preparePayment(
+            $uni,
+            (int)$request->uid(),
+            $this->getChennel[$request->getFromType()] ?? ($request->isApp() ? 0 : 1),
+            $type == 1
+        );
+        $uid = (int)$orderInfo['pay_uid'];
         $order = $this->services->get(['order_id' => $orderInfo['order_id']]);
         if (!$order)
             return app('json')->fail('订单不存在');

@@ -43,12 +43,12 @@ class UserInvoiceController
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public function invoice($id)
+    public function invoice(Request $request, $id)
     {
         if (!$id) {
             return app('json')->fail('参数错误');
         }
-        return app('json')->success($this->services->getInvoice((int)$id));
+        return app('json')->success($this->services->getInvoice((int)$id, (int)$request->uid()));
     }
 
     /**

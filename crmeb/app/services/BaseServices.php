@@ -14,6 +14,7 @@ namespace app\services;
 use app\services\user\UserServices;
 use crmeb\exceptions\ApiException;
 use crmeb\utils\JwtAuth;
+use crmeb\utils\AfterCommit;
 use think\facade\Db;
 use think\facade\Config;
 use think\facade\Route as Url;
@@ -79,7 +80,9 @@ abstract class BaseServices
      */
     public function transaction(callable $closure, bool $isTran = true)
     {
-        return $isTran ? Db::transaction($closure) : $closure();
+        return $isTran ? AfterCommit::transaction(function ($work) {
+            return Db::transaction($work);
+        }, $closure) : $closure();
     }
 
     /**

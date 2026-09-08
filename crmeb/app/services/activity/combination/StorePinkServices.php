@@ -13,11 +13,11 @@ declare (strict_types=1);
 namespace app\services\activity\combination;
 
 use app\dao\activity\combination\StorePinkDao;
-use app\jobs\PinkJob;
 use app\services\BaseServices;
 use app\services\order\StoreOrderDeliveryServices;
 use app\services\order\StoreOrderRefundServices;
 use app\services\order\StoreOrderServices;
+use app\services\order\OrderPaymentDispatchServices;
 use app\services\other\PosterServices;
 use app\services\other\QrcodeServices;
 use app\services\system\attachment\SystemAttachmentServices;
@@ -308,13 +308,11 @@ class StorePinkServices extends BaseServices
      */
     public function orderPinkAfterNo($uid, $pid, $isRemove = false, $channel)
     {
-        $pink = $this->dao->getOne([['id|k_id', '=', $pid], ['uid', '=', $uid]], '*', ['getProduct']);
-        if ($isRemove) {
-            event('NoticeListener', [['uid' => $uid, 'pink' => $pink, 'user_type' => $channel], 'send_order_pink_clone']);
-        } else {
-            event('NoticeListener', [['uid' => $uid, 'pink' => $pink, 'user_type' => $channel], 'send_order_pink_fial']);
-        }
-        $this->dao->update([['id|k_id', '=', $pid]], ['status' => 3, 'stop_time' => time()]);
+        $this->transaction(function () use ($uid, $pid, $isRemove, $channel) {
+            $pink = $this->dao->getOne([['id|k_id', '=', $pid], ['uid', '=', $uid]], '*', ['getProduct']);
+            app()->make(OrderPaymentDispatchServices::class)->stageAfterCommit((int)$pink['order_id_key'], ($isRemove ? 'pink_clone:' : 'pink_fail:') . $pink['id']);
+            $this->dao->update([['id|k_id', '=', $pid]], ['status' => 3, 'stop_time' => time()]);
+        });
     }
 
 
@@ -354,20 +352,23 @@ class StorePinkServices extends BaseServices
      * @param $pinkT
      * @return int
      */
-    public function pinkComplete($uidAll, $idAll, $uid, $pinkT)
+    public function pinkComplete($uidAll, $idAll, $uid, $pinkT, bool $throwOnError = false)
     {
         $pinkBool = 6;
         try {
-            if (!$this->dao->getCount([['id', 'in', $idAll], ['is_refund', '=', 1]])) {
-                $this->dao->update([['id', 'in', $idAll]], ['stop_time' => time(), 'status' => 2]);
-                if (in_array($uid, $uidAll)) {
-                    if ($this->dao->getCount([['uid', 'in', $uidAll], ['is_tpl', '=', 0], ['k_id|id', '=', $pinkT['id']]]))
-                        $this->orderPinkAfter($uidAll, $pinkT['id']);
-                    $pinkBool = 1;
-                } else  $pinkBool = 3;
-            }
-            return $pinkBool;
+            return $this->transaction(function () use ($uidAll, $idAll, $uid, $pinkT, &$pinkBool) {
+                if (!$this->dao->getCount([['id', 'in', $idAll], ['is_refund', '=', 1]])) {
+                    $this->dao->update([['id', 'in', $idAll]], ['stop_time' => time(), 'status' => 2]);
+                    if (in_array($uid, $uidAll)) {
+                        if ($this->dao->getCount([['uid', 'in', $uidAll], ['is_tpl', '=', 0], ['k_id|id', '=', $pinkT['id']]]))
+                            $this->orderPinkAfter($uidAll, $pinkT['id']);
+                        $pinkBool = 1;
+                    } else $pinkBool = 3;
+                }
+                return $pinkBool;
+            });
         } catch (\Exception $e) {
+            if ($throwOnError) throw $e;
             return $pinkBool;
         }
     }
@@ -382,6 +383,14 @@ class StorePinkServices extends BaseServices
      * @throws \think\db\exception\ModelNotFoundException
      */
     public function orderPinkAfter($uidAll, $pid)
+    {
+        // Administrative/virtual-group callers also need fulfillment to finish before notices publish.
+        return $this->transaction(function () use ($uidAll, $pid) {
+            return $this->finishPinkOrders($uidAll, $pid);
+        });
+    }
+
+    protected function finishPinkOrders($uidAll, $pid)
     {
         //发送消息之前去除虚拟用户
         foreach ($uidAll as $key => $uid) {
@@ -400,13 +409,7 @@ class StorePinkServices extends BaseServices
         foreach ($pinkList as $item) {
             $item['nickname'] = $pinkT_name;
             //用户发送消息
-            event('NoticeListener', [
-                [
-                    'list' => $item,
-                    'title' => $title,
-                    'user_type' => $order_channels[$item['order_id']],
-                    'url' => '/pages/users/order_details/index?order_id=' . $item['order_id']
-                ], 'order_user_groups_success']);
+            app()->make(OrderPaymentDispatchServices::class)->stageAfterCommit((int)$item['order_id_key'], 'pink_complete:' . $item['id']);
         }
         $this->dao->update([['uid', 'in', $uidAll], ['id|k_id', '=', $pid]], ['is_tpl' => 1]);
 
@@ -461,13 +464,13 @@ class StorePinkServices extends BaseServices
                 $res = $this->save($pink);
             }
             // 拼团团成功发送模板消息
-            event('NoticeListener', [['orderInfo' => $orderInfo, 'title' => $product['title'], 'pink' => $pink], 'can_pink_success']);
+            if ($res) app()->make(OrderPaymentDispatchServices::class)->stageAfterCommit((int)$orderInfo['id'], 'pink_join:' . $res['id']);
 
             //处理拼团完成
             list($pinkAll, $pinkT, $count, $idAll, $uidAll) = $this->getPinkMemberAndPinkK($pink);
             if ($pinkT['status'] == 1) {
                 if (!$count)//组团完成
-                    $this->pinkComplete($uidAll, $idAll, $pink['uid'], $pinkT);
+                    $this->pinkComplete($uidAll, $idAll, $pink['uid'], $pinkT, true);
                 else
                     $this->pinkFail($pinkAll, $pinkT, 0);
             }
@@ -500,9 +503,11 @@ class StorePinkServices extends BaseServices
                 $pink['id'] = $res1['id'];
             }
 
-            PinkJob::dispatchSecs((int)(($product->effective_time * 3600) + 60), [$pink['id']]);
-            // 开团成功发送模板消息
-            event('NoticeListener', [['orderInfo' => $orderInfo, 'title' => $product['title'], 'pink' => $pink], 'open_pink_success']);
+            if ($res) {
+                $dispatch = app()->make(OrderPaymentDispatchServices::class);
+                $dispatch->stageAfterCommit((int)$orderInfo['id'], 'pink_expire:' . $pink['id']);
+                $dispatch->stageAfterCommit((int)$orderInfo['id'], 'pink_open:' . $pink['id']);
+            }
 
             if ($res) return true;
             else return false;

@@ -78,9 +78,12 @@ class CustomNoticeListener implements ListenerInterface
             if ($type == 'tencent') {
                 $sendData = array_values($sendData);
             }
-            app()->make(ServeServices::class)->sms($type)->send($infoData['phone'], $noticeData['sms_id'], $sendData);
+            if (app()->make(ServeServices::class)->sms($type)->send($infoData['phone'], $noticeData['sms_id'], $sendData) === false) {
+                \app\services\order\OrderPaymentDispatchServices::recordDeliveryFailure();
+            }
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            \app\services\order\OrderPaymentDispatchServices::recordDeliveryFailure();
             Log::error('发送短信失败,失败原因:' . $e->getMessage());
             return true;
         }
@@ -156,11 +159,16 @@ class CustomNoticeListener implements ListenerInterface
                 $d .= $item . "\n>";
             }
             $d = substr($d, 0, strlen($d) - 2);
-            HttpService::postRequest($noticeData['url'], json_encode([
+            $response = HttpService::postRequest($noticeData['url'], json_encode([
                 'msgtype' => 'markdown',
                 'markdown' => ['content' => $d]
             ]));
+            $result = is_string($response) ? json_decode($response, true) : null;
+            if ($response === false || (isset($result['errcode']) && (int)$result['errcode'] !== 0)) {
+                \app\services\order\OrderPaymentDispatchServices::recordDeliveryFailure();
+            }
         } catch (\Throwable $e) {
+            \app\services\order\OrderPaymentDispatchServices::recordDeliveryFailure();
             Log::error('发送企业群消息失败,失败原因:' . $e->getMessage());
         }
     }

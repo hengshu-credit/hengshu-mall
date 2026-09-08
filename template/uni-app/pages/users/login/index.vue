@@ -142,6 +142,7 @@ export default {
 			appLoginStatus: false, // 微信登录强制绑定手机号码状态
 			appUserInfo: null, // 微信登录保存的用户信息
 			appleLoginStatus: false, // 苹果登录强制绑定手机号码状态
+			appleRetryBinding: false,
 			appleUserInfo: null,
 			appleShow: false, // 苹果登录版本必须要求ios13以上的
 			keyLock: true,
@@ -194,8 +195,10 @@ export default {
 		// 苹果登录
 		appleLogin() {
 			let self = this;
-			this.account = '';
-			this.captcha = '';
+			if (!this.appleRetryBinding) {
+				this.account = '';
+				this.captcha = '';
+			}
 			if (!self.protocol) {
 				this.inAnimation = true;
 				return self.$util.Tips({
@@ -205,14 +208,22 @@ export default {
 			uni.showLoading({
 				title: this.$t(`登录中`)
 			});
-			uni.login({
+			let appleOauth;
+			const authorize = () => uni.login({
 				provider: 'apple',
 				timeout: 10000,
 				success(loginRes) {
 					uni.getUserInfo({
 						provider: 'apple',
 						success: function (infoRes) {
-							self.appleUserInfo = infoRes.userInfo;
+							const userInfo = infoRes.userInfo || {};
+							const authResult = infoRes.authResult || {};
+							const loginAuth = loginRes.authResult || {};
+							const appleInfo = appleOauth.appleInfo || {};
+							self.appleUserInfo = {
+								...userInfo,
+								identityToken: appleInfo.identityToken || authResult.identityToken || loginAuth.identityToken || userInfo.identityToken || ''
+							};
 							self.appleLoginApi();
 						},
 						fail() {
@@ -228,20 +239,32 @@ export default {
 					});
 				},
 				fail(error) {
+					uni.hideLoading();
 					console.log(error);
 				}
 			});
+			// Native Apple login may reuse an expired identityToken; request fresh authorization.
+			plus.oauth.getServices((services) => {
+				appleOauth = services.find((service) => service.id === 'apple');
+				if (!appleOauth) {
+					uni.hideLoading();
+					return;
+				}
+				appleOauth.logout(authorize, () => uni.hideLoading());
+			}, () => uni.hideLoading());
 		},
 		// 苹果登录Api
 		appleLoginApi() {
 			let self = this;
 			appleLogin({
 				openId: self.appleUserInfo.openId,
+				identityToken: self.appleUserInfo.identityToken,
 				email: self.appleUserInfo.email || '',
 				phone: this.account,
 				captcha: this.captcha
 			})
 				.then(({ data }) => {
+					self.appleRetryBinding = false;
 					if (data.isbind) {
 						uni.showModal({
 							title: self.$t(`提示`),
@@ -268,6 +291,10 @@ export default {
 					}
 				})
 				.catch((error) => {
+					// Restore the Apple button so expired proof can be replaced after a long binding flow.
+					self.appleRetryBinding = self.appleLoginStatus || self.appleRetryBinding;
+					self.appleLoginStatus = false;
+					self.appleUserInfo = null;
 					uni.showModal({
 						title: self.$t(`提示`),
 						content: self.$t(`错误信息`) + `${error}`,

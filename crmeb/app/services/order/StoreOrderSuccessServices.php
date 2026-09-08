@@ -13,11 +13,11 @@ namespace app\services\order;
 
 
 use app\dao\order\StoreOrderDao;
-use app\services\activity\lottery\LuckLotteryServices;
 use app\services\activity\combination\StorePinkServices;
 use app\services\BaseServices;
 use app\services\pay\PayServices;
 use crmeb\exceptions\ApiException;
+use crmeb\utils\AfterCommit;
 
 /**
  * Class StoreOrderSuccessServices
@@ -67,6 +67,20 @@ class StoreOrderSuccessServices extends BaseServices
      */
     public function paySuccess(array $orderInfo, string $paytype = PayServices::WEIXIN_PAY, array $other = [])
     {
+        return $this->transaction(function () use ($orderInfo, $paytype, $other) {
+            $currentOrder = $this->dao->getOneForUpdate(['id' => $orderInfo['id']]);
+            if (!$currentOrder) throw new ApiException('订单不存在');
+            AfterCommit::defer(function () use ($orderInfo) {
+                app()->make(OrderPaymentDispatchServices::class)->flush((int)$orderInfo['id']);
+            });
+            if ($currentOrder['paid']) return true;
+            return $this->completePayment($currentOrder->toArray(), $paytype, $other);
+        });
+    }
+
+    /** The caller holds the order row lock and transaction until business effects succeed. */
+    protected function completePayment(array $orderInfo, string $paytype, array $other)
+    {
         $updata = ['paid' => 1, 'pay_type' => $paytype, 'pay_time' => time()];
         $orderInfo['pay_time'] = $updata['pay_time'];
         $orderInfo['pay_type'] = $paytype;
@@ -77,6 +91,7 @@ class StoreOrderSuccessServices extends BaseServices
         $orderInfoServices = app()->make(StoreOrderCartInfoServices::class);
         $orderInfo['storeName'] = $orderInfoServices->getCarIdByProductTitle((int)$orderInfo['id']);
         $res1 = $this->dao->update($orderInfo['id'], $updata);
+        if (!$res1) throw new ApiException('订单支付失败');
         $resPink = true;
         if ($orderInfo['combination_id'] && $res1 && !$orderInfo['refund_status']) {
             /** @var StorePinkServices $pinkServices */
@@ -87,44 +102,18 @@ class StoreOrderSuccessServices extends BaseServices
         }
         //缓存抽奖次数 除过线下支付
         if (isset($orderInfo['pay_type']) && $orderInfo['pay_type'] != 'offline') {
-            /** @var LuckLotteryServices $luckLotteryServices */
-            $luckLotteryServices = app()->make(LuckLotteryServices::class);
-            $luckLotteryServices->setCacheLotteryNum((int)$orderInfo['uid'], 'order');
+            app()->make(OrderPaymentDispatchServices::class)->stage((int)$orderInfo['id'], 'lottery');
         }
         $orderInfo['send_name'] = $orderInfo['real_name'];
         //订单支付成功后置事件
         event('OrderPaySuccessListener', [$orderInfo]);
-        //用户推送消息事件
-        event('NoticeListener', [$orderInfo, 'order_pay_success']);
-        //支付成功给客服发送消息
-        event('NoticeListener', [$orderInfo, 'admin_pay_success_code']);
-        // 推送订单
-        event('OutPushListener', ['order_pay_push', ['order_id' => (int)$orderInfo['id']]]);
-
-        //自定义消息-订单支付成功
-        $orderInfo['time'] = date('Y-m-d H:i:s');
-        $orderInfo['phone'] = $orderInfo['user_phone'];
-        event('CustomNoticeListener', [$orderInfo['uid'], $orderInfo, 'order_pay_success']);
-
-        //自定义事件-订单支付
-        event('CustomEventListener', ['order_pay', [
-            'uid' => $orderInfo['uid'],
-            'id' => (int)$orderInfo['id'],
-            'order_id' => $orderInfo['order_id'],
-            'real_name' => $orderInfo['real_name'],
-            'user_phone' => $orderInfo['user_phone'],
-            'user_address' => $orderInfo['user_address'],
-            'total_num' => $orderInfo['total_num'],
-            'pay_price' => $orderInfo['pay_price'],
-            'pay_postage' => $orderInfo['pay_postage'],
-            'deduction_price' => $orderInfo['deduction_price'],
-            'coupon_price' => $orderInfo['coupon_price'],
-            'store_name' => $orderInfo['storeName'],
-            'add_time' => date('Y-m-d H:i:s', $orderInfo['add_time']),
-        ]]);
+        foreach (['notice_user', 'notice_admin', 'out_push', 'custom_notice', 'custom_event'] as $step) {
+            app()->make(OrderPaymentDispatchServices::class)->stage((int)$orderInfo['id'], $step);
+        }
 
         $res = $res1 && $resPink;
-        return false !== $res;
+        if (!$res) throw new ApiException('订单支付失败');
+        return true;
     }
 
 }

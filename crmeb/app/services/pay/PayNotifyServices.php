@@ -38,9 +38,8 @@ class PayNotifyServices
             $services = app()->make(StoreOrderSuccessServices::class);
             $orderInfo = $services->getOne(['order_id' => $order_id]);
             if (!$orderInfo) return true;
-            if ($orderInfo->paid) return true;
             return $services->paySuccess($orderInfo->toArray(), $payType, ['trade_no' => $trade_no]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }

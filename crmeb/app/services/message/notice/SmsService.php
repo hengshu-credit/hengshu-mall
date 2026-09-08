@@ -50,10 +50,12 @@ class SmsService extends NoticeService
                     $this->send(true, $phone, $data, $this->noticeInfo['mark']);
                     return true;
                 } catch (\Throwable $e) {
+                    \app\services\order\OrderPaymentDispatchServices::recordDeliveryFailure();
                     Log::error('发送短信失败,失败原因:' . $e->getMessage());
                 }
             }
         } catch (\Exception $e) {
+            \app\services\order\OrderPaymentDispatchServices::recordDeliveryFailure();
             Log::error($e->getMessage());
             return true;
         }

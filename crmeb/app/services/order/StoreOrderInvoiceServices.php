@@ -96,6 +96,9 @@ class StoreOrderInvoiceServices extends BaseServices
      */
     public function getOrderInvoiceList(array $where)
     {
+        if ((int)($where['uid'] ?? 0) <= 0) {
+            throw new ApiException('非法操作');
+        }
         [$page, $list] = $this->getPageValue();
         $where['is_pay'] = 1;
         $where['is_del'] = 0;
@@ -127,6 +130,7 @@ class StoreOrderInvoiceServices extends BaseServices
      */
     public function makeUp(int $uid, $order_id, int $invoice_id)
     {
+        if ($uid <= 0) throw new ApiException('非法操作');
         if (!$order_id) throw new AdminException('参数错误');
         if (!$invoice_id) throw new AdminException('请选择发票');
 
@@ -134,7 +138,7 @@ class StoreOrderInvoiceServices extends BaseServices
         $storeOrderServices = app()->make(StoreOrderServices::class);
         /** @var UserInvoiceServices $userInvoiceServices */
         $userInvoiceServices = app()->make(UserInvoiceServices::class);
-        $order = $storeOrderServices->getOne(['order_id|id' => $order_id, 'is_del' => 0]);
+        $order = $storeOrderServices->getOne(['order_id|id' => $order_id, 'uid' => $uid, 'is_del' => 0]);
         if (!$order) {
             throw new AdminException('订单不存在');
         }

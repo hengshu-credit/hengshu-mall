@@ -51,7 +51,7 @@ class StoreOrderInvoiceController
             ['order_id', 0],
             ['invoice_id', 0]
         ], true);
-        $uid = (int)$request->uid;
+        $uid = (int)$request->uid();
         return app('json')->success($this->services->makeUp($uid, $order_id, (int)$invoice_id));
     }
 
@@ -75,10 +75,12 @@ class StoreOrderInvoiceController
     public function detail(StoreOrderServices $services, Request $request, $uni)
     {
         if (!strlen(trim($uni))) return app('json')->fail('参数错误');
-        $order = $services->getUserOrderDetail($uni, (int)$request->uid(), []);
+        $uid = (int)$request->uid();
+        if ($uid <= 0) return app('json')->fail('非法操作');
+        $order = $services->getUserOrderDetail($uni, $uid, []);
         if (!$order) return app('json')->fail('订单不存在');
         $order = $order->toArray();
-        $orderInvoice = $this->services->getOne(['order_id' => $order['id']]);
+        $orderInvoice = $this->services->getOne(['order_id' => $order['id'], 'uid' => $uid, 'is_del' => 0]);
         $order['invoice'] = $orderInvoice;
         //是否开启门店自提
         $store_self_mention = sys_config('store_self_mention');
@@ -128,9 +130,13 @@ class StoreOrderInvoiceController
      * @email 442384644@qq.com
      * @date 2024/5/14
      */
-    public function downInvoice($id)
+    public function downInvoice(Request $request, $id)
     {
-        $info = $this->services->getOne(['id' => $id]);
+        $uid = (int)$request->uid();
+        if ($uid <= 0) return app('json')->fail('非法操作');
+        if ((int)$id <= 0) return app('json')->fail('参数错误');
+        $info = $this->services->getOne(['id' => (int)$id, 'uid' => $uid, 'is_del' => 0]);
+        if (!$info || empty($info['invoice_num'])) return app('json')->fail('数据不存在');
         $invoice = app()->make(ServeServices::class)->invoice();
         return app('json')->success($invoice->downloadInvoice($info['invoice_num']));
     }

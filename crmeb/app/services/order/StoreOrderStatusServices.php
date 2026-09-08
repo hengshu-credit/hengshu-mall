@@ -43,6 +43,7 @@ class StoreOrderStatusServices extends BaseServices
      */
     public function getStatusList(array $where)
     {
+        $where[] = ['change_type', '<>', OrderPaymentDispatchServices::PENDING];
         [$page, $limit] = $this->getPageValue();
         $list = $this->dao->getStatusList($where, $page, $limit);
         foreach ($list as &$item) {
