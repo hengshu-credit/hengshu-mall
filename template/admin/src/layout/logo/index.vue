@@ -1,14 +1,14 @@
 <template>
   <div
-    class="layout-logo"
-    v-if="$store.state.themeConfig.themeConfig.layout !== 'columns' && !$store.state.themeConfig.themeConfig.isCollapse"
+    :class="getThemeConfig.layout === 'columns' || getThemeConfig.isCollapse ? 'layout-logo-size' : 'layout-logo'"
     v-db-click
     @click="onThemeConfigChange"
   >
-    <img v-if="maxLogo" class="layout-logo-medium-img" :src="maxLogo" />
-  </div>
-  <div class="layout-logo-size" v-else v-db-click @click="onThemeConfigChange">
-    <img v-if="minLogo" class="layout-logo-size-img" :src="minLogo" />
+    <img v-if="minLogo || maxLogo" class="layout-logo-img" width="40" height="40" style="object-fit: contain; flex-shrink: 0" :src="minLogo || maxLogo" alt="衡枢真信" />
+    <div v-if="getThemeConfig.layout !== 'columns' && !getThemeConfig.isCollapse" class="layout-logo-text">
+      <div class="layout-logo-company">上海衡枢真信科技有限公司</div>
+      <div class="layout-logo-slogan">鉴真伪，铸信用，衡风险，枢定策</div>
+    </div>
   </div>
 </template>
 
@@ -64,42 +64,45 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.layout-logo {
-  width: 180px;
+.layout-logo,
+.layout-logo-size {
   height: 50px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  //   box-shadow: 0px 1px 4px rgba(0, 21, 41, 2%);
-  color: var(--prev-color-primary);
-  font-size: 16px;
+  flex-shrink: 0;
   cursor: pointer;
-  animation: logoAnimation 0.3s ease-in-out;
-  &:hover {
-    span {
-      opacity: 0.9;
-    }
-  }
-  &-medium-img {
-    width: 100%;
-    height: 50px;
-    margin-right: 5px;
-    position: relative;
-    top: 2px;
-  }
+  overflow: hidden;
+  animation: none;
+  transition: none;
 }
-.layout-logo-size {
-  width: 50px;
-  height: 50px;
-  display: flex;
-  cursor: pointer;
-  margin: auto;
-
-  &-img {
-    width: 50px;
-    height: 50px;
-    margin: auto;
-    animation: logoAnimation 0.3s ease-in-out;
-  }
+.layout-logo { width: 300px; }
+.layout-logo-size { width: 64px; }
+.layout-logo-img {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  margin-left: 12px;
+  object-fit: contain;
+  animation: none;
+  transition: none;
+}
+.layout-logo-text {
+  margin-left: 7px;
+  white-space: nowrap;
+}
+.layout-logo-company {
+  color: var(--prev-bg-menuBarColor);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.layout-logo-slogan {
+  color: #55d9ee;
+  font-size: 10px;
+  line-height: 16px;
+}
+.layout-header .layout-logo-company,
+.layout-header .layout-logo-slogan {
+  color: #ffffff;
 }
 </style>

@@ -2,6 +2,7 @@ services:
   # mysql 容器
   mysql:
     container_name: crmeb_mysql
+    restart: unless-stopped
     image: ccr.ccs.tencentyun.com/crmebky_php/mysql:v8.0.45
     ports:
       - "33061:3306"
@@ -12,20 +13,22 @@ services:
       MYSQL_PASSWORD: 123456
       MYSQL_DATABASE: crmeb
     volumes:
-      - ./mysql/data:/var/lib/mysql
-      - ./mysql/log:/var/log/mysql
+      - mysql_data:/var/lib/mysql
     networks:
       app_net:
         ipv4_address: 192.168.10.11
   # redis 容器
   redis:
     container_name: crmeb_redis
+    restart: unless-stopped
     image: ccr.ccs.tencentyun.com/crmebky_php/redis:v8.6.1
     ports:
       - "63791:6379"
     environment:
       TZ: Asia/Shanghai
       REDIS_PASSWORD: 123456
+    volumes:
+      - redis_data:/data
     networks:
       app_net:
         ipv4_address: 192.168.10.10
@@ -48,7 +51,7 @@ services:
       APP_DEBUG: true
       DEFAULT_TIMEZONE: Asia/Shanghai
     ports:
-      - "9000:9000"
+      - "9003:9000"
       - "40001:40001"
       - "40002:40002"
     working_dir: /var/www
@@ -85,3 +88,10 @@ networks:
       driver: default
       config:
         - subnet: 192.168.10.0/24
+volumes:
+  mysql_data:
+    external: true
+    name: crmeb_mysql_data
+  redis_data:
+    external: true
+    name: crmeb_redis_data

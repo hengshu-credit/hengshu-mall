@@ -22,6 +22,8 @@ crmeb/public/uploads/*
 # 构建产物
 /template/admin/dist/
 /template/admin/node_modules/
+/HBuilderX/
+/help/dev/.state/
 /template/uni-app/node_modules/
 /template/uni-app/unpackage/
 /template/uni-app/.hbuilderx/
@@ -77,3 +79,4 @@ Dockerfile
 .codebuddy/models.json
 .codebuddy/rules/project-intro.mdc
 docs/research
+HBuilderX

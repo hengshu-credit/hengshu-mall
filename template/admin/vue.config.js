@@ -77,6 +77,14 @@ module.exports = {
   // 这里写你调用接口的基础路径，来解决跨域，如果设置了代理，那你本地开发环境的axios的baseUrl要写为 '' ，即空字符串
   devServer: {
     port: 1617, // 端口
+    host: '0.0.0.0',
+    allowedHosts: ['localhost', 'host.docker.internal'],
+    sockPath: '/admin/sockjs-node',
+    historyApiFallback: {
+      index: '/admin/index.html',
+      disableDotRule: true,
+    },
+    proxy: require('../../help/dev/proxy.cjs')(),
   },
   publicPath: '/admin',
   assetsDir: 'system_static',

@@ -218,7 +218,22 @@
     },
     "h5" : {
         "devServer" : {
-            "https" : false
+            "port" : 8080,
+            "https" : false,
+            "host" : "0.0.0.0",
+            "allowedHosts" : ["localhost", "host.docker.internal"],
+            "proxy" : {
+                "/api" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
+                "/adminapi" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
+                "/kefuapi" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
+                "/outapi" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
+                "/surl" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
+                "/uploads" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
+                "/statics" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
+                "/assets" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
+                "/notice" : {"target": "http://127.0.0.1:40001", "ws": true, "changeOrigin": true, "pathRewrite": {"^/notice": ""}},
+                "/msg" : {"target": "http://127.0.0.1:40002", "ws": true, "changeOrigin": true, "pathRewrite": {"^/msg": ""}}
+            }
         },
         "router" : {
             "mode" : "history",
