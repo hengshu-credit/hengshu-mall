@@ -96,6 +96,7 @@
 </template>
 
 <script>
+import prefetchRead from '@/utils/prefetchRead';
 import { mapState } from 'vuex';
 import { userLabelAll, userLabelApi, userLabelAddApi, userLabelEdit, userLabelCreate } from '@/api/user';
 export default {
@@ -150,9 +151,9 @@ export default {
       this.$modalForm(userLabelAddApi(0, this.labelFrom.label_cate)).then(() => this.getList());
     },
     // 分组列表
-    getList() {
+    getList(prefetched) {
       this.loading = true;
-      userLabelApi(this.labelFrom)
+      (typeof prefetched === 'function' ? prefetched(this.labelFrom) : userLabelApi(this.labelFrom))
         .then(async (res) => {
           let data = res.data;
           this.labelLists = data.list;
@@ -189,7 +190,9 @@ export default {
     },
     // 标签分类
     getUserLabelAll(key) {
-      userLabelAll().then((res) => {
+      const categories = userLabelAll();
+      const list = !key && prefetchRead(userLabelApi, { ...this.labelFrom, label_cate: '' });
+      return categories.then((res) => {
         let obj = {
           name: '全部',
           id: '',
@@ -201,7 +204,7 @@ export default {
         if (!key) {
           this.sortName = res.data[0].id;
           this.labelFrom.label_cate = res.data[0].id;
-          this.getList();
+          this.getList(list);
         }
         this.labelSort = res.data;
       });

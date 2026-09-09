@@ -2,23 +2,22 @@
   <commonWrapper
     :config="wrapperConfig"
     class="footer"
-    :class="{ eject: storeInfo.id }"
+    :class="{ eject: storeInfo.id, 'commerce-actions': commerceActions }"
     :style="bagStyle"
   >
     <view class="acea-row row-between-wrapper px-20 py-14" style="height: 100%">
       <div class="acea-row">
         <block v-if="!isCustomEntry">
           <block v-for="(item_id, index) in showIcons" :key="index">
-            <navigator
+            <view
               v-if="item_id === 3"
               hover-class="none"
               class="item"
-              open-type="reLaunch"
-              url="/pages/index/index"
+              @click="goShop"
             >
               <view class="iconfont icon-shouye6"></view>
-              <view class="p_center">{{ $t(`首页`) }}</view>
-            </navigator>
+              <view class="p_center">{{ commerceActions ? $t(`店铺`) : $t(`首页`) }}</view>
+            </view>
             <view v-if="item_id === 1" @click="setCollect" class="item">
               <view
                 class="iconfont icon-shoucang1"
@@ -235,6 +234,7 @@ export default {
     commonWrapper,
   },
   props: {
+    commerceActions: { type: Boolean, default: false },
     diyData: {
       type: Object,
       default: () => ({}),
@@ -319,6 +319,7 @@ export default {
       return ""; // Fallback to CSS default
     },
     showIcons() {
+      if (this.commerceActions) return [0, 3, 1, 2];
       if (!this.bottomConfig) return [3, 1, 2, 0, 4, 5];
       return this.bottomConfig.showContent.type;
     },
@@ -336,6 +337,7 @@ export default {
       return this.bottomConfig && this.bottomConfig.menuConfig;
     },
     isCustomEntry() {
+      if (this.commerceActions) return false;
       return this.entryConfig && this.entryConfig.tabVal === 1;
     },
     isCustomImage() {
@@ -391,6 +393,14 @@ export default {
     },
   },
   methods: {
+    goShop() {
+      // #ifdef H5
+      return getApp().$router.push({ type: 'switchTab', path: '/pages/index/index' });
+      // #endif
+      // #ifndef H5
+      uni.switchTab({ url: '/pages/index/index' });
+      // #endif
+    },
     goCustomer() {
       getCustomer(`/pages/extension/customer_list/chat?productId=${this.storeInfo.id}`);
     },
@@ -425,6 +435,12 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.footer.commerce-actions {
+  .item { width: 60rpx; margin-right: 10rpx; flex-shrink: 0; font-size: 20rpx; }
+  .btn-box { min-width: 0; }
+  .bnt .bnts { font-size: 24rpx; white-space: nowrap; }
+  .bnt .joinCart { margin-right: 8rpx; }
+}
 .footer {
   position: fixed;
   bottom: 0;

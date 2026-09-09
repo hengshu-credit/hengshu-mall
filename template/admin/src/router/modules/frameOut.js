@@ -36,7 +36,7 @@ export default [
   // 客服
   {
     path: routePre + '/kefu',
-    name: `${pre}index`,
+    name: `${pre}adminRedirect`,
     meta: {
       auth: true,
       title: '客服管理',

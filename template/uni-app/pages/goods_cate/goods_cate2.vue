@@ -13,8 +13,8 @@
 		</view>
 		<view class="conter">
 			<view class="aside">
-				<scroll-view scroll-y="true" scroll-with-animation="true" style="height: calc(100% - 100rpx)">
-					<view class="item acea-row row-center-wrapper" :class="index == navActive ? 'on' : ''" v-for="(item, index) in categoryList" :key="index" @click="tapNav(index, item)">
+				<scroll-view scroll-y="true" scroll-with-animation="true" :scroll-into-view="'category-nav-' + navActive" style="height: calc(100% - 100rpx)">
+					<view class="item acea-row row-center-wrapper" :id="'category-nav-' + index" :class="index == navActive ? 'on' : ''" v-for="(item, index) in categoryList" :key="index" @click="tapNav(index, item)">
 						<text>{{ $t(item.cate_name) }}</text>
 					</view>
 				</scroll-view>
@@ -116,7 +116,9 @@
 </template>
 
 <script>
-import { getCategoryList, getProductslist, getAttr, postCartNum } from '@/api/store.js';
+import categoryData from '@/mixins/categoryData.js';
+import categorySelection from '@/mixins/categorySelection.js';
+import { getProductslist, getAttr, postCartNum } from '@/api/store.js';
 import { vcartList, getCartCounts, cartDel } from '@/api/order.js';
 import productWindow from '@/components/productWindow';
 import goodList from '@/components/catGoodList';
@@ -125,6 +127,7 @@ import { mapGetters } from 'vuex';
 import { goShopDetail } from '@/libs/order.js';
 import { toLogin } from '@/libs/login.js';
 export default {
+	mixins: [categoryData, categorySelection],
 	computed: mapGetters(['isLogin', 'uid']),
 	components: {
 		productWindow,
@@ -188,12 +191,9 @@ export default {
 			this.getCartNum();
 			this.getCartList(1);
 		}
-		uni.$on('uploadCatData', () => {
-			this.getAllCategory(1);
-			this.getCartNum();
-		});
 	},
 	methods: {
+		refreshCategoryCart() { this.getCartNum(); },
 		jumpIndex() {
 			this.$emit('jumpIndex');
 		},
@@ -394,7 +394,10 @@ export default {
 		productslist: function () {
 			let that = this;
 			if (that.loadend) return;
-			if (that.loading) return;
+			const categoryKey = JSON.stringify([that.cid, that.sid]);
+			if (that.loading && that._loadingCategoryKey === categoryKey) return;
+			that._loadingCategoryKey = categoryKey;
+			const requestId = that._productRequestId = (that._productRequestId || 0) + 1;
 			that.loading = true;
 			that.loadTitle = '';
 			getProductslist({
@@ -405,6 +408,7 @@ export default {
 				sid: that.sid
 			})
 				.then((res) => {
+					if (that._isDestroyed || requestId !== that._productRequestId) return;
 					let list = res.data,
 						loadend = list.length < that.limit;
 					that.tempArr = that.$util.SplitArray(list, that.tempArr);
@@ -416,6 +420,7 @@ export default {
 					that.page = that.page + 1;
 				})
 				.catch((err) => {
+					if (that._isDestroyed || requestId !== that._productRequestId) return;
 					(that.loading = false), (that.loadTitle = that.$t(`加载更多`));
 				});
 		},
@@ -646,51 +651,7 @@ export default {
 			this.iSlong = true;
 		},
 		getAllCategory: function (type) {
-			let that = this;
-			if (type || !uni.getStorageSync('CAT2_DATA')) {
-				getCategoryList().then((res) => {
-					uni.setStorageSync('CAT2_DATA', res.data);
-					let data = res.data;
-					data.forEach((item) => {
-						item.children.unshift({
-							id: 0,
-							cate_name: that.$t(`全部`)
-						});
-					});
-					that.categoryTitle = data[0].cate_name;
-					that.cid = data[0].id;
-					that.sid = 0;
-					that.navActive = 0;
-					that.tabClick = 0;
-					that.categoryList = data;
-					that.page = 1;
-					that.loadend = false;
-					that.tempArr = [];
-					that.categoryErList = res.data[0].children ? res.data[0].children : [];
-					that.productslist();
-				});
-			} else {
-				let data = uni.getStorageSync('CAT2_DATA');
-				data.forEach((item) => {
-					item.children.unshift({
-						id: 0,
-						cate_name: that.$t(`全部`)
-					});
-				});
-				if (!that.cid) {
-					that.categoryTitle = data[0].cate_name;
-					that.cid = data[0].id;
-					that.sid = 0;
-					that.navActive = 0;
-					that.tabClick = 0;
-					that.categoryList = data;
-					that.categoryErList = data[0].children ? data[0].children : [];
-					that.page = 1;
-					that.loadend = false;
-					that.tempArr = [];
-				}
-				that.productslist();
-			}
+			return this.loadProductCategories(type, 'CAT2_DATA');
 		},
 		tapNav(index, item) {
 			let list = this.categoryList[index];

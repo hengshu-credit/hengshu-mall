@@ -4,7 +4,12 @@
 			<view class="header bgcolor" :style="'background-image: url(' + sginBg + ');'">
 				<view class="headerCon acea-row row-between-wrapper">
 					<view class="left acea-row row-between-wrapper">
-						<img :src="sginTip" alt="" srcset="" />
+						<easy-loadimage class="sign-title-image" :image-src="sginTip" width="388rpx" height="128rpx" loading-mode="sign-title-loading">
+							<view slot="placeholder" class="sign-title-placeholder">
+								<text class="title">{{ $t(`每日签到活动`) }}</text>
+								<text class="subtitle">{{ $t(`领取惊喜礼包`) }}</text>
+							</view>
+						</easy-loadimage>
 					</view>
 					<navigator class="right acea-row row-middle" hover-class="none" url="/pages/users/user_sgin_list/index">
 						<view>{{ $t(`明细`) }}</view>
@@ -29,7 +34,7 @@
 							<view class="row" :class="{ 'sgin-day': e.sign_day, 'last-day': e.is_sign }" v-for="(e, i) in item"
 								:key="i">
 								<view class="type-img">
-									<img v-if="!e.is_sign" :src="getTypeImg(e.type, e.is_sign)" alt="" srcset="" />
+									<easy-loadimage v-if="!e.is_sign" :image-src="getTypeImg(e.type, e.is_sign)" width="100%" height="100%" />
 									<text v-else class="iconfont icon-xuanzhong1"></text>
 								</view>
 								<view class="venus">{{ e.day }}</view>
@@ -43,7 +48,7 @@
 								<view class="row">
 									<view class="num">+{{ e.point }}</view>
 									<view class="type-img">
-										<img v-if="!e.is_sign" :src="getTypeImg(e.type, e.is_sign)" alt="" srcset="" />
+										<easy-loadimage v-if="!e.is_sign" :image-src="getTypeImg(e.type, e.is_sign)" width="100%" height="100%" />
 										<text v-else class="iconfont icon-xuanzhong1"></text>
 									</view>
 								</view>
@@ -57,7 +62,7 @@
 					<button class="but bg-color" formType="submit">{{ $t(`立即签到`) }}</button>
 				</form>
 				<view class="tip" v-if="nextContinuousDays > 0">
-					<img :src="`${imgHost}/statics/images/sgin_icon_4.png`" alt="" />
+					<easy-loadimage class="reward-tip-image" :image-src="`${imgHost}/statics/images/sgin_icon_4.png`" width="26rpx" height="26rpx" />
 					再连续签到{{ nextContinuousDays }}天，可额外获得惊喜礼包
 				</view>
 				<view class="lock"></view>
@@ -72,7 +77,7 @@
 					<view class="data">{{ $t(`天`) }}</view>
 				</view>
 				<view class="tip2" v-if="nextCumulativeDays > 0">
-					<img :src="`${imgHost}/statics/images/sgin_icon_4.png`" alt="" />
+					<easy-loadimage class="reward-tip-image" :image-src="`${imgHost}/statics/images/sgin_icon_4.png`" width="26rpx" height="26rpx" />
 					{{ $t(`再累计签到`) }}{{ nextCumulativeDays }}{{ $t(`天，可额外获得惊喜礼包`) }}
 				</view>
 				<view class="list3" v-if="signList.length">
@@ -93,7 +98,7 @@
 				<view class="signTipLight loadingpic"></view>
 				<view class="signTipCon">
 					<view class="signHeight">
-						<image src="../static/signH.png"></image>
+						<easy-loadimage :image-src="signSuccessImage" width="100%" height="100%" />
 					</view>
 					<view class="state">{{ $t(`签到成功`) }}</view>
 					<view class="integral">{{ $t(`获得`) }}{{ integral }}{{ $t(`积分`) }}</view>
@@ -127,6 +132,7 @@
 		colorChange
 	} from '@/api/api.js';
 	import colors from '@/mixins/color';
+	import signSuccessImage from '../static/signH.png';
 	// #ifdef MP
 	import authorize from '@/components/Authorize';
 	// #endif
@@ -142,6 +148,7 @@
 		mixins: [colors],
 		data() {
 			return {
+				signSuccessImage,
 				active: false,
 				userInfo: {},
 				signCount: [],
@@ -170,6 +177,7 @@
 			isLogin: {
 				handler: function(newV, oldV) {
 					if (newV) {
+						this.getColor();
 						this.getUserInfo();
 						this.getSignSysteam();
 						this.getSignList();
@@ -193,6 +201,7 @@
 			 * 授权回调
 			 */
 			onLoadFun: function() {
+				this.getColor();
 				this.getUserInfo();
 				this.getSignSysteam();
 				this.getSignList();
@@ -202,14 +211,18 @@
 				this.isShowAuth = e;
 			},
 			getColor() {
-				colorChange('color_change').then((res) => {
-					this.sginBg = `${this.imgHost}/statics/images/sgin_bg_${res.data.status}.png`;
-					this.sginTip = `${this.imgHost}/statics/images/sgin_tip_${res.data.status}.png`;
-					let theme = ['#1db0fc', '#42CA4D', '#e93323', '#ff448f', '#FE5C2D'];
-					uni.setNavigationBarColor({
-						frontColor: '#ffffff', // 必写项
-						backgroundColor: theme[res.data.status - 1] // 必写项
-					});
+				return colorChange('color_change')
+					.then(res => this.setSignTheme(res.data && res.data.status))
+					.catch(() => this.setSignTheme(3));
+			},
+			setSignTheme(value) {
+				const status = [1, 2, 3, 4, 5].includes(Number(value)) ? Number(value) : 3;
+				this.sginBg = `${this.imgHost}/statics/images/sgin_bg_${status}.png`;
+				this.sginTip = `${this.imgHost}/statics/images/sgin_tip_${status}.png`;
+				const theme = ['#1db0fc', '#42CA4D', '#e93323', '#ff448f', '#FE5C2D'];
+				uni.setNavigationBarColor({
+					frontColor: '#ffffff',
+					backgroundColor: theme[status - 1]
 				});
 			},
 			/**
@@ -375,6 +388,7 @@
 
 	.sign .header {
 		width: 100%;
+		background-color: var(--view-theme, #e93323);
 	}
 
 	.sign .header .headerCon {
@@ -388,10 +402,32 @@
 		color: #fff;
 		font-weight: bold;
 
-		img {
+		.sign-title-image {
 			width: 388rpx;
 			height: 128rpx;
 			margin-top: 56rpx;
+		}
+	}
+
+	.sign-title-placeholder {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		align-items: flex-start;
+
+		.title {
+			font-size: 48rpx;
+			line-height: 1.3;
+			color: #fff;
+		}
+
+		.subtitle {
+			padding: 6rpx 20rpx;
+			border-radius: 6rpx;
+			background: #fff;
+			color: var(--view-theme, #e93323);
+			font-size: 24rpx;
 		}
 	}
 
@@ -454,9 +490,10 @@
 			line-height: 34rpx;
 			margin-top: 20rpx;
 
-			img {
+			.reward-tip-image {
 				width: 26rpx;
 				height: 26rpx;
+				flex-shrink: 0;
 				margin-right: 10rpx;
 				margin-bottom: 1rpx;
 			}
@@ -644,11 +681,6 @@
 				width: 40rpx;
 				height: 40rpx;
 
-				img {
-					width: 100%;
-					height: 100%;
-				}
-
 				.icon-xuanzhong1 {
 					font-size: 40rpx;
 					color: var(--view-theme);
@@ -784,9 +816,10 @@
 		align-items: center;
 		justify-content: center;
 
-		img {
+		.reward-tip-image {
 			width: 26rpx;
 			height: 26rpx;
+			flex-shrink: 0;
 			margin-right: 10rpx;
 			margin-bottom: 1rpx;
 		}

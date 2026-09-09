@@ -47,7 +47,7 @@ export default {
     },
     {
       path: 'agent/statistics',
-      name: `${pre}agent`,
+      name: `${pre}agentStatistics`,
       meta: {
         auth: ['agent-division-statistics'],
         title: '事业部统计',
@@ -56,7 +56,7 @@ export default {
     },
     {
       path: 'agent/applyList',
-      name: `${pre}agent`,
+      name: `${pre}agentApplyList`,
       meta: {
         auth: ['agent-division-agent-applyList'],
         title: '代理商申请',
@@ -65,7 +65,7 @@ export default {
     },
     {
       path: 'agent/agreement',
-      name: `${pre}agent`,
+      name: `${pre}agentAgreement`,
       meta: {
         auth: ['agent-division-agent-agreement'],
         title: '代理商规则',

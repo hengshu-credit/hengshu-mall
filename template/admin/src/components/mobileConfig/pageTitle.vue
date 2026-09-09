@@ -99,7 +99,6 @@ export default {
   },
   created() {
     let state = this.$store.state.mobildConfig;
-    console.log(state, 'statestate');
     this.value = state.pageTitle;
     this.name = state.pageName;
     this.isShow = state.pageShow ? true : false;

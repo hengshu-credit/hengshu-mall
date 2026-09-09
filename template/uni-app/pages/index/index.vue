@@ -505,9 +505,7 @@ export default {
 			 }*/
     bindSortId(data) {
       if (data.dataType.tabVal == 1) {
-        uni.navigateTo({
-          url: `/pages/goods/goods_list/index?cid=${data.classPage.id}&title=${data.classPage.name}`,
-        });
+        this.$util.JumpPath(`/pages/goods/goods_list/index?cid=${data.classPage.id}&title=${encodeURIComponent(data.classPage.name)}`);
       } else if (data.text.val == '首页') {
         uni.switchTab({
           url: `/pages/index/index`,

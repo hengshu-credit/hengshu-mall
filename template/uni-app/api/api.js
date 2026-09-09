@@ -535,6 +535,7 @@ export function getCrmebCopyRight() {
     {},
     {
       noAuth: true,
+      dedupe: true,
     },
   );
 }

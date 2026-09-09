@@ -61,10 +61,9 @@
 </template>
 
 <script>
+import { resolveCategoryTarget } from '@/utils/categoryNavigation.js';
+	import categoryData from '@/mixins/categoryData.js';
 	let sysHeight = uni.getWindowInfo().statusBarHeight + 'px';
-	import {
-		getCategoryList
-	} from '@/api/store.js';
 	import {
 		mapState,
 		mapGetters
@@ -75,6 +74,11 @@
 	import pageFooter from '@/components/pageFooter/index.vue'
 	const app = getApp();
 	export default {
+		mixins: [categoryData],
+		props: { categoryTarget: { type: Object, default: () => ({ cid: 0, sid: 0 }) } },
+		watch: {
+			categoryTarget: { deep: true, handler() { this.positionCategory(); } },
+		},
 		components: {
 			pageFooter
 		},
@@ -121,11 +125,13 @@
 			let curRoute = routes[routes.length - 1].route
 			this.activeRouter = '/' + curRoute
 			!that.productList.length && this.getAllCategory(1);
-			uni.$on('uploadCatData', () => {
-				this.getAllCategory(1);
-			})
 		},
 		methods: {
+			positionCategory() {
+				if (!this.categoryTarget.cid && !this.categoryTarget.sid) return;
+				const selected = resolveCategoryTarget(this.productList, this.categoryTarget);
+				if (selected) this.$nextTick(() => this.tap(selected.index, 'b' + selected.index));
+			},
 			getNav() {
 				getNavigation().then(res => {
 					this.newData = res.data
@@ -150,6 +156,11 @@
 			infoScroll: function() {
 				let that = this;
 				let len = that.productList.length;
+				if (!len) {
+					this.number = 0;
+					this.hightArr = [];
+					return;
+				}
 				this.number = that.productList[len - 1].children.length;
 				//设置商品列表高度
 				uni.getSystemInfo({
@@ -157,19 +168,12 @@
 						that.height = (res.windowHeight) * (750 / res.windowWidth) - 98;
 					},
 				});
-				let height = 0;
-				let hightArr = [];
-				for (let i = 0; i < len; i++) {
-					//获取元素所在位置
-					let query = uni.createSelectorQuery().in(this);
-					let idView = "#b" + i;
-					query.select(idView).boundingClientRect();
-					query.exec(function(res) {
-						let top = res[0].top;
-						hightArr.push(top);
-						that.hightArr = hightArr
-					});
-				};
+				// Measure the ordered sections in one layout pass and update once.
+				const query = uni.createSelectorQuery().in(this);
+				query.selectAll('.listw').boundingClientRect();
+				query.exec((res) => {
+					if (!this._isDestroyed) this.hightArr = (res[0] || []).map(rect => rect.top);
+				});
 			},
 			tap: function(index, id) {
 				this.toView = id;
@@ -180,22 +184,24 @@
 			getAllCategory: function(type) {
 				let that = this;
 				if (type || !uni.getStorageSync('CAT1_DATA')) {
-					getCategoryList().then(res => {
+					this.loadCategoryData().then(res => {
+						if (this._isDestroyed) return;
 						uni.setStorageSync('CAT1_DATA', res.data)
 						that.productList = res.data;
 						that.$nextTick(res => {
 							that.infoScroll();
+							that.positionCategory();
 						})
 					})
 				} else {
 					that.productList = uni.getStorageSync('CAT1_DATA')
 					that.$nextTick(res => {
 						that.infoScroll();
+						that.positionCategory();
 					})
 				}
 			},
 			scroll: function(e) {
-				console.log(e)
 				let scrollTop = e.detail.scrollTop;
 				let scrollArr = this.hightArr;
 				uni.$emit('scroll');
@@ -203,16 +209,14 @@
 					this.$set(this, 'lock', false);
 					return;
 				}
-				for (let i = 0; i < scrollArr.length; i++) {
-					if (scrollTop >= 0 && scrollTop < scrollArr[1] - scrollArr[0]) {
-						this.navActive = 0
-					} else if (scrollTop >= scrollArr[i] - scrollArr[0] && scrollTop < scrollArr[i + 1] - scrollArr[
-							0]) {
-						this.navActive = i
-					} else if (scrollTop >= scrollArr[scrollArr.length - 1] - scrollArr[0]) {
-						this.navActive = scrollArr.length - 1
-					}
+				if (!scrollArr.length || scrollTop < 0) return;
+				let low = 0, high = scrollArr.length - 1;
+				while (low < high) {
+					const middle = Math.ceil((low + high) / 2);
+					if (scrollTop >= scrollArr[middle] - scrollArr[0]) low = middle;
+					else high = middle - 1;
 				}
+				if (this.navActive !== low) this.navActive = low;
 			},
 			searchSubmitValue: function(e) {
 				if (this.$util.trim(e.detail.value).length > 0)

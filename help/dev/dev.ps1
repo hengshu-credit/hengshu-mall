@@ -1,4 +1,4 @@
-param([ValidateSet('Start', 'Stop', 'Status', 'RestartPhp')][string]$Action = 'Start')
+param([ValidateSet('Start', 'Stop', 'Status', 'RestartPhp', 'SyncVendor')][string]$Action = 'Start')
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -53,6 +53,20 @@ function Show-Status {
 
 if ($Action -eq 'Status') { Show-Status; return }
 if ($Action -eq 'RestartPhp') { Invoke-Compose restart phpfpm; return }
+if ($Action -eq 'SyncVendor') {
+    # Rebuild generated dependencies from the authoritative Windows vendor tree.
+    # Remove only the two containers that mount it; database/runtime volumes stay.
+    if (!(Test-Path (Join-Path $projectRoot 'crmeb/vendor/autoload.php'))) {
+        throw 'Windows vendor/autoload.php is missing. Restore dependencies before syncing.'
+    }
+    Invoke-Compose stop nginx phpfpm
+    Invoke-Compose rm -f nginx phpfpm
+    & docker volume rm crmeb_php_vendor
+    if ($LASTEXITCODE -ne 0) { throw 'Could not recreate the PHP vendor volume.' }
+    Invoke-Compose run --rm --no-deps php-storage-init
+    Invoke-Compose up -d phpfpm nginx
+    return
+}
 if ($Action -eq 'Stop') {
     $admin = Get-DevListener 1617 '*vue-cli-service.js*serve*'
     Assert-ProcessOwner $admin 'admin'
@@ -78,6 +92,7 @@ if (!(Test-Path -LiteralPath $hxCli) -or !(Test-Path -LiteralPath $nodeExe)) {
 }
 New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
 Invoke-Compose config --quiet
+Invoke-Compose run --rm --no-deps php-storage-init
 Invoke-Compose up -d
 
 $existingAdmin = Get-DevListener 1617 '*vue-cli-service.js*serve*'

@@ -102,7 +102,13 @@
 	} from '@/config/app';
 	import colors from '@/mixins/color.js';
 	export default {
-		computed: mapGetters(['uid']),
+		computed: {
+			...mapGetters(['uid']),
+			showEmptyCategoryNavigation() {
+				return (Number(this.where.cid) > 0 || Number(this.where.sid) > 0) &&
+					!this.loading && this.where.page > 1 && this.productList.length === 0;
+			}
+		},
 		components: {
 			recommend,
 			home

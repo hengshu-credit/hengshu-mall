@@ -175,7 +175,7 @@
                     ref="xTree"
                     :column-config="{ resizable: true }"
                     row-id="id"
-                    :tree-config="{ children: 'attrs', reserve: true }"
+                    :tree-config="{ childrenField: 'attrs', reserve: true }"
                     @checkbox-all="checkboxAll"
                     @checkbox-change="checkboxItem"
                     :data="searchTableData.length || keyword ? searchTableData : tableData"

@@ -8,7 +8,7 @@
 // | Author: CRMEB Team <admin@crmeb.com>
 // +----------------------------------------------------------------------
 
-import request from '@/libs/request';
+import request, { requestSharedConfig } from '@/libs/request';
 
 /*
  * 登录
@@ -565,7 +565,7 @@ export function productApi(id) {
  * @constructor
  */
 export function getWorkermanUrl() {
-  return request({
+  return requestSharedConfig({
     url: `get_workerman_url`,
     method: 'get',
   });

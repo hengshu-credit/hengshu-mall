@@ -7,7 +7,6 @@
 // +----------------------------------------------------------------------
 // | Author: CRMEB Team <admin@crmeb.com>
 // +----------------------------------------------------------------------
-import { export_json_to_excel } from '../vendor/Export2Excel';
 
 /**
  * @method exportExcel
@@ -18,7 +17,9 @@ import { export_json_to_excel } from '../vendor/Export2Excel';
  **/
 export default function exportExcel(header, filterVal, filename, tableData) {
   var data = formatJson(filterVal, tableData);
-  export_json_to_excel(header, data, filename);
+  return import(/* webpackChunkName: "admin-export" */ '../vendor/Export2Excel').then(({ export_json_to_excel }) => {
+    export_json_to_excel(header, data, filename);
+  });
 }
 
 function formatJson(filterVal, tableData) {

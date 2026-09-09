@@ -12,6 +12,7 @@ import { TOKENNAME, HTTP_REQUEST_URL } from "../config/app.js";
 import store from "../store";
 import i18n from "./lang.js";
 import { pathToBase64 } from "@/plugin/image-tools/index.js";
+import { CATEGORY_PAGE, categoryLink, openCategoryPage, openHomeCategory } from './categoryNavigation.js';
 // #ifdef APP-PLUS
 import permision from "./permission.js";
 // #endif
@@ -1047,6 +1048,13 @@ export default {
    * @param url 跳转路径
    */
   JumpPath: function (url) {
+    const link = categoryLink(url);
+    if (link.pathname === CATEGORY_PAGE) return openCategoryPage(link.options);
+    const pages = getCurrentPages();
+    if (pages.length && pages[pages.length - 1].route === 'pages/index/index' &&
+      link.pathname === '/pages/goods/goods_list/index' && (link.target.cid || link.target.sid)) {
+      return openHomeCategory(url);
+    }
     let arr = url.split("@APPID=");
     if (arr.length > 1) {
       //#ifdef MP

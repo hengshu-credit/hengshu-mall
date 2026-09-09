@@ -227,7 +227,7 @@ export default {
     },
     {
       path: 'system_group_data/search/:id',
-      name: `${pre}groupDataNew`,
+      name: `${pre}groupDataSearch`,
       meta: {
         auth: ['setting-system-group_data-search'],
         title: '热门搜索',
@@ -642,7 +642,7 @@ export default {
     },
     {
       path: 'agreement',
-      name: `${pre}notification`,
+      name: `${pre}agreement`,
       meta: {
         auth: ['setting-agreement'],
         title: '协议设置',
@@ -651,7 +651,7 @@ export default {
     },
     {
       path: 'other_config/out/:type?/:tab_id?',
-      name: `${pre}other_print`,
+      name: `${pre}other_out`,
       meta: {
         auth: ['setting-other-out'],
         title: '对外接口配置',
@@ -669,7 +669,7 @@ export default {
     },
     {
       path: 'system_out_interface/index',
-      name: `${pre}systemOutAccount`,
+      name: `${pre}systemOutInterface`,
       meta: {
         auth: ['setting-system-out-interface-index'],
         title: '接口文档',

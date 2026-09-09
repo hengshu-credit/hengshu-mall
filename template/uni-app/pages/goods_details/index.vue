@@ -63,6 +63,7 @@
             :replyCount="replyCount"
             :replyChance="replyChance"
             :productId="id"
+            :goodList="good_list"
             :couponList="couponList"
             :activity="activity"
             :attr="attr"
@@ -82,6 +83,8 @@
       </view>
 
       <productBottom
+        :commerceActions="true"
+        :routineContact="routineContact"
         :diyData="diyData"
         :storeInfo="storeInfo"
         :is_gift="is_gift"
@@ -222,12 +225,9 @@
           @click="H5ShareBox = false"
         ></image>
       </view>
-      <kefuIcon
-        :ids="parseInt(id)"
-        :routineContact="routineContact"
-        :storeInfo="storeInfo"
-        :goodsCon="1"
-      ></kefuIcon>
+      <view v-if="showBackToTop" class="detail-back-top" role="button" :aria-label="$t(`回到顶部`)" @click="backToTop">
+        <text class="iconfont icon-xiangshang"></text>
+      </view>
       <!-- #ifdef H5 || APP-PLUS -->
       <zb-code
         ref="qrcode"
@@ -281,7 +281,6 @@ import swiperPrevie from "@/components/cusPreviewImg/swiperPrevie.vue";
 import couponListWindow from "@/components/couponListWindow";
 import productWindow from "@/components/productWindow";
 import shareRedPackets from "@/components/shareRedPackets";
-import kefuIcon from "@/components/kefuIcon";
 import menuIcon from "@/components/menuIcon.vue";
 import { updateURLParameter } from "@/utils";
 import ClipboardJS from "@/plugin/clipboard/clipboard.js";
@@ -305,7 +304,6 @@ export default {
     couponListWindow,
     productWindow,
     shareRedPackets,
-    kefuIcon,
     menuIcon,
     cusPreviewImg,
     swiperPrevie,
@@ -330,6 +328,7 @@ export default {
     let that = this;
     return {
       diyData: {},
+      showBackToTop: false,
       imgHost: HTTP_REQUEST_URL,
       sysHeight: sysHeight,
       noGoods: false,
@@ -543,6 +542,7 @@ export default {
   },
   onPageScroll(e) {
     let scrollY = e.scrollTop;
+    this.showBackToTop = scrollY > 400;
     let opacity = scrollY / 200;
     opacity = opacity > 1 ? 1 : opacity;
     this.opacity = opacity;
@@ -553,6 +553,7 @@ export default {
     uni.$emit("scroll");
   },
   methods: {
+    backToTop() { uni.pageScrollTo({ scrollTop: 0, duration: 250 }); },
     // 操作菜单
     moreNav() {
       this.currentPage = !this.currentPage;
@@ -1531,6 +1532,23 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.detail-back-top {
+  position: fixed;
+  right: 24rpx;
+  bottom: calc(132rpx + env(safe-area-inset-bottom));
+  z-index: 90;
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid #eee;
+  border-radius: 50%;
+  background: #fff;
+  color: #666;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, .08);
+  .iconfont { font-size: 36rpx; }
+}
 .iconfonts {
   color: #fff !important;
   font-size: 28rpx;

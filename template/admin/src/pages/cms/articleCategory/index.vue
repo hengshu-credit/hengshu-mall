@@ -30,10 +30,10 @@
       <el-button v-auth="['cms-category-create']" type="primary" v-db-click @click="add">添加文章分类</el-button>
       <vxe-table
         class="vxeTable mt14"
-        highlight-hover-row
+        :row-config="{ isHover: true }"
         :loading="loading"
         header-row-class-name="false"
-        :tree-config="{ children: 'children' }"
+        :tree-config="{ childrenField: 'children' }"
         :data="categoryList"
       >
         <vxe-table-column field="id" title="ID" tooltip width="80"></vxe-table-column>

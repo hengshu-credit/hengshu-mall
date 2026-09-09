@@ -177,7 +177,7 @@ export default {
     },
     {
       path: 'store_seckill/create_more/:id?/:copy?',
-      name: `${pre}storeSeckillCreate`,
+      name: `${pre}storeSeckillCreateMore`,
       meta: {
         auth: ['marketing-store_seckill-create-more'],
         title: '添加秒杀',

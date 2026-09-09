@@ -103,19 +103,19 @@ export default {
     if (!this.$store.state.app.tagNavList.length) {
       this.getTagsViewRoutes();
     }
-    if (this.$refs.tagsViews?.offsetWidth < this.$refs.scrollbarRef.$refs.wrap.scrollWidth) {
-      this.scrollTagIcon = true;
-    }
-    window.addEventListener('resize', () => {
-      if (this.$refs.tagsViews?.offsetWidth < this.$refs.scrollbarRef.$refs.wrap.scrollWidth) {
-        this.scrollTagIcon = true;
-      } else {
-        this.scrollTagIcon = false;
-      }
-    });
+    this.updateScrollTagIcon();
+    window.addEventListener('resize', this.updateScrollTagIcon);
+  },
+  beforeDestroy() {
+    window.removeEventListener('resize', this.updateScrollTagIcon);
   },
   methods: {
     ...mapMutations(['setBreadCrumb', 'setTagNavList', 'addTag', 'setLocal', 'setHomeRoute', 'closeTag']),
+    updateScrollTagIcon() {
+      const tagsViews = this.$refs.tagsViews;
+      const wrap = this.$refs.scrollbarRef?.$refs.wrap;
+      this.scrollTagIcon = Boolean(tagsViews && wrap && tagsViews.offsetWidth < wrap.scrollWidth);
+    },
     clickDropdown(e) {
       let data = { id: e, path: this.$route.path };
       this.onCurrentContextmenuClick(data);
@@ -294,13 +294,7 @@ export default {
       }
     },
     refreshIcon() {
-      this.$nextTick((e) => {
-        if (this.$refs.tagsViews?.offsetWidth < this.$refs.scrollbarRef.$refs.wrap.scrollWidth) {
-          this.scrollTagIcon = true;
-        } else {
-          this.scrollTagIcon = false;
-        }
-      });
+      this.$nextTick(this.updateScrollTagIcon);
     },
     // 1、刷新当前 tagsView：
     refreshCurrentTagsView(path) {

@@ -8,19 +8,11 @@
 // | Author: CRMEB Team <admin@crmeb.com>
 // +----------------------------------------------------------------------
 
-import $store from "@/store";
-import {
-	HTTP_REQUEST_URL
-} from "@/config/app.js";
-import {
-	VUE_APP_WS_URL
-} from "@/utils/index.js";
-import {
-	getServerType
-} from '@/api/api.js';
+import { getWorkermanUrl } from '@/api/kefu.js';
 const Socket = function() {
-
-	// this.ws.close(this.close.bind(this));
+	this.ws = null;
+	this.connected = false;
+	this.startId = 0;
 };
 
 
@@ -43,10 +35,12 @@ Socket.prototype = {
 	//   this.ws.close();
 	// },
 	onSocketOpen: function(my) {
+		this.connected = true;
 		uni.$emit('socketOpen', my)
 	},
 	init: function() {
 		var that = this;
+		clearInterval(this.timer);
 		this.timer = setInterval(function() {
 			that.send({
 				type: "ping"
@@ -54,44 +48,78 @@ Socket.prototype = {
 		}, 10000);
 	},
 	send: function(data) {
-		let datas = JSON.stringify(data)
-		return uni.sendSocketMessage({
-			data: datas
+		if (!this.ws || !this.connected) {
+			this.onError({ errMsg: 'Socket is not connected' });
+			return Promise.resolve(false);
+		}
+		return new Promise((resolve, reject) => {
+			this.ws.send({ data: JSON.stringify(data), success: () => resolve(true), fail: reject });
+		}).catch(error => {
+			this.onError(error);
+			return false;
 		});
 	},
 	onMessage: function(res) {
+		const task = this.ws;
 		const {
 			type,
-			data = {}
+			data = {},
+			close = false
 		} = JSON.parse(res.data);
-		uni.$emit(type, data)
+		if (type === 'error') this.onError(data);
+		else uni.$emit(type, data);
+		// A timeout handler may already have begun a new connection.
+		if (close && this.ws === task) this.onClose();
 	},
 
 	onClose: function() {
-		uni.closeSocket()
+		this.startId++;
+		const task = this.ws;
+		this.ws = null;
+		this.connected = false;
 		clearInterval(this.timer);
+		if (task) task.close();
 		uni.$emit("socket_close");
 	},
 	onError: function(e) {
 		uni.$emit("socket_error", e);
 	},
 	close: function() {
-		uni.closeSocket();
+		this.onClose();
 	},
-	onStart: function(token, form_type) {
-		let wssUrl = `${VUE_APP_WS_URL}`
-		this.ws = uni.connectSocket({
-			url: wssUrl + '?type=user&token=' + token + '&form_type=' + form_type,
-			header: {
-				'content-type': 'application/json'
-			},
-			method: 'GET',
-			success: (res) => {}
-		});
-		this.ws.onOpen(this.onSocketOpen.bind(this))
-		this.ws.onError(this.onError.bind(this));
-		this.ws.onMessage(this.onMessage.bind(this))
-		this.ws.onClose(this.onClose.bind(this));
+	onStart: async function(token, form_type) {
+		this.onClose();
+		const startId = this.startId;
+		try {
+			// The URL is asynchronous. Never connect using an empty or stale cache.
+			const response = await getWorkermanUrl();
+			if (startId !== this.startId) return false;
+			let url = response.data && response.data.chat;
+			if (typeof url !== 'string' || !/^wss?:\/\//.test(url)) throw new Error('Invalid chat socket URL');
+			// #ifdef H5
+			url = wss(url);
+			// #endif
+			const task = uni.connectSocket({
+				url: url + (url.includes('?') ? '&' : '?') + 'type=user&token=' + encodeURIComponent(token) + '&form_type=' + form_type,
+				header: { 'content-type': 'application/json' },
+				method: 'GET', success: () => {},
+			});
+			this.ws = task;
+			task.onOpen(event => { if (this.ws === task) this.onSocketOpen(event); });
+			task.onError(error => { if (this.ws === task) this.onError(error); });
+			task.onMessage(event => { if (this.ws === task) this.onMessage(event); });
+			task.onClose(() => {
+				if (this.ws !== task) return;
+				this.ws = null;
+				this.connected = false;
+				clearInterval(this.timer);
+				uni.$emit('socket_close');
+			});
+			return true;
+		} catch (error) {
+			if (startId === this.startId) this.onError(error);
+			return false;
+		}
 	}
 };
 

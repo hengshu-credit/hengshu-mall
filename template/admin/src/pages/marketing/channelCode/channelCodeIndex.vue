@@ -190,6 +190,7 @@
 </template>
 
 <script>
+import prefetchRead from '@/utils/prefetchRead';
 import { mapState } from 'vuex';
 import {
   wechatQrcodeList,
@@ -347,7 +348,9 @@ export default {
 
     // 获取分组
     getUserLabelAll(key) {
-      wechatQrcodeTree().then((res) => {
+      const categories = wechatQrcodeTree();
+      const list = !key && prefetchRead(wechatQrcodeList, { ...this.tableFrom, cate_id: '' });
+      return categories.then((res) => {
         let data = res.data.data;
         let obj = {
           cate_name: '全部',
@@ -360,7 +363,7 @@ export default {
         if (!key) {
           this.sortName = data[0].id;
           this.tableFrom.cate_id = data[0].id;
-          this.getList();
+          this.getList(list);
         }
         this.labelSort = data;
       });
@@ -477,9 +480,9 @@ export default {
         });
     },
     // 列表
-    getList() {
+    getList(prefetched) {
       this.loading = true;
-      wechatQrcodeList(this.tableFrom)
+      (typeof prefetched === 'function' ? prefetched(this.tableFrom) : wechatQrcodeList(this.tableFrom))
         .then(async (res) => {
           let data = res.data;
           this.tableList = data.list;

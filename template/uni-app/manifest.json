@@ -11,8 +11,8 @@
         "usingComponents" : true,
         "nvueCompiler" : "uni-app",
         "splashscreen" : {
-            "alwaysShowBeforeRender" : false,
-            "waiting" : false,
+            "alwaysShowBeforeRender" : true,
+            "waiting" : true,
             "autoclose" : true,
             "delay" : 0
         },
@@ -26,10 +26,17 @@
         "modules" : {
             "Payment" : {},
             "Share" : {},
-            "VideoPlayer" : {},
             "OAuth" : {},
             "Barcode" : {},
-            "Camera" : {}
+            "Camera" : {},
+            "Bluetooth" : {},
+            "FaceID" : {},
+            "Fingerprint" : {},
+            "Geolocation" : {},
+            "iBeacon" : {},
+            "Messaging" : {},
+            "Push" : {},
+            "UIWebview" : {}
         },
         "safearea" : {
             "bottom" : {
@@ -57,7 +64,8 @@
                     "<uses-permission android:name=\"android.permission.VIBRATE\"/>",
                     "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
                     "<uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\"/>",
-                    "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>"
+                    "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>",
+                    "<uses-permission android:name=\"android.permission.USE_FINGERPRINT\"/>"
                 ],
                 "abiFilters" : [ "armeabi-v7a", "arm64-v8a" ],
                 "permissionExternalStorage" : {
@@ -102,7 +110,8 @@
                         "__platform__" : [ "ios", "android" ],
                         "appid" : "wx277a269f3d736d67",
                         "UniversalLinks" : "https://bzapp.crmeb.net/uni-universallinks/__UNI__A3F1ED4/"
-                    }
+                    },
+                    "appleiap" : {}
                 },
                 "share" : {
                     "weixin" : {
@@ -110,11 +119,32 @@
                         "UniversalLinks" : "https://bzapp.crmeb.net/uni-universallinks/__UNI__A3F1ED4/"
                     }
                 },
-                "push" : {},
+                "push" : {
+                    "unipush" : {
+                        "version" : "2",
+                        "offline" : true,
+                        "hms" : {},
+                        "oppo" : {},
+                        "vivo" : {},
+                        "mi" : {},
+                        "meizu" : {},
+                        "honor" : {},
+                        "fcm" : {},
+                        "icons" : {
+                            "small" : {
+                                "ldpi" : "unpackage/res/icons/20x20.png",
+                                "mdpi" : "unpackage/res/icons/29x29.png",
+                                "hdpi" : "unpackage/res/icons/29x29.png",
+                                "xhdpi" : "unpackage/res/icons/40x40.png",
+                                "xxhdpi" : "unpackage/res/icons/72x72.png"
+                            }
+                        }
+                    }
+                },
                 "maps" : {
-                    "amap" : {
-                        "appkey_ios" : "aeb768547b9d752891e37e1ca0a2b66d",
-                        "appkey_android" : "41ec5c3f4d110ce02a326210fe147be8"
+                    "google" : {
+                        "APIKey_ios" : "",
+                        "APIKey_android" : ""
                     }
                 },
                 "oauth" : {
@@ -123,27 +153,24 @@
                         "appid" : "wx277a269f3d736d67",
                         "appsecret" : "bd08741a055c2ecac5826ff1c048464b",
                         "UniversalLinks" : "https://bzapp.crmeb.net/uni-universallinks/__UNI__A3F1ED4/"
-                    }
+                    },
+                    "univerify" : {}
                 },
                 "ad" : {},
                 "geolocation" : {
-                    "amap" : {
-                        "__platform__" : [ "ios", "android" ],
-                        "appkey_ios" : "aeb768547b9d752891e37e1ca0a2b66d",
-                        "appkey_android" : "41ec5c3f4d110ce02a326210fe147be8"
+                    "system" : {
+                        "__platform__" : [ "ios", "android" ]
                     }
                 },
-                "statics" : {
-                    "google" : {
-                        "config_ios" : "",
-                        "config_android" : ""
-                    }
-                }
+                "statics" : {}
             },
             "splashscreen" : {
                 "androidStyle" : "common",
                 "iosStyle" : "common",
-                "useOriginalMsgbox" : true
+                "useOriginalMsgbox" : true,
+                "android" : {
+                    "hdpi" : "static/images/hscredit.png"
+                }
             },
             "icons" : {
                 "android" : {
@@ -177,6 +204,9 @@
                     }
                 }
             }
+        },
+        "uniStatistics" : {
+            "enable" : true
         }
     },
     /* 快应用特有相关 */
@@ -205,34 +235,84 @@
             "startLocationUpdateBackground",
             "chooseAddress"
         ],
-        "__usePrivacyCheck__" : true
+        "__usePrivacyCheck__" : true,
+        "uniStatistics" : {
+            "enable" : true
+        }
     },
     "mp-alipay" : {
-        "usingComponents" : true
+        "usingComponents" : true,
+        "uniStatistics" : {
+            "enable" : false
+        }
     },
     "mp-baidu" : {
-        "usingComponents" : true
+        "usingComponents" : true,
+        "uniStatistics" : {
+            "enable" : false
+        }
     },
     "mp-toutiao" : {
-        "usingComponents" : true
+        "usingComponents" : true,
+        "uniStatistics" : {
+            "enable" : false
+        }
     },
     "h5" : {
         "devServer" : {
             "port" : 8080,
             "https" : false,
             "host" : "0.0.0.0",
-            "allowedHosts" : ["localhost", "host.docker.internal"],
+            "allowedHosts" : [ "localhost", "host.docker.internal" ],
             "proxy" : {
-                "/api" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
-                "/adminapi" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
-                "/kefuapi" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
-                "/outapi" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
-                "/surl" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
-                "/uploads" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
-                "/statics" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
-                "/assets" : {"target": "http://127.0.0.1:8011", "changeOrigin": true},
-                "/notice" : {"target": "http://127.0.0.1:40001", "ws": true, "changeOrigin": true, "pathRewrite": {"^/notice": ""}},
-                "/msg" : {"target": "http://127.0.0.1:40002", "ws": true, "changeOrigin": true, "pathRewrite": {"^/msg": ""}}
+                "/api" : {
+                    "target" : "http://127.0.0.1:8011",
+                    "changeOrigin" : true
+                },
+                "/adminapi" : {
+                    "target" : "http://127.0.0.1:8011",
+                    "changeOrigin" : true
+                },
+                "/kefuapi" : {
+                    "target" : "http://127.0.0.1:8011",
+                    "changeOrigin" : true
+                },
+                "/outapi" : {
+                    "target" : "http://127.0.0.1:8011",
+                    "changeOrigin" : true
+                },
+                "/surl" : {
+                    "target" : "http://127.0.0.1:8011",
+                    "changeOrigin" : true
+                },
+                "/uploads" : {
+                    "target" : "http://127.0.0.1:8011",
+                    "changeOrigin" : true
+                },
+                "/statics" : {
+                    "target" : "http://127.0.0.1:8011",
+                    "changeOrigin" : true
+                },
+                "/assets" : {
+                    "target" : "http://127.0.0.1:8011",
+                    "changeOrigin" : true
+                },
+                "/notice" : {
+                    "target" : "http://127.0.0.1:40001",
+                    "ws" : true,
+                    "changeOrigin" : true,
+                    "pathRewrite" : {
+                        "^/notice" : ""
+                    }
+                },
+                "/msg" : {
+                    "target" : "http://127.0.0.1:40002",
+                    "ws" : true,
+                    "changeOrigin" : true,
+                    "pathRewrite" : {
+                        "^/msg" : ""
+                    }
+                }
             }
         },
         "router" : {
@@ -256,7 +336,10 @@
         "async" : {
             "timeout" : 200000
         },
-        "title" : "加载中"
+        "title" : "加载中",
+        "uniStatistics" : {
+            "enable" : false
+        }
     },
     "plus" : {
         "statusbar" : {
@@ -264,7 +347,56 @@
         }
     },
     "_spaceID" : "679f0930-8f60-425c-9033-8c135f397ea5",
-    "lazyCodeLoading" : "requiredComponents"
+    "lazyCodeLoading" : "requiredComponents",
+    "uniStatistics" : {
+        "version" : "2",
+        "type" : "private",
+        "enable" : false
+    },
+    "mp-harmony" : {
+        "uniStatistics" : {
+            "enable" : false
+        }
+    },
+    "quickapp-webview-union" : {
+        "uniStatistics" : {
+            "enable" : false
+        }
+    },
+    "mp-xhs" : {
+        "uniStatistics" : {
+            "enable" : false
+        }
+    },
+    "quickapp-webview-huawei" : {
+        "uniStatistics" : {
+            "enable" : false
+        }
+    },
+    "mp-jd" : {
+        "uniStatistics" : {
+            "enable" : false
+        }
+    },
+    "mp-lark" : {
+        "uniStatistics" : {
+            "enable" : false
+        }
+    },
+    "mp-kuaishou" : {
+        "uniStatistics" : {
+            "enable" : false
+        }
+    },
+    "mp-qq" : {
+        "uniStatistics" : {
+            "enable" : false
+        }
+    },
+    "app-harmony" : {
+        "uniStatistics" : {
+            "enable" : false
+        }
+    }
 }
 /* ios打包配置 */
-

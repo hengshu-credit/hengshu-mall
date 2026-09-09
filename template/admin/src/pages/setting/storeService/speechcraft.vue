@@ -117,6 +117,7 @@
 </template>
 
 <script>
+import prefetchRead from '@/utils/prefetchRead';
 import { mapState } from 'vuex';
 import {
   wechatSpeechcraft,
@@ -249,7 +250,9 @@ export default {
   },
   methods: {
     getUserLabelAll(key) {
-      speechcraftcate().then((res) => {
+      const categories = speechcraftcate();
+      const list = !key && prefetchRead(wechatSpeechcraft, { ...this.tableFrom, cate_id: '' });
+      return categories.then((res) => {
         let data = res.data.data;
         let obj = {
           name: '全部',
@@ -262,7 +265,7 @@ export default {
         if (!key) {
           this.sortName = data[0].id;
           this.tableFrom.cate_id = data[0].id;
-          this.getList();
+          this.getList(list);
         }
         this.labelSort = data;
       });
@@ -494,9 +497,9 @@ export default {
         });
     },
     // 列表
-    getList() {
+    getList(prefetched) {
       this.loading = true;
-      wechatSpeechcraft(this.tableFrom)
+      (typeof prefetched === 'function' ? prefetched(this.tableFrom) : wechatSpeechcraft(this.tableFrom))
         .then(async (res) => {
           let data = res.data;
           this.tableList = data.list;

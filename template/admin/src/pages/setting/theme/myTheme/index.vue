@@ -117,7 +117,6 @@ import ThemeImport from './components/themeImport.vue';
 import ThemeSelectDialog from '../components/themeSelect/index.vue';
 import { getThemeList, exportTheme, getExportRecord, useTheme, importTheme, deleteTheme } from '@/api/diy';
 import QRCode from 'qrcodejs2';
-import { mapState } from 'vuex';
 import Setting from '@/setting';
 
 export default {
@@ -125,9 +124,6 @@ export default {
   components: {
     ThemeImport,
     ThemeSelectDialog,
-  },
-  computed: {
-    ...mapState('mobildConfig'),
   },
   data() {
     return {

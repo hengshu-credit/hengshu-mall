@@ -1,6 +1,5 @@
 <template>
   <div class="layout-navbars-breadcrumb">
-    <!-- {{[...breadCrumbList,...crumbPast]}} -->
     <i
       v-if="collapseShow"
       class="layout-navbars-breadcrumb-icon"
@@ -10,8 +9,8 @@
     ></i>
     <el-breadcrumb class="layout-navbars-breadcrumb-hide" v-if="isShowcrumb" :style="{ display: isShowBreadcrumb }">
       <transition-group name="breadcrumb" mode="out-in">
-        <el-breadcrumb-item v-for="(v, k) in [...breadCrumbList, ...crumbPast]" :key="v.path">
-          <span v-if="k == 1" class="layout-navbars-breadcrumb-span">
+        <el-breadcrumb-item v-for="(v, k) in breadcrumbItems" :key="v.path">
+          <span v-if="k === breadcrumbItems.length - 1" class="layout-navbars-breadcrumb-span">
             <Icon
               :type="v.icon"
               class="ivu-icon layout-navbars-breadcrumb-iconfont"
@@ -33,49 +32,22 @@
 
 <script>
 import { Local } from '@/utils/storage.js';
-import { R } from '@/libs/util';
-import { getMenuopen } from '@/libs/util';
 
 export default {
   name: 'layoutBreadcrumb',
-  data() {
-    return {
-      breadcrumbList: [],
-      routeSplit: [],
-      routeSplitFirst: '',
-      routeSplitIndex: 1,
-    };
-  },
   computed: {
-    breadCrumbList() {
-      let menuList = this.$store.state.menus.menusName;
-      let openMenus = getMenuopen(this.$route, menuList);
-      let allMenuList = R(menuList, []);
-      let selectMenu = [];
-      if (allMenuList.length > 0) {
-        openMenus.forEach((i) => {
-          allMenuList.forEach((a) => {
-            if (i === a.path) {
-              selectMenu.push(a);
-            }
-          });
-        });
-      }
-      return selectMenu;
-    },
-    crumbPast() {
-      let that = this;
-      let menuList = that.$store.state.menus.menusName;
-      let allMenuList = R(menuList, []);
-      let selectMenu = [];
-      if (allMenuList.length > 0) {
-        allMenuList.forEach((a) => {
-          if (that.$route.path === a.path) {
-            selectMenu.push(a);
-          }
-        });
-      }
-      return selectMenu;
+    breadcrumbItems() {
+      const findBranch = (menus) => {
+        for (const menu of menus) {
+          const children = findBranch(menu.children || []);
+          if (children.length) return [menu, ...children];
+          if (menu.path === this.$route.path) return [menu];
+        }
+        return [];
+      };
+      const branch = findBranch(this.$store.state.menus.menusName || []);
+      // 同一路径可同时出现在分组和叶子菜单中，保留叶子菜单的标题。
+      return branch.filter((menu, index) => !branch.slice(index + 1).some((item) => item.path === menu.path));
     },
     // 获取布局配置信息
     getThemeConfig() {
@@ -102,9 +74,6 @@ export default {
       return ['defaults', 'columns'].includes(this.$store.state.themeConfig.themeConfig.layout);
     },
   },
-  mounted() {
-    this.initRouteSplit(this.$route.path);
-  },
   methods: {
     // breadcrumb 当前项点击时
     onBreadcrumbClick(v) {
@@ -128,58 +97,6 @@ export default {
     setLocalThemeConfig() {
       Local.remove('themeConfigPrev');
       Local.set('themeConfigPrev', this.$store.state.themeConfig.themeConfig);
-    },
-    // 递归设置 breadcrumb
-    getBreadcrumbList(arr) {
-      arr.map((item) => {
-        this.routeSplit.map((v, k, arrs) => {
-          if (this.routeSplitFirst === item.path) {
-            this.routeSplitFirst += `/${arrs[this.routeSplitIndex]}`;
-            this.breadcrumbList.push(item);
-            this.routeSplitIndex++;
-            if (item.children) this.getBreadcrumbList(item.children);
-          }
-        });
-      });
-    },
-    // 当前路由分割处理
-    initRouteSplit(path) {
-      this.breadcrumbList = [
-        {
-          path: '/',
-          meta: {
-            title: this.$store.state.routesList.routesList[0].title,
-            icon: this.$store.state.routesList.routesList[0].icon,
-          },
-        },
-      ];
-      //   this.routeSplit = path.split('/');
-      //   this.routeSplit.shift();
-      this.routeSplitFirst = path;
-      this.routeSplitIndex = 1;
-      this.getBreadcrumbList(this.$store.state.routesList.routesList);
-    },
-  },
-  // 监听路由的变化
-  watch: {
-    $route: {
-      handler(newVal) {
-        // this.initRouteSplit(newVal.path);
-        let menuList = this.$store.state.menus.menusName;
-        let openMenus = getMenuopen(newVal, menuList);
-        let allMenuList = R(menuList, []);
-        let selectMenu = [];
-        if (allMenuList.length > 0) {
-          openMenus.forEach((i) => {
-            allMenuList.forEach((a) => {
-              if (i === a.path) {
-                selectMenu.push(a);
-              }
-            });
-          });
-        }
-      },
-      deep: true,
     },
   },
 };

@@ -1262,7 +1262,8 @@ export default {
         };
       }
       getProductslist(data).then((res) => {
-        this.tempArr = res.data;
+        // Detail recommendations may arrive while the fallback request is pending.
+        this.tempArr = this.list && this.list.length ? this.list : res.data;
       });
     },
     goDetail(item) {

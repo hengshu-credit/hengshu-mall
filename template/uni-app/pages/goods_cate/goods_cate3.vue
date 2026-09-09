@@ -18,12 +18,14 @@
         <scroll-view
           scroll-y="true"
           scroll-with-animation="true"
+          :scroll-into-view="'category-nav-' + navActive"
           style="height: calc(100% - 100rpx)"
         >
           <view
             class="item acea-row row-center-wrapper"
             :class="index == navActive ? 'on' : ''"
             v-for="(item, index) in categoryList"
+            :id="'category-nav-' + index"
             :key="index"
             @click="tapNav(index, item)"
           >
@@ -160,9 +162,10 @@
 </template>
 
 <script>
+import categoryData from '@/mixins/categoryData.js';
+import categorySelection from '@/mixins/categorySelection.js';
 import ParabalaBall from "@/components/parabolaBall/ParabolaBall.vue";
 import {
-  getCategoryList,
   getProductslist,
   getAttr,
   postCartNum,
@@ -178,6 +181,7 @@ let windowHeight = uni.getWindowInfo().windowHeight;
 let sysHeight = uni.getWindowInfo().statusBarHeight;
 let titleBarHeight = uni.getSystemInfo().titleBarHeight;
 export default {
+  mixins: [categoryData, categorySelection],
   computed: mapGetters(["isLogin", "uid"]),
   components: {
     productWindow,
@@ -192,6 +196,9 @@ export default {
     },
   },
   watch: {
+    categoryErList() {
+      this.$nextTick(this.measureScrollHeight);
+    },
     isNew(newVal) {
       this.getAllCategory(1);
     },
@@ -258,40 +265,12 @@ export default {
       },
     });
     !that.categoryList.length && this.getAllCategory(1);
-    uni.$on("uploadCatData", () => {
-      this.getAllCategory(1);
-    });
     if (this.isLogin) {
       this.getCartNum();
       this.getCartList(1);
     }
     // #ifndef MP
-    setTimeout(() => {
-      const query = uni.createSelectorQuery().in(this);
-      let h = 0;
-      query
-        .select("#head")
-        .boundingClientRect((data) => {
-          h += data.height;
-        })
-
-        .exec();
-      const query2 = uni.createSelectorQuery().in(this);
-      query2
-        .select("#category")
-        .boundingClientRect((data) => {
-          h += data.height;
-        })
-        .exec();
-      const query3 = uni.createSelectorQuery().in(this);
-      query3
-        .select("#cart")
-        .boundingClientRect((data) => {
-          h += data.height;
-        })
-        .exec();
-      this.scrollHeight = windowHeight - h - sysHeight;
-    }, 1000);
+    this.$nextTick(this.measureScrollHeight);
     // #endif
     // #ifdef MP
     uni.getSystemInfo({
@@ -315,6 +294,18 @@ export default {
     // #endif
   },
   methods: {
+    measureScrollHeight() {
+      // #ifndef MP
+      if (this._isDestroyed) return;
+      const query = uni.createSelectorQuery().in(this);
+      query.selectAll('#head, #category, #cart').boundingClientRect();
+      query.exec((result) => {
+        if (this._isDestroyed) return;
+        const height = (result[0] || []).reduce((total, rect) => total + rect.height, 0);
+        this.scrollHeight = Math.max(0, windowHeight - height - sysHeight);
+      });
+      // #endif
+    },
     jumpIndex() {
       this.$emit("jumpIndex");
     },
@@ -578,7 +569,10 @@ export default {
     productslist: function () {
       let that = this;
       if (that.loadend) return;
-      if (that.loading) return;
+      const categoryKey = JSON.stringify([that.cid, that.sid]);
+      if (that.loading && that._loadingCategoryKey === categoryKey) return;
+      that._loadingCategoryKey = categoryKey;
+      const requestId = that._productRequestId = (that._productRequestId || 0) + 1;
       that.loading = true;
       that.loadTitle = "";
       getProductslist({
@@ -589,6 +583,7 @@ export default {
         sid: that.sid,
       })
         .then((res) => {
+          if (that._isDestroyed || requestId !== that._productRequestId) return;
           let list = res.data,
             loadend = list.length < that.limit;
           that.tempArr = that.$util.SplitArray(list, that.tempArr);
@@ -602,6 +597,7 @@ export default {
           that.page = that.page + 1;
         })
         .catch((err) => {
+          if (that._isDestroyed || requestId !== that._productRequestId) return;
           (that.loading = false), (that.loadTitle = that.$t(`加载更多`));
         });
     },
@@ -854,51 +850,7 @@ export default {
       this.iSlong = true;
     },
     getAllCategory(type) {
-      let that = this;
-      if (type || !uni.getStorageSync("CAT3_DATA")) {
-        getCategoryList().then((res) => {
-          let data = res.data;
-          uni.setStorageSync("CAT3_DATA", data);
-          data.forEach((item) => {
-            item.children.unshift({
-              id: 0,
-              cate_name: that.$t(`全部`),
-            });
-          });
-          that.categoryTitle = data[0].cate_name;
-          that.cid = data[0].id;
-          that.sid = 0;
-          that.navActive = 0;
-          that.tabClick = 0;
-          that.categoryList = data;
-          that.page = 1;
-          that.loadend = false;
-          that.tempArr = [];
-          that.categoryErList = res.data[0].children
-            ? res.data[0].children
-            : [];
-          that.productslist();
-        });
-      } else {
-        let data = uni.getStorageSync("CAT3_DATA");
-        data.forEach((item) => {
-          item.children.unshift({
-            id: 0,
-            cate_name: that.$t(`全部`),
-          });
-        });
-        if (!that.cid) {
-          that.categoryTitle = data[0].cate_name;
-          that.cid = data[0].id;
-          that.sid = 0;
-          that.navActive = 0;
-          that.tabClick = 0;
-          that.categoryList = data;
-          that.page = 1;
-          that.loadend = false;
-          that.productslist();
-        }
-      }
+      return this.loadProductCategories(type, 'CAT3_DATA');
     },
     scroll(e) {
       this.old.scrollTop = e.detail.scrollTop;

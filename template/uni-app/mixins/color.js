@@ -17,9 +17,14 @@ export default {
   },
   created() {
     this.colorStyle = uni.getStorageSync("viewColor");
-    uni.$on("ok", (data) => {
-      this.colorStyle = data;
-    });
+    uni.$on("ok", this.updateColorStyle);
   },
-  methods: {},
+  beforeDestroy() {
+    uni.$off("ok", this.updateColorStyle);
+  },
+  methods: {
+    updateColorStyle(data) {
+      this.colorStyle = data;
+    },
+  },
 };

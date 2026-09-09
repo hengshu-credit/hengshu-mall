@@ -93,6 +93,7 @@ export function editRouterFun(to, from) {
       'product_productAdd',
       'marketing_bargainCreate',
       'marketing_storeSeckillCreate',
+      'marketing_storeSeckillCreateMore',
       'marketing_storeIntegralCreate',
       'marketing_storeCouponCreate',
     ].includes(to.name)

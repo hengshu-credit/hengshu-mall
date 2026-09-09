@@ -81,6 +81,12 @@ export default {
       };
     },
     titleWrapStyle() {
+      // 旧版用户页装修数据使用 titleColor 保存组件背景。
+      const backgroundConfig =
+        this.dataConfig.moduleColor || this.dataConfig.titleColor;
+      const colors = (backgroundConfig && backgroundConfig.color) || [];
+      const leftColor = (colors[0] && colors[0].item) || "#fff";
+      const rightColor = (colors[1] && colors[1].item) || leftColor;
       let borderRadius = `${this.dataConfig.fillet.val * 2}rpx`;
       if (this.dataConfig.fillet.type) {
         borderRadius = `${this.dataConfig.fillet.valList[0].val * 2}rpx ${
@@ -91,7 +97,7 @@ export default {
       }
       return {
         "border-radius": borderRadius,
-        background: `linear-gradient(90deg, ${this.dataConfig.moduleColor.color[0].item} 0%, ${this.dataConfig.moduleColor.color[1].item} 100%)`,
+        background: `linear-gradient(90deg, ${leftColor} 0%, ${rightColor} 100%)`,
       };
     },
     titleStyle() {

@@ -10,6 +10,9 @@
 
 import Vue from 'vue'
 import App from './App'
+// #ifdef H5
+import { installStoreNavigation } from './utils/installStoreNavigation';
+// #endif
 import store from './store'
 import Cache from './utils/cache'
 import util from 'utils/util'
@@ -108,3 +111,6 @@ const app = new Vue({
 	i18n,
 })
 app.$mount();
+// #ifdef H5
+installStoreNavigation(app);
+// #endif

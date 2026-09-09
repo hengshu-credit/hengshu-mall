@@ -153,6 +153,7 @@ export function getWorkermanUrl(data) {
     {},
     {
       noAuth: true,
+      dedupe: true,
     }
   );
 }

@@ -21,15 +21,19 @@ import {
 import store from '../store';
 import i18n from './lang.js';
 
+const pendingReads = new Map();
+const copyResponse = response => JSON.parse(JSON.stringify(response));
+
 /**
  * 发送请求
  */
 function baseRequest(url, method, data, {
 	noAuth = false,
-	noVerify = false
+	noVerify = false,
+	dedupe = false
 }) {
 	let Url = HTTP_REQUEST_URL,
-		header = HEADER;
+		header = { ...HEADER };
 
 	if (!noAuth) {
 		//登录过期自动登录
@@ -41,11 +45,16 @@ function baseRequest(url, method, data, {
 		}
 	}
 	if (store.state.app.token) header[TOKENNAME] = 'Bearer ' + store.state.app.token;
+	if (uni.getStorageSync('locale')) {
+		header['Cb-lang'] = uni.getStorageSync('locale');
+	}
+	// Only explicitly selected configuration GETs share an in-flight request.
+	// Include auth, locale and verification options; never retain settled data.
+	const key = dedupe && method.toLowerCase() === 'get'
+		? JSON.stringify([Url, url, data || {}, header, noAuth, noVerify]) : null;
+	if (key && pendingReads.has(key)) return pendingReads.get(key).then(copyResponse);
 
-	return new Promise((reslove, reject) => {
-		if (uni.getStorageSync('locale')) {
-			header['Cb-lang'] = uni.getStorageSync('locale')
-		}
+	const promise = new Promise((reslove, reject) => {
 		uni.request({
 			url: Url + '/api/' + url,
 			method: method || 'GET',
@@ -85,6 +94,11 @@ function baseRequest(url, method, data, {
 			}
 		})
 	});
+	if (!key) return promise;
+	pendingReads.set(key, promise);
+	const clear = () => pendingReads.delete(key);
+	promise.then(clear, clear);
+	return promise.then(copyResponse);
 }
 
 const request = {};

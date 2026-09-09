@@ -167,15 +167,6 @@ export default {
       if (!this.customComponents || !this.customComponents.list) return [];
       return this.customComponents.list.filter((item) => !item.isHidden);
     },
-    // Background Config (Left Color)
-    bgColorLeft() {
-      return this.configObj.componentBgDataConfig &&
-        this.configObj.componentBgDataConfig.colorConfig &&
-        this.configObj.componentBgDataConfig.colorConfig.color &&
-        this.configObj.componentBgDataConfig.colorConfig.color[0]
-        ? this.configObj.componentBgDataConfig.colorConfig.color[0].item
-        : 'transparent';
-    },
     articleDisplayMode() {
       return this.configObj.articleDisplayMode;
     },

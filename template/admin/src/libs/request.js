@@ -89,4 +89,20 @@ service.interceptors.response.use(
   },
 );
 
+const pendingConfigReads = new Map();
+
+// Opt-in only for configuration GETs; response data is never cached after settling.
+export function requestSharedConfig(config) {
+  if (config.method !== 'get') return service(config);
+  const key = JSON.stringify([Setting.apiBaseURL, config, getCookies('token'), getCookies('kefu_token')]);
+  let pending = pendingConfigReads.get(key);
+  if (!pending) {
+    pending = service(config);
+    pendingConfigReads.set(key, pending);
+    const clear = () => pendingConfigReads.delete(key);
+    pending.then(clear, clear);
+  }
+  return pending.then((response) => JSON.parse(JSON.stringify(response)));
+}
+
 export default service;

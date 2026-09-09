@@ -57,6 +57,19 @@ module.exports = {
     },
   },
   chainWebpack: (config) => {
+    if (process.env.NODE_ENV !== 'production') {
+      // Keep original-source debugging without embedding maps in every script.
+      config.devtool('cheap-module-source-map');
+      // Vue CLI 3 and webpack-dev-server both inject a client. Normalize both
+      // requests so one same-origin connection works through Nginx and directly.
+      config.plugin('admin-hmr-origin').use(require('webpack').NormalModuleReplacementPlugin, [
+        /webpack-dev-server[\\/]client(?:[\\/]index\.js)?\?/,
+        (resource) => {
+          resource.request = resource.request.split('?')[0] +
+            '?http://0.0.0.0:0&sockPath=/admin/sockjs-node&sockPort=location';
+        },
+      ]);
+    }
     config.plugins.delete('prefetch');
     config.resolve.alias
       .set('@', resolve('src')) // key,value自行定义，比如.set('@@', resolve('src/components'))
@@ -76,10 +89,12 @@ module.exports = {
   productionSourceMap: false,
   // 这里写你调用接口的基础路径，来解决跨域，如果设置了代理，那你本地开发环境的axios的baseUrl要写为 '' ，即空字符串
   devServer: {
+    compress: true,
     port: 1617, // 端口
     host: '0.0.0.0',
     allowedHosts: ['localhost', 'host.docker.internal'],
     sockPath: '/admin/sockjs-node',
+    sockPort: 'location',
     historyApiFallback: {
       index: '/admin/index.html',
       disableDotRule: true,

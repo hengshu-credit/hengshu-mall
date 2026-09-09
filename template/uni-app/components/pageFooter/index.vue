@@ -1,7 +1,7 @@
 <template>
   <!-- 底部导航 -->
-  <view v-if="showTabBar">
-    <view class="fixed-lb w-full pb-safe z-999" :style="[bgColor]">
+  <view v-if="renderNavigation" :class="{ 'managed-navigation': managed }">
+    <view class="footer-dock fixed-lb w-full pb-safe z-999" :class="{ 'is-collapsed': collapsed }" :style="[bgColor]" :aria-hidden="collapsed ? 'true' : 'false'">
       <view class="page-footer-wrapper">
         <view
           class="page-footer"
@@ -16,6 +16,7 @@
             class="foot-item flex-1 flex-col flex-center h-96 relative"
             v-for="(item, index) in newData.menuList"
             :key="index"
+            :aria-current="item.link.split('?')[0] === activeRouter ? 'page' : null"
             @click="goRouter(item)"
           >
             <template v-if="item.link.split('?')[0] == activeRouter">
@@ -55,8 +56,8 @@
         </view>
       </view>
     </view>
-    <view :style="{ height: `${footerHeight}px` }"></view>
-    <view class="safe-area-inset-bottom"></view>
+    <view v-if="!managed" :style="{ height: `${footerHeight}px` }"></view>
+    <view v-if="!managed" class="safe-area-inset-bottom"></view>
   </view>
 </template>
 
@@ -70,6 +71,9 @@ export default {
   name: "pageFooter",
   components: { BaseBadge },
   props: {
+    managed: { type: Boolean, default: false },
+    collapsed: { type: Boolean, default: false },
+    activePath: { type: String, default: '' },
     isTabBar: {
       type: Boolean,
       default: true,
@@ -80,6 +84,12 @@ export default {
     },
   },
   computed: {
+    renderNavigation() {
+      // #ifdef H5
+      if (!this.managed) return false;
+      // #endif
+      return this.showTabBar && !this.newData.isHide && (this.newData.menuList || []).length > 0;
+    },
     ...mapGetters(["isLogin", "cartNum"]),
     txtActiveColor() {
       let styleObject = {};
@@ -132,16 +142,25 @@ export default {
           `${this.newData.bottomConfig.val * 2}rpx`;
         styleObject["background"] = this.newData.bgColor.color[0].item;
       }
+      if (this.managed && this.newData.navConfig.tabVal) {
+        styleObject['margin-left'] = styleObject.left;
+        styleObject['margin-right'] = styleObject.right;
+        styleObject['margin-bottom'] = styleObject.bottom;
+        delete styleObject.left;
+        delete styleObject.right;
+        delete styleObject.bottom;
+      }
       return styleObject;
     },
   },
   watch: {
+    activePath: { immediate: true, handler(path) { if (path) this.activeRouter = path; } },
     configData: {
       handler(newVal) {
         if (newVal) {
           let configData = newVal;
           this.newData = configData;
-          this.showTabBar = configData.effectConfig.tabVal;
+          this.showTabBar = !!(configData.effectConfig && Number(configData.effectConfig.tabVal));
         }
       },
       deep: true,
@@ -150,10 +169,13 @@ export default {
   },
   created() {
     let routes = getCurrentPages(); //获取当前打开过的页面路由数组
-    let curRoute = routes[routes.length - 1].route; //获取当前页面路由
-    this.activeRouter = "/" + curRoute;
+    let curRoute = routes.length ? routes[routes.length - 1].route : '';
+    this.activeRouter = this.activePath || '/' + curRoute;
   },
   mounted() {
+    // #ifdef H5
+    return;
+    // #endif
     this.navigationInfo();
     // if (this.isLogin) {
     // 	this.getCartNum()
@@ -212,6 +234,16 @@ export default {
       var pages = getCurrentPages();
       var page = pages[pages.length - 1].$page.fullPath;
       if (item.link == page) return;
+      // #ifdef H5
+      const tabPages = ['/pages/index/index', '/pages/goods_cate/goods_cate', '/pages/order_addcart/order_addcart', '/pages/user/index'];
+      if (tabPages.includes(item.link.split('?')[0])) {
+        return getApp().$router.push({ type: 'switchTab', path: item.link });
+      }
+      return this.$util.JumpPath(item.link);
+      // #endif
+      if (item.link.split('?')[0] === '/pages/goods_cate/goods_cate') {
+        return this.$util.JumpPath(item.link);
+      }
       if (
         item.link == "/pages/short_video/appSwiper/index" ||
         item.link == "/pages/short_video/nvueSwiper/index"
@@ -246,6 +278,24 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.managed-navigation {
+  .footer-dock {
+    z-index: 90;
+    transition: transform 180ms ease, opacity 180ms ease;
+    transform: translate3d(0, 0, 0);
+  }
+  .footer-dock.is-collapsed {
+    transform: translate3d(0, 110%, 0);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .page-footer-wrapper { display: flow-root; }
+  .page-footer { position: relative; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .managed-navigation .footer-dock { transition: none; }
+}
 .safe-area-inset-bottom {
   height: 0;
   height: constant(safe-area-inset-bottom);

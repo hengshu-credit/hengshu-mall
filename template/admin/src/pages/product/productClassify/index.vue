@@ -43,10 +43,10 @@
       >
       <vxe-table
         class="mt14"
-        highlight-hover-row
+        :row-config="{ isHover: true }"
         :loading="loading"
         header-row-class-name="false"
-        :tree-config="{ children: 'children' }"
+        :tree-config="{ childrenField: 'children' }"
         :data="tableData"
       >
         <vxe-table-column field="id" title="ID" tooltip width="80"></vxe-table-column>

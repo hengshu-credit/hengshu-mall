@@ -2,6 +2,7 @@
   <view class="easy-loadimage" :style="[boxStyle]" :id="uid">
     <image
       class="origin-img"
+      :key="imageSrc"
       :src="imageSrc"
       mode="aspectFill"
       v-if="loadImg && !isLoadError"
@@ -17,26 +18,33 @@
     </image>
     <image
       class="border-img"
+      :key="'border-' + borderSrc"
       :src="borderSrc"
       mode="aspectFill"
-      v-if="loadImg && !isLoadError && borderSrc"
-      v-show="showImg"
+      v-if="loadImg && !isLoadError && borderSrc && borderLoaded !== 2"
+      v-show="showImg && borderLoaded === 1"
       :style="[imgStyle]"
       :class="{
         'no-transition': !openTransition,
         'show-transition': showTransition && openTransition,
       }"
+      @load="handleBorderLoad"
+      @error="handleBorderError"
     >
     </image>
-    <view class="loadfail-img" v-else-if="isLoadError"></view>
     <view
-      :class="['loading-img', 'spin-circle', loadingMode]"
-      v-show="!showImg && !isLoadError"
-    ></view>
+      :class="isLoadError ? 'loadfail-img' : ['loading-img', loadingMode]"
+      v-if="!showImg || isLoadError"
+    >
+      <slot name="placeholder"><view class="placeholder-picture"></view></slot>
+    </view>
   </view>
 </template>
 <script>
 import { Throttle } from "@/utils/validate.js";
+// #ifdef H5
+import { observeImageVisibility } from "@/utils/imageVisibility.js";
+// #endif
 
 // 生成全局唯一id
 function generateUUID() {
@@ -99,16 +107,15 @@ export default {
       showTransition: false,
       scrollFn: Throttle(function () {
         // 加载img时才执行滚动监听判断是否可加载
-        if (that.loadImg || that.isLoadError) return;
+        if (that._isDestroyed || that.loadImg || that.isLoadError) return;
         const id = that.uid;
         const query = uni.createSelectorQuery().in(that);
         query
           .select("#" + id)
           .boundingClientRect((data) => {
-            if (!data) return;
+            if (!data || that._isDestroyed) return;
             if (data.top - that.viewHeight < 0) {
-              that.loadImg = !!that.imageSrc;
-              that.isLoadError = !that.loadImg;
+              that.loadVisibleImage();
             }
           })
           .exec();
@@ -129,7 +136,45 @@ export default {
       };
     },
   },
+  watch: {
+    imageSrc() {
+      clearTimeout(this._transitionTimer);
+      this.showImg = false;
+      this.showTransition = false;
+      this.isLoadError = false;
+      if (this.loadImg) {
+        this.loadVisibleImage();
+      } else {
+        this.$nextTick(this.startVisibility);
+      }
+    },
+    borderSrc() {
+      this.borderLoaded = 0;
+    },
+  },
   methods: {
+    stopVisibility() {
+      if (this._stopVisibility) this._stopVisibility();
+      this._stopVisibility = null;
+      uni.$off("scroll", this.scrollFn);
+    },
+    startVisibility() {
+      if (this._isDestroyed) return;
+      this.stopVisibility();
+      // #ifdef H5
+      this._stopVisibility = observeImageVisibility(this.$el, this.loadVisibleImage);
+      if (this._stopVisibility) return;
+      // #endif
+      uni.$on("scroll", this.scrollFn);
+      this.init();
+    },
+    loadVisibleImage() {
+      if (this._isDestroyed) return;
+      this.loadImg = !!this.imageSrc;
+      this.isLoadError = !this.loadImg;
+      if (!this.loadImg) this.borderLoaded = 0;
+      this.stopVisibility();
+    },
     init() {
       this.$nextTick(this.onScroll);
     },
@@ -144,11 +189,16 @@ export default {
       // this.$nextTick(function(){
       //     this.showTransition = true
       // })
-      setTimeout(() => {
-        this.showTransition = true;
+      clearTimeout(this._transitionTimer);
+      this._transitionTimer = setTimeout(() => {
+        if (!this._isDestroyed) this.showTransition = true;
       }, 50);
     },
     handleImgError(e) {
+      clearTimeout(this._transitionTimer);
+      this.showImg = false;
+      this.showTransition = false;
+      this.borderLoaded = 0;
       this.isLoadError = true;
     },
     onScroll() {
@@ -156,12 +206,11 @@ export default {
     },
   },
   mounted() {
-    this.init();
-    uni.$on("scroll", this.scrollFn);
-    this.onScroll();
+    this.startVisibility();
   },
   beforeDestroy() {
-    uni.$off("scroll", this.scrollFn);
+    this.stopVisibility();
+    clearTimeout(this._transitionTimer);
   },
 };
 </script>
@@ -169,6 +218,7 @@ export default {
 <style scoped>
 .easy-loadimage {
   position: relative;
+  overflow: hidden;
 }
 
 .border-img {
@@ -220,20 +270,41 @@ image.border-img.no-transition {
 }
 
 /* 加载失败、加载中的占位图样式控制 */
-.loadfail-img {
-  height: 100%;
-  background: url("~@/static/easy-loadimage/loadfail.png") no-repeat center;
-  background-size: 50%;
-}
-
+.loadfail-img,
 .loading-img {
+  position: relative;
   height: 100%;
+  overflow: hidden;
 }
 
-/* 转圈 */
-.spin-circle {
-  background: url("~@/static/easy-loadimage/loading.png") no-repeat center;
-  background-size: 60%;
+.placeholder-picture {
+  width: 100%;
+  height: 100%;
+  background: #f5f5f5 url("~@/static/easy-loadimage/loading.png") no-repeat center;
+  background-size: auto 45%;
+}
+
+/* Keep a stable local placeholder while the network image loads. */
+.loading-img::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.45) 50%, transparent 80%);
+  animation: image-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes image-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-img, .loading-img::after {
+    animation: none !important;
+  }
 }
 
 /* 动态灰色若隐若现 */

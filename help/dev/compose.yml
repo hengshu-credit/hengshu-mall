@@ -1,8 +1,28 @@
 # Layer on help/docker/docker-compose.yml for Windows source development.
 services:
-  phpfpm:
+  php-storage-init:
+    image: ccr.ccs.tencentyun.com/crmebky_php/php:v7.4
+    profiles: [tools]
+    entrypoint: [sh, /init-php-storage.sh]
     volumes:
+      - ../../crmeb:/source:ro
+      - ../dev/init-php-storage.sh:/init-php-storage.sh:ro
+      - php_vendor:/vendor
+      - php_runtime:/runtime
+  phpfpm:
+    entrypoint: [sh, /usr/local/bin/source-dev-entrypoint.sh]
+    command: [/usr/bin/supervisord, -c, /etc/supervisor/supervisord.conf]
+    volumes:
+      - php_vendor:/var/www/vendor
+      - php_runtime:/var/www/runtime
       - ../dev/php.ini:/usr/local/etc/php/conf.d/zz-source-dev.ini:ro
+      - ../dev/php-fpm.conf:/usr/local/etc/php-fpm.d/zz-source-dev.conf:ro
+      - ../dev/php-entrypoint.sh:/usr/local/bin/source-dev-entrypoint.sh:ro
   nginx:
     volumes:
       - ../dev/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+volumes:
+  php_vendor:
+    name: crmeb_php_vendor
+  php_runtime:
+    name: crmeb_php_runtime

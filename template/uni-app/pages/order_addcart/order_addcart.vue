@@ -369,20 +369,20 @@ export default {
     if (!this.isLogin) toLogin();
     // #endif
 
+    this._cartActive = true;
+    this._cartPageId = (this._cartPageId || 0) + 1;
     this.canShow = false;
     if (this.isLogin == true) {
       this.hotPage = 1;
       this.hostProduct = [];
       this.hotScroll = false;
-      this.getHostProduct();
       this.loadend = false;
       this.page = 1;
       this.cartList.valid = [];
-      this.getCartList(1);
       this.loadendInvalid = false;
+      this.loadingInvalid = false;
       this.pageInvalid = 1;
       this.cartList.invalid = [];
-      this.getInvalidList();
       // this.getCartNum();
       this.goodsHidden = true;
       this.footerswitch = true;
@@ -399,6 +399,10 @@ export default {
       this.selectCountPrice = 0.0;
       this.cartCount = 0;
       this.isShowAuth = false;
+      this._hotLoading = false;
+      this.getCartList(1);
+      this.getInvalidList();
+      this.getHostProduct();
     } else {
       // #ifdef MP
       this.hotPage = 1;
@@ -410,7 +414,19 @@ export default {
       // #endif
     }
   },
+  onHide() { this.stopCartLoading(); },
+  onUnload() { this.stopCartLoading(); },
+  beforeDestroy() { this.stopCartLoading(); },
   methods: {
+    stopCartLoading() {
+      this._cartActive = false;
+      this._cartPageId = (this._cartPageId || 0) + 1;
+      this._cartRequestId = (this._cartRequestId || 0) + 1;
+      if (this.loading) uni.hideLoading();
+      this.loading = false;
+      this.loadingInvalid = false;
+      this._hotLoading = false;
+    },
     // 授权关闭
     authColse: function (e) {
       this.isShowAuth = e;
@@ -951,120 +967,86 @@ export default {
       });
     },
     getCartData(data) {
-      return new Promise((resolve, reject) => {
-        getCartList(data)
-          .then((res) => {
-            resolve(res.data);
-          })
-          .catch((err) => {
-            this.loading = false;
-            this.canShow = true;
-            this.$util.Tips({
-              title: err,
-            });
-          });
-      });
+      return getCartList(data).then((res) => res.data);
     },
     async getCartList(init) {
-      uni.showLoading({
-        title: this.$t(`加载中`),
-        mask: true,
-      });
-      let that = this;
-      let data = {
-        page: that.page,
-        limit: that.limit,
-        status: 1,
-      };
-      getCartCounts().then(async (c) => {
-        that.cartCount = c.data.count;
+      if (this._cartActive === false) return;
+      const requestId = this._cartRequestId = (this._cartRequestId || 0) + 1;
+      const pageId = this._cartPageId || 0;
+      const isCurrent = () => !this._isDestroyed && requestId === this._cartRequestId && pageId === (this._cartPageId || 0);
+      const data = { page: this.page, limit: this.limit, status: 1 };
+      this.loading = true;
+      uni.showLoading({ title: this.$t('加载中'), mask: true });
+      // Start the first page with counts. Box its rejection so an empty cart
+      // can finish immediately without leaving an unhandled speculative read.
+      const firstPage = this.getCartData(data).then(value => ({ value }), error => ({ error }));
+      let failed = false;
+      try {
+        const counts = await getCartCounts();
+        if (!isCurrent()) return;
+        this.cartCount = counts.data.count;
         if (init) {
           this.adding = false;
-          this.$store.commit(
-            "indexData/setCartNum",
-            c.data.count > 99 ? ".." : c.data.count
-          );
-          if (c.data.count > 0) {
-            wx.setTabBarBadge({
-              index: 2,
-              text: c.data.count + "",
-            });
+          this.$store.commit('indexData/setCartNum', counts.data.count > 99 ? '..' : counts.data.count);
+          if (counts.data.count > 0) {
+            wx.setTabBarBadge({ index: 2, text: counts.data.count + '' });
           } else {
-            wx.hideTabBarRedDot({
-              index: 2,
-            });
+            wx.hideTabBarRedDot({ index: 2 });
           }
         }
-        for (let i = 0; i < Math.ceil(c.data.ids.length / that.limit); i++) {
-          let cartList = await this.getCartData(data);
-          data.page = data.page + 1;
-          let valid = cartList.valid;
-          let validList = that.$util.SplitArray(valid, that.cartList.valid);
-
-          let numSub = [
-            {
-              numSub: true,
-            },
-            {
-              numSub: false,
-            },
-          ];
-          let numAdd = [
-              {
-                numAdd: true,
-              },
-              {
-                numAdd: false,
-              },
-            ],
-            selectValue = [];
-          if (validList.length > 0) {
-            for (let index in validList) {
-              if (validList[index].cart_num == 1) {
-                validList[index].numSub = true;
-              } else {
-                validList[index].numSub = false;
-              }
-              let productInfo = validList[index].productInfo;
-              if (
-                productInfo.hasOwnProperty("attrInfo") &&
-                validList[index].cart_num ==
-                  validList[index].productInfo.attrInfo.stock
-              ) {
-                validList[index].numAdd = true;
-              } else if (
-                validList[index].cart_num == validList[index].productInfo.stock
-              ) {
-                validList[index].numAdd = true;
-              } else {
-                validList[index].numAdd = false;
-              }
-              if (validList[index].attrStatus) {
-                validList[index].checked = true;
-                selectValue.push(validList[index].id);
-              } else {
-                validList[index].checked = false;
-              }
+        const pageCount = Math.ceil(counts.data.ids.length / data.limit);
+        const pages = new Array(pageCount);
+        let nextPage = 0;
+        const loadPage = async () => {
+          while (nextPage < pageCount && !failed && isCurrent()) {
+            const index = nextPage++;
+            if (index === 0) {
+              const result = await firstPage;
+              if ('error' in result) throw result.error;
+              pages[index] = result.value;
+            } else {
+              pages[index] = await this.getCartData({ ...data, page: data.page + index });
             }
           }
-          that.$set(that.cartList, "valid", validList);
-
-          // that.goodsHidden = cartList.valid.length <= 0 ? false : true;
-          that.selectValue = selectValue;
-          let newArr = validList.filter((item) => item.attrStatus);
-          that.isAllSelect =
-            newArr.length == selectValue.length && newArr.length;
-          that.switchSelect();
-        }
-        that.loading = false;
+        };
+        await Promise.all(Array.from({ length: Math.min(3, pageCount) }, loadPage));
+        if (!isCurrent()) return;
+        // Keep server page order even when later pages arrive first. Publish
+        // once so selection and checkout totals always cover the complete cart.
+        const validList = this.cartList.valid.concat(...pages.map(page => page.valid));
+        const selectValue = [];
+        validList.forEach(item => {
+          item.numSub = item.cart_num == 1;
+          const product = item.productInfo;
+          item.numAdd = (product.hasOwnProperty('attrInfo') && item.cart_num == product.attrInfo.stock) || item.cart_num == product.stock;
+          item.checked = !!item.attrStatus;
+          if (item.attrStatus) selectValue.push(item.id);
+        });
+        this.$set(this.cartList, 'valid', validList);
+        this.selectValue = selectValue;
+        const selectable = validList.filter(item => item.attrStatus);
+        this.isAllSelect = selectable.length == selectValue.length && selectable.length;
+        this.switchSelect();
         this.canShow = true;
-        uni.hideLoading();
-      });
+      } catch (error) {
+        failed = true;
+        if (isCurrent()) {
+          this.canShow = true;
+          this.$util.Tips({ title: error });
+        }
+      } finally {
+        if (isCurrent()) {
+          this.loading = false;
+          uni.hideLoading();
+        }
+      }
     },
     getInvalidList: function () {
       let that = this;
       if (this.loadendInvalid) return false;
       if (this.loadingInvalid) return false;
+      const pageId = this._cartPageId || 0;
+      this.loadingInvalid = true;
       let data = {
         page: that.pageInvalid,
         limit: that.limitInvalid,
@@ -1072,6 +1054,7 @@ export default {
       };
       getCartList(data)
         .then((res) => {
+          if (this._isDestroyed || pageId !== (this._cartPageId || 0)) return;
           let cartList = res.data,
             invalid = cartList.invalid,
             loadendInvalid = invalid.length < that.limitInvalid;
@@ -1088,17 +1071,23 @@ export default {
           that.loadingInvalid = false;
         })
         .catch((res) => {
+          if (this._isDestroyed || pageId !== (this._cartPageId || 0)) return;
           that.loadingInvalid = false;
           that.loadTitleInvalid = that.$t(`加载更多`);
         });
     },
     getHostProduct: function () {
       let that = this;
-      if (that.hotScroll) return;
+      if (that.hotScroll || this._hotLoading) return;
+      const pageId = this._cartPageId || 0;
+      this._hotLoading = true;
       getProductHot(that.hotPage, that.hotLimit).then((res) => {
+        if (this._isDestroyed || pageId !== (this._cartPageId || 0)) return;
         that.hotPage++;
         that.hotScroll = res.data.length < that.hotLimit;
         that.hostProduct = that.hostProduct.concat(res.data);
+      }).catch(() => {}).finally(() => {
+        if (pageId === (this._cartPageId || 0)) this._hotLoading = false;
       });
     },
     goodsOpen: function () {

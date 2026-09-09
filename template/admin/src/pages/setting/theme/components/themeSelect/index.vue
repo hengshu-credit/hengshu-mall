@@ -170,7 +170,6 @@
 <script>
 import { getThemeList, useThemeData } from '@/api/diy';
 import QRCode from 'qrcodejs2';
-import { mapState } from 'vuex';
 import Setting from '@/setting';
 
 export default {
@@ -216,9 +215,6 @@ export default {
       total: 0,
       BaseURL: Setting.apiBaseURL.replace(/adminapi/, ''),
     };
-  },
-  computed: {
-    ...mapState('mobildConfig'),
   },
   watch: {
     currentType: {

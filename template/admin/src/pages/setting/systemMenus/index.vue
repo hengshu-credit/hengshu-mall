@@ -28,7 +28,7 @@
       <vxe-table
         :border="false"
         class="vxeTable"
-        highlight-hover-row
+        :row-config="{ isHover: true }"
         highlight-current-row
         :loading="loading"
         ref="xTable"
@@ -154,7 +154,7 @@ export default {
     return {
       children: [],
       expandedKeys: [],
-      tabconfig: { children: 'children', reserve: true, accordion: true },
+      tabconfig: { childrenField: 'children', reserve: true, accordion: true },
       spinShow: false,
       ruleModal: false,
       searchRule: '',

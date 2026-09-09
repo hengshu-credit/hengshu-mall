@@ -95,7 +95,7 @@ export default {
     },
     {
       path: 'protection/list',
-      name: `${pre}labelList`,
+      name: `${pre}protectionList`,
       meta: {
         auth: ['admin-product-protection-list'],
         title: '商品保障',

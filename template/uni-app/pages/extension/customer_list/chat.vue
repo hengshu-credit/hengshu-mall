@@ -265,6 +265,7 @@ export default {
       uidTo: 0,
       titleName: "",
       chatStatus: false,
+      socketAuthenticated: false,
       userType: 0,
       canvasWidth: "",
       canvasHeight: "",
@@ -322,20 +323,19 @@ export default {
     dom.style.height = window.innerHeight + "px";
     // #endif
     let initSocket = () => {
+      this.chatStatus = false;
+      this.socketAuthenticated = false;
       if (app.globalData.isWsOpen) {
         this.$socket.send({
-          data: {
-            token: this.$store.state.app.token,
-            //#ifdef MP || APP-PLUS
-            form_type: 2,
-            //#endif
-            //#ifdef H5
-            form_type: this.$wechat.isWeixin() ? 1 : 3,
-            //#endif
-          },
+          data: this.$store.state.app.token,
+          //#ifdef MP || APP-PLUS
+          form_type: 2,
+          //#endif
+          //#ifdef H5
+          form_type: this.$wechat.isWeixin() ? 1 : 3,
+          //#endif
           type: "login",
         });
-        this.getChatList();
       } else {
         let form_type;
         //#ifdef MP || APP-PLUS
@@ -357,9 +357,6 @@ export default {
           form_type: this.$wechat.isWeixin() ? 1 : 3,
           //#endif
           type: "login",
-        });
-        this.$nextTick((e) => {
-          this.getChatList();
         });
       });
     };
@@ -391,8 +388,10 @@ export default {
       initSocket();
     });
     // 链接成功
-    uni.$once("success", () => {
+    uni.$on("success", () => {
+      this.socketAuthenticated = true;
       this.$socket.init();
+      this.getChatList();
     });
     // 消息接收
     uni.$on(["reply", "chat"], (data) => {
@@ -405,10 +404,17 @@ export default {
         this.height();
       });
     });
-    uni.$on("socket_error", () => {
+    uni.$on("socket_error", (error) => {
+      uni.hideLoading();
+      if (!this.$socket.connected) this.chatStatus = false;
       this.$util.Tips({
-        title: this.$t(`连接失败`),
+        title: (error && error.msg) || this.$t(`连接失败`),
       });
+    });
+    uni.$on("socket_close", () => {
+      uni.hideLoading();
+      this.chatStatus = false;
+      this.socketAuthenticated = false;
     });
     uni.$on("err_tip", (e) => {
       this.$util.Tips({
@@ -531,6 +537,7 @@ export default {
           });
           this.titleName = res.data.nickname;
           this.toUid = res.data.uid;
+          this.chatStatus = true;
           res.data.serviceList.forEach((el) => {
             el._add_time = el._add_time.substring(0, el._add_time.length - 3);
             if (el.msn_type == 1 || el.msn_type == 2) {
@@ -577,18 +584,23 @@ export default {
     },
 
     // 发送消息
-    sendText() {
+    async sendText() {
       if (!this.isSend) {
         return this.$util.Tips({
           title: this.$t(`请输入内容`),
         });
       }
-      this.sendMsg(this.con, 1);
-      this.con = "";
+      const content = this.con;
+      const sent = await this.sendMsg(content, 1);
+      if (sent && this.con === content) this.con = "";
     },
     // ws发送
     sendMsg(msn, type) {
-      this.$socket.send({
+      if (!this.chatStatus || !this.socketAuthenticated) {
+        this.$util.Tips({ title: this.$t(`客服连接中`) });
+        return Promise.resolve(false);
+      }
+      return this.$socket.send({
         data: {
           msn,
           type,

@@ -37,7 +37,7 @@ export default {
     },
     {
       path: 'spread/apply',
-      name: `${pre}agentManage`,
+      name: `${pre}spreadApply`,
       meta: {
         auth: ['admin-agent-spread-apply'],
         title: '分销员申请',

@@ -369,7 +369,6 @@ import orderShipment from '../handle/orderShipment';
 import { exportOrderList, exportOrderDeliveryList } from '@api/export';
 import Setting from '@/setting';
 import { getCookies } from '@/libs/util';
-import createWorkBook from '@/vendor/newToExcel.js';
 import { isFileUpload } from '@/utils';
 import orderAddress from '../handle/orderAddress.vue';
 export default {
@@ -946,6 +945,7 @@ export default {
           if (lebData.export.length == excelData.limit) excelData.page++;
         }
       }
+      const { default: createWorkBook } = await import(/* webpackChunkName: "admin-order-export" */ '@/vendor/newToExcel.js');
       createWorkBook(lebData.header, lebData.filename, data, '', lebData.filename);
     },
     getExcelData(excelData) {
