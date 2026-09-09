@@ -1,3 +1,40 @@
+# 恒数商城：打包与部署
+
+PHP 后端在 `crmeb/`，管理后台源码在 `template/admin/`，移动端源码在 `template/uni-app/`。发布配置统一维护在 `help/release/`，此前安装页和任务容器的修补已合入。
+
+在 Windows 项目根目录执行：
+
+```powershell
+.\package.ps1
+# 同时验证数据库持久化、安装流程和任务进程（需要 Docker）：
+.\package.ps1 -Verify
+# 已部署服务器：商城更新与京东采集服务合成一个包，保留现有数据和配置：
+.\package.ps1 -Update -Verify
+```
+
+脚本自动构建管理后台，生成唯一的 `dist/hengshu-mall.tar.gz` 和校验文件。再次打包替换同名产物，临时目录自动清理。需要 Node.js、npm、Git 和 tar；本机已有 HBuilderX 时会优先使用其 Node。首次缺少前端依赖时自动按 package-lock.json 安装。PHP vendor 依赖已随源码保留。
+
+`-Update` 模式生成 `dist/hengshu-mall-update.tar.gz`，适用于 `/root/hengshu-mall/crmeb-mall` 的现有商城；上传一个包解压后执行 `docker-compose -f compose.yml up -d --build`。京东采集密钥自动生成，启动后可在本地电脑通过 SSH 转发的 noVNC 登录京东。完整操作见 [单包更新说明](help/release/README-update.md)。
+
+把发布包上传到服务器后，全新部署执行：
+
+```bash
+mkdir -p /root/hengshu-mall
+tar -xzf hengshu-mall.tar.gz -C /root/hengshu-mall
+cd /root/hengshu-mall/crmeb-mall
+bash start.sh
+```
+
+访问 `https://mall.hengshucredit.com/install/index.php` 完成初始化，使用根目录 `.env` 中自动生成的数据库和 Redis 密码。安装结束再运行 `bash start.sh`，后台地址为 `https://mall.hengshucredit.com/admin/`。队列、定时任务和长连接随启动脚本运行，无需单独手动启动。
+
+服务使用主机 `8011` 端口，沿用 NPM 的 IP＋端口 HTTPS 代理。数据库和 Redis 分别保存在项目的 `data/mysql`、`data/redis`，普通 `down` 后重新启动会继续使用这些数据。保留 `.env`、应用配置、安装锁和上传文件；已安装服务器不要重新初始化或用全新安装包直接覆盖。详细参数和维护方式见 [部署说明](help/release/README.md)。
+
+本次发布包包含后端和管理后台，不包含移动端 H5/APK；移动端源码、现有 APK、签名和本地工具链保留。本地开发脚本在 `help/dev/`，回归测试在 `tests/regression/`。
+
+清理历史发布包、截图、排查记录和缓存：先运行 `./cleanup.ps1` 查看精确清单，再运行 `./cleanup.ps1 -Apply` 执行。它保留一份已有 APK 到 `dist/`，保留源码、开发数据库、签名和工具链；打包或前端开发运行期间会停止清理。
+
+---
+
 <div align="center" >
     <img src="https://www.crmeb.com/static/images/dark_logo.png" />
 </div>

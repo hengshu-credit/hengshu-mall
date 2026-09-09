@@ -69,8 +69,7 @@
                     </tr>
                     <tr v-show="value">
                         <td class="tar">数据库端口：</td>
-                        <td><input type="text" name="dbport" id="dbport" value="<?php echo $MYSQL_PORT; ?>" class="input"
-                                   onBlur="mysqlDbPwd(0)"></td>
+                        <td><input type="text" name="dbport" id="dbport" value="<?php echo $MYSQL_PORT; ?>" class="input"></td>
                         <td>
                             <div id="J_install_tip_dbport"></div>
                         </td>

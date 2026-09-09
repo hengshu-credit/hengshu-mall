@@ -20,6 +20,8 @@ crmeb/public/uploads/*
 /docker-compose-universal/*/data/
 
 # 构建产物
+/.build/
+/dist/
 /template/admin/dist/
 /template/admin/node_modules/
 /HBuilderX/

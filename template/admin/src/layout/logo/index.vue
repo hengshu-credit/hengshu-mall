@@ -4,7 +4,7 @@
     v-db-click
     @click="onThemeConfigChange"
   >
-    <img v-if="minLogo || maxLogo" class="layout-logo-img" width="40" height="40" style="object-fit: contain; flex-shrink: 0" :src="minLogo || maxLogo" alt="衡枢真信" />
+    <img class="layout-logo-img" width="40" height="40" :src="logoSrc" alt="衡枢真信" @error="onLogoError" />
     <div v-if="getThemeConfig.layout !== 'columns' && !getThemeConfig.isCollapse" class="layout-logo-text">
       <div class="layout-logo-company">上海衡枢真信科技有限公司</div>
       <div class="layout-logo-slogan">鉴真伪，铸信用，衡风险，枢定策</div>
@@ -14,13 +14,13 @@
 
 <script>
 import { getLogo } from '@/api/common';
+import hscreditLogo from '@/assets/images/hscredit.svg';
 
 export default {
   name: 'layoutLogo',
   data() {
     return {
-      minLogo: '',
-      maxLogo: '',
+      logoSrc: hscreditLogo,
     };
   },
   computed: {
@@ -38,6 +38,18 @@ export default {
     this.getLogo();
   },
   methods: {
+    onLogoError() {
+      this.logoSrc = hscreditLogo;
+    },
+    getLogo() {
+      return getLogo()
+        .then((res) => {
+          this.logoSrc = res.data.logo_square || res.data.logo || hscreditLogo;
+        })
+        .catch(() => {
+          this.logoSrc = hscreditLogo;
+        });
+    },
     // logo 点击实现菜单展开/收起
     onThemeConfigChange() {
       if (
@@ -52,12 +64,6 @@ export default {
       )
         return false;
       this.$store.state.themeConfig.themeConfig.isCollapse = !this.$store.state.themeConfig.themeConfig.isCollapse;
-    },
-    getLogo() {
-      getLogo().then((res) => {
-        this.minLogo = res.data.logo_square;
-        this.maxLogo = res.data.logo;
-      });
     },
   },
 };

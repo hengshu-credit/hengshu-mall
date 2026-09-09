@@ -1,9 +1,9 @@
 {
-    "name" : "CRMEB标准版",
-    "appid" : "__UNI__A3F1ED4",
-    "description" : "CRMEB标准版",
-    "versionName" : "6.0.0",
-    "versionCode" : 600,
+    "name" : "物色",
+    "appid" : "__UNI__159D54B",
+    "description" : "物色",
+    "versionName" : "6.0.4",
+    "versionCode" : 604,
     "transformPx" : false,
     "sassImplementationName" : "node-sass",
     /* 5+App特有相关 */
@@ -35,7 +35,6 @@
             "Geolocation" : {},
             "iBeacon" : {},
             "Messaging" : {},
-            "Push" : {},
             "UIWebview" : {}
         },
         "safearea" : {
@@ -67,7 +66,7 @@
                     "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>",
                     "<uses-permission android:name=\"android.permission.USE_FINGERPRINT\"/>"
                 ],
-                "abiFilters" : [ "armeabi-v7a", "arm64-v8a" ],
+                "abiFilters" : [ "armeabi-v7a", "arm64-v8a", "x86" ],
                 "permissionExternalStorage" : {
                     "request" : "none",
                     "prompt" : "应用保存运行状态等信息，需要获取读写手机存储（系统提示为访问设备上的照片、媒体内容和文件）权限，请允许。"
@@ -119,28 +118,6 @@
                         "UniversalLinks" : "https://bzapp.crmeb.net/uni-universallinks/__UNI__A3F1ED4/"
                     }
                 },
-                "push" : {
-                    "unipush" : {
-                        "version" : "2",
-                        "offline" : true,
-                        "hms" : {},
-                        "oppo" : {},
-                        "vivo" : {},
-                        "mi" : {},
-                        "meizu" : {},
-                        "honor" : {},
-                        "fcm" : {},
-                        "icons" : {
-                            "small" : {
-                                "ldpi" : "unpackage/res/icons/20x20.png",
-                                "mdpi" : "unpackage/res/icons/29x29.png",
-                                "hdpi" : "unpackage/res/icons/29x29.png",
-                                "xhdpi" : "unpackage/res/icons/40x40.png",
-                                "xxhdpi" : "unpackage/res/icons/72x72.png"
-                            }
-                        }
-                    }
-                },
                 "maps" : {
                     "google" : {
                         "APIKey_ios" : "",
@@ -153,8 +130,7 @@
                         "appid" : "wx277a269f3d736d67",
                         "appsecret" : "bd08741a055c2ecac5826ff1c048464b",
                         "UniversalLinks" : "https://bzapp.crmeb.net/uni-universallinks/__UNI__A3F1ED4/"
-                    },
-                    "univerify" : {}
+                    }
                 },
                 "ad" : {},
                 "geolocation" : {

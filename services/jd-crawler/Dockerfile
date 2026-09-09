@@ -15,4 +15,4 @@ RUN chmod +x /app/entrypoint.sh
 USER crawler
 EXPOSE 8091 6080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 CMD ["python", "/app/healthcheck.py"]
-ENTRYPOINT ["/usr/bin/tini", "--", "/app/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "python", "-m", "jd_crawler.bootstrap"]

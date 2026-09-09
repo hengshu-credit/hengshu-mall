@@ -10,6 +10,10 @@
 
 import Vue from 'vue'
 import App from './App'
+// #ifdef APP-PLUS
+import { installAppHistory } from './utils/installAppHistory';
+installAppHistory(Vue);
+// #endif
 // #ifdef H5
 import { installStoreNavigation } from './utils/installStoreNavigation';
 // #endif

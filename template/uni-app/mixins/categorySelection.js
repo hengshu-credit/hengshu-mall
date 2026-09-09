@@ -32,6 +32,8 @@ export default {
       if (!selected) {
         this.cid = this.sid = this.navActive = this.tabClick = 0;
         this.categoryErList = [];
+        this.categoryTitle = '';
+        this.loadTitle = this.$t('暂无商品');
         return;
       }
       this.cid = selected.cid;

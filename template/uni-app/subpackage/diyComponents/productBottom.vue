@@ -2,7 +2,7 @@
   <commonWrapper
     :config="wrapperConfig"
     class="footer"
-    :class="{ eject: storeInfo.id, 'commerce-actions': commerceActions }"
+    :class="{ eject: commerceActions || storeInfo.id, 'commerce-actions': commerceActions }"
     :style="bagStyle"
   >
     <view class="acea-row row-between-wrapper px-20 py-14" style="height: 100%">
@@ -18,7 +18,7 @@
               <view class="iconfont icon-shouye6"></view>
               <view class="p_center">{{ commerceActions ? $t(`店铺`) : $t(`首页`) }}</view>
             </view>
-            <view v-if="item_id === 1" @click="setCollect" class="item">
+            <view v-if="item_id === 1" @click="setCollect" class="item" :class="{ 'item-disabled': !storeInfo.id }" :aria-disabled="!storeInfo.id">
               <view
                 class="iconfont icon-shoucang1"
                 v-if="storeInfo.userCollect"
@@ -118,14 +118,8 @@
           </view>
         </block>
       </div>
-      <view v-if="noGoods" class="presale">
-        <view class="acea-row">
-          <form class="bnts bg-color-hui">
-            <button class="bnts bg-color-hui" form-type="submit">
-              {{ $t(`暂无产品`) }}
-            </button>
-          </form>
-        </view>
+      <view v-if="noGoods" class="unavailable-action">
+        <button disabled class="unavailable-button">{{ unavailableText || $t(`暂无产品`) }}</button>
       </view>
       <view class="btn-box" v-else>
         <view v-if="!storeInfo.presale">
@@ -255,6 +249,7 @@ export default {
       type: Boolean,
       default: false,
     },
+    unavailableText: { type: String, default: '' },
     attr: {
       type: Object,
       default: () => ({
@@ -291,14 +286,15 @@ export default {
       return this.bottomConfig.toneConfig.tabVal;
     },
     bagStyle() {
-      if (this.bottomConfig) {
+      if (this.bottomConfig?.componentBgConfig?.colorConfig?.color?.length) {
         //   const color = this.bottomConfig.bottomBgColor.color[0].item || this.bottomConfig.bottomBgColor.default[0].item;
         //   return `background-color: ${color}`;
         const color = this.bottomConfig.componentBgConfig.colorConfig.color;
         const c1 = color[0].item;
-        const c2 = color[1].item;
+        const c2 = color[1]?.item || c1;
         return `background: linear-gradient(90deg, ${c1} 0%, ${c2} 100%);`;
       }
+      return 'background: #fff;';
     },
     cartBtnStyle() {
       if (this.toneConfig && this.bottomConfig.cartColor) {
@@ -402,7 +398,7 @@ export default {
       // #endif
     },
     goCustomer() {
-      getCustomer(`/pages/extension/customer_list/chat?productId=${this.storeInfo.id}`);
+      getCustomer('/pages/extension/customer_list/chat' + (this.storeInfo.id ? `?productId=${this.storeInfo.id}` : ''));
     },
     goPage(url) {
       if (!url) return;
@@ -416,18 +412,22 @@ export default {
       });
     },
     setCollect() {
+      if (!this.storeInfo.id) return;
       this.$emit("setCollect");
     },
     goCart() {
       this.$emit("goCart");
     },
     goGift() {
+      if (this.noGoods || !this.storeInfo.id) return;
       this.$emit("goGift");
     },
     joinCart() {
+      if (this.noGoods || !this.storeInfo.id) return;
       this.$emit("joinCart");
     },
     goBuy() {
+      if (this.noGoods || !this.storeInfo.id) return;
       this.$emit("goBuy");
     },
   },
@@ -441,6 +441,9 @@ export default {
   .bnt .bnts { font-size: 24rpx; white-space: nowrap; }
   .bnt .joinCart { margin-right: 8rpx; }
 }
+.item-disabled { opacity: 0.4; }
+.unavailable-action { flex: 1; min-width: 0; margin-left: 16rpx; }
+.unavailable-button[disabled] { height: 76rpx; line-height: 76rpx; border-radius: 50rpx; background: #f0f0f0; color: #999; font-size: 26rpx; }
 .footer {
   position: fixed;
   bottom: 0;

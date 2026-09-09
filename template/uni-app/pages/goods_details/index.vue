@@ -55,6 +55,7 @@
           <view class="" :style="'width:100%;' + 'height:' + sysHeight"></view>
           <!-- #endif -->
           <PageDesign
+            v-if="detailStatus === 'ready'"
             :diyData="diyData"
             :productData="storeInfo"
             :priceData="realPriceData"
@@ -78,6 +79,12 @@
             @openModal="openModal"
             @goActivity="goActivity"
           ></PageDesign>
+          <view v-else class="detail-state" role="status">
+            <text class="iconfont icon-shangpin" aria-hidden="true"></text>
+            <view class="detail-state-title">{{ detailStatus === 'loading' ? $t(`加载中`) : $t(`暂时无法查看商品`) }}</view>
+            <view v-if="detailError" class="detail-state-message">{{ detailError }}</view>
+            <button v-if="detailStatus === 'error'" class="detail-retry" @click="getGoodsDetails">{{ $t(`重新加载`) }}</button>
+          </view>
         </view>
         <view class="uni-p-b-98"></view>
       </view>
@@ -89,7 +96,8 @@
         :storeInfo="storeInfo"
         :is_gift="is_gift"
         :CartCount="CartCount"
-        :noGoods="noGoods"
+        :noGoods="detailStatus !== 'ready' || noGoods"
+        :unavailableText="detailStatus === 'loading' ? $t(`加载中`) : $t(`暂不可购买`)"
         :attr="attr"
         :presale_pay_status="presale_pay_status"
         :animated="animated"
@@ -100,13 +108,6 @@
         @goBuy="goBuy"
         @share="listenerActionSheet"
       ></productBottom>
-      <shareRedPackets
-        :sharePacket="sharePacket"
-        @listenerActionSheet="listenerActionSheet"
-        @closeChange="closeChange"
-        :showAnimate="showAnimate"
-        @boxStatus="boxStatus"
-      ></shareRedPackets>
       <!-- 组件 -->
       <productWindow
         :attr="attr"
@@ -280,7 +281,6 @@ import cusPreviewImg from "@/components/cusPreviewImg/index.vue";
 import swiperPrevie from "@/components/cusPreviewImg/swiperPrevie.vue";
 import couponListWindow from "@/components/couponListWindow";
 import productWindow from "@/components/productWindow";
-import shareRedPackets from "@/components/shareRedPackets";
 import menuIcon from "@/components/menuIcon.vue";
 import { updateURLParameter } from "@/utils";
 import ClipboardJS from "@/plugin/clipboard/clipboard.js";
@@ -303,7 +303,6 @@ export default {
   components: {
     couponListWindow,
     productWindow,
-    shareRedPackets,
     menuIcon,
     cusPreviewImg,
     swiperPrevie,
@@ -328,6 +327,8 @@ export default {
     let that = this;
     return {
       diyData: {},
+      detailStatus: 'idle',
+      detailError: '',
       showBackToTop: false,
       imgHost: HTTP_REQUEST_URL,
       sysHeight: sysHeight,
@@ -468,20 +469,7 @@ export default {
       //记录推广人uid
       if (value.pid) app.globalData.spid = value.pid;
     }
-    if (!options.id) {
-      this.showSkeleton = false;
-      return that.$util.Tips(
-        {
-          title: that.$t(`缺少参数无法查看商品`),
-        },
-        {
-          tab: 3,
-          url: 1,
-        }
-      );
-    } else {
-      that.id = options.id;
-    }
+    that.id = options.id;
     // #endif
     that.getGoodsDetails();
     that.getDiyData();
@@ -581,8 +569,11 @@ export default {
       let previewThemeId = uni.getStorageSync("previewThemeId");
       let data = {};
       if (previewThemeId) data.theme_id = previewThemeId;
-      getThemeInfo("detail", data).then((res) => {
-        that.diyData = res.data;
+      return getThemeInfo("detail", data).then((res) => {
+        that.diyData = res.data || {};
+      }).catch(() => {
+        // Keep the detail state and default footer usable when the theme cannot load.
+        that.diyData = {};
       });
     },
     jumpUrl(url) {
@@ -846,14 +837,19 @@ export default {
      */
     getGoodsDetails() {
       let that = this;
-      uni.showLoading({
-        title: "加载中",
-        mask: true,
-      });
-      getProductDetail(that.id)
+      if (that.detailStatus === 'loading') return;
+      that.detailError = '';
+      if (!that.id || !/^\d+$/.test(String(that.id)) || Number(that.id) <= 0) {
+        that.detailStatus = 'error';
+        that.detailError = that.$t(`缺少参数无法查看商品`);
+        return;
+      }
+      that.detailStatus = 'loading';
+      return getProductDetail(that.id)
         .then((res) => {
-          uni.hideLoading();
-          let storeInfo = res.data.storeInfo;
+          let storeInfo = res.data && res.data.storeInfo;
+          if (!storeInfo || !storeInfo.id) throw new Error(that.$t(`商品不存在`));
+          that.skuArr = [];
           let good_list = res.data.good_list || [];
           this.is_gift = res.data.storeInfo.is_gift;
           that.$set(that, "storeInfo", storeInfo);
@@ -958,19 +954,12 @@ export default {
           }
           that.getCartCount();
           this.showAnimate = true;
+          that.detailStatus = 'ready';
         })
         .catch((err) => {
-          uni.hideLoading();
-          //状态异常返回上级页面
-          return that.$util.Tips(
-            {
-              title: err.toString(),
-            },
-            {
-              tab: 3,
-              url: 1,
-            }
-          );
+          that.detailStatus = 'error';
+          that.detailError = typeof err === 'string' ? err :
+            (err && (err.msg || err.message)) || that.$t(`请求失败，请稍后重试`);
         });
     },
     infoScroll: function () {
@@ -1532,6 +1521,21 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.detail-state {
+  min-height: calc(100vh - 220rpx);
+  padding: 64rpx 40rpx 160rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #fafafa;
+  .iconfont { font-size: 100rpx; color: #ccc; margin-bottom: 28rpx; }
+}
+.detail-state-title { font-size: 32rpx; font-weight: 500; color: #333; }
+.detail-state-message { margin-top: 18rpx; font-size: 26rpx; color: #999; line-height: 1.6; }
+.detail-retry { margin-top: 36rpx; padding: 0 48rpx; border-radius: 40rpx; font-size: 26rpx; line-height: 72rpx; color: var(--view-theme); background: #fff; }
 .detail-back-top {
   position: fixed;
   right: 24rpx;

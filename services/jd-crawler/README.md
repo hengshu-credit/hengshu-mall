@@ -4,19 +4,24 @@
 
 ## 同一服务器部署
 
-先启动现有商城，再把本目录放到服务器的独立目录，例如 `/opt/hengshu-jd-crawler`。需要 Docker Compose，初始化密钥脚本需要 openssl。
+商城与采集服务一起更新时，推荐使用源码根目录 `./package.ps1 -Update` 生成的单个 `dist/hengshu-mall-update.tar.gz`。解压到 `/root/hengshu-mall/` 后，在现有 `crmeb-mall` 中执行 `docker compose up -d --build`，详见包内 README 或 `help/release/README-update.md`。采集服务自动加入商城网络，密钥自动生成。
+
+只单独部署采集服务时，先启动现有商城，再把本目录放到服务器的独立目录，例如 `/root/hengshu-mall/jd-crawler`。需要 Docker Compose。
 
 ```sh
-cd /opt/hengshu-jd-crawler
-sh init-env.sh
+cd /root/hengshu-mall/jd-crawler
 docker network ls
-# 编辑 .env 中 MALL_NETWORK，设置为现有商城的 Docker 网络。
+# 默认使用 crmeb-mall_default；不同网络才需要在 .env 中填写 MALL_NETWORK。
 # 当前商城发布配置默认是 crmeb-mall_default；本仓库开发环境是 crmeb_app_net。
 docker compose up -d --build
 docker compose ps
+# 健康后查看自动生成的访问密钥及登录密码：
+docker compose exec jd-crawler python -m jd_crawler.bootstrap show
 ```
 
 API 仅开放在共享 Docker 网络，商城服务地址填写 `http://jd-crawler:8091`。采集服务独立启停与发布，不会启动、重建或初始化商城数据库。浏览器登录态与任务库在 `crawler-data` 命名卷中，普通重启保留；维护时保留该卷。
+
+首次启动会自动将随机凭据写入 `/data/credentials.json`（仅服务用户可读写），重启或重新创建容器保留。`init-env.sh` 为兼容旧部署保留，可选；如果 `.env` 已填写有效的 `JD_CRAWLER_TOKEN` 和 `JD_VNC_PASSWORD`，启动时沿用并持久化这些值。正常启动日志不输出密钥。
 
 ## 登录京东
 
@@ -26,9 +31,9 @@ API 仅开放在共享 Docker 网络，商城服务地址填写 `http://jd-crawl
 ssh -N -L 6080:127.0.0.1:6080 用户名@商城服务器
 ```
 
-打开 `http://localhost:6080/vnc.html`，输入服务 `.env` 中的 `JD_VNC_PASSWORD`，在专用 Chromium 中人工登录京东。验证码同样在此完成，不提供自动验证码识别。登录页只映射服务器回环地址；无需向公网开放 6080、5900 或 9222。
+打开 `http://localhost:6080/vnc.html`，输入 `bootstrap show` 输出的 `JD_VNC_PASSWORD`，在专用 Chromium 中人工登录京东。验证码同样在此完成，不提供自动验证码识别。登录页只映射服务器回环地址；无需向公网开放 6080、5900 或 9222。
 
-进入商城后台 **商品采集配置 → 接口选择**，开启“京东独立采集”，填写服务地址和 `.env` 中的 `JD_CRAWLER_TOKEN`。密钥至少 32 位；后台再次保存时留空保留原值。原一号通/99API 选择继续供其他平台使用。
+进入商城后台 **商品采集配置 → 接口选择**，开启“京东独立采集”，填写服务地址和 `bootstrap show` 输出的 `JD_CRAWLER_TOKEN`。密钥至少 32 位；后台再次保存时留空保留原值。原一号通/99API 选择继续供其他平台使用。
 
 ## 使用
 

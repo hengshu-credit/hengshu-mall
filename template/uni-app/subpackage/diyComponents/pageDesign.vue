@@ -248,8 +248,8 @@
     <view v-else>
       <view class="error-network">
         <image :src="imgHost + '/statics/images/error-network.gif'"></image>
-        <view class="title">{{ $t(`网络连接断开`) }}</view>
-        <view class="btn" @click="reconnect">{{ $t(`重新连接`) }}</view>
+        <view class="title">{{ $t(errorMessage || `网络连接断开`) }}</view>
+        <view class="btn" @click="reconnect">{{ $t(`重新加载`) }}</view>
       </view>
     </view>
   </view>
@@ -406,6 +406,10 @@ export default {
     errorNetwork: {
       type: Boolean,
       default: false,
+    },
+    errorMessage: {
+      type: String,
+      default: "",
     },
     couponList: {
       type: Array,

@@ -128,6 +128,23 @@ function instance(options, overrides = {}) {
     nativeParent.$destroy();
   }
   for (const layout of [2, 3]) {
+    for (const platform of [{ H5: true }, { APP_PLUS: true }]) {
+      requests.length = 0;
+      const options = load(`pages/goods_cate/goods_cate${layout}.vue`, platform);
+      const category = instance(options, { methods: { ...options.methods, goTop() {} } });
+      category.categoryList = [];
+      category.selectCategoryTarget({ cid: 0, sid: 0 });
+      assert.equal(category.loadTitle, '暂无商品', 'An empty category response must show an empty state, not more pagination');
+      assert.equal(category.loadend, true);
+      assert.equal(requests.length, 0);
+      category.categoryList = [{ id: 1, cate_name: 'A', children: [{ id: 0 }] }];
+      category.selectCategoryTarget({ cid: 1, sid: 0 });
+      assert.equal(requests.length, 1, 'Products must load when categories become available after an empty response');
+      requests[0].resolve({ data: [{ id: 10 }] });
+      await flush();
+      assert.equal(category.tempArr[0].id, 10);
+      category.$destroy();
+    }
     requests.length = 0;
     const options = load(`pages/goods_cate/goods_cate${layout}.vue`);
     const category = instance(options, { methods: { ...options.methods, goTop() {} } });

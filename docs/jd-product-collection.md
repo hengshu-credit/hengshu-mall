@@ -6,75 +6,34 @@
 
 按照 [独立服务部署说明](../services/jd-crawler/README.md) 部署 `services/jd-crawler`。该目录可独立打包、启动和升级，不依赖商城 Python 环境或数据库。
 
-1. 将服务接入商城 Docker 网络，执行 `sh init-env.sh`、`docker compose up -d --build`。
+1. 将服务接入商城 Docker 网络，执行 `docker compose up -d --build`。
 2. 通过 SSH 转发的 noVNC 在专用 Chromium 中登录京东。
-3. 后台“商品采集配置 → 接口选择”启用“京东独立采集”，地址填写 `http://jd-crawler:8091`，密钥填写服务 `.env` 中的 `JD_CRAWLER_TOKEN`。
+3. 后台“商品采集配置 → 接口选择”启用“京东独立采集”，地址填写 `http://jd-crawler:8091`，密钥填写 `python -m jd_crawler.bootstrap show` 输出的 `JD_CRAWLER_TOKEN`。
 4. 在商品新增页粘贴 `https://item.jd.com/商品编号.html`，采集完成后核对信息、补全分类/库存/运费，再保存。
 
 配置首次保存会创建缺少的三个配置项，不需要导入 SQL。密钥在后续表单中不回显，留空保留原值。未部署服务、密钥错误、登录失效、验证码、忙碌和超时均返回对应提示。
 
 ## 已部署在 /root/hengshu-mall/crmeb-mall 的服务器
 
-需要更新商城 PHP 和后台静态文件，并启动独立采集服务。商城继续使用 `/root/hengshu-mall/crmeb-mall`，采集服务放在旁边的 `/root/hengshu-mall/jd-crawler`。以下命令适用于本项目发布包的 Docker Compose 部署（服务名为 `phpfpm`、`queue`、`timer`、`workerman`）。
-
-先将本次交付的 `hengshu-mall-jd-update.tar.gz` 和 `hengshu-jd-crawler.tar.gz` 上传至服务器 `/root/hengshu-mall/`。增量包仅包含本次 PHP 文件和编译后的管理后台；不含数据库、`.env`、`.constant`、安装锁或上传目录。已有商城不要再次进入安装页面。
-
-**1. 服务器执行：备份并更新商城。**
-
-```sh
-cd /root/hengshu-mall/crmeb-mall
-docker compose ps
-mkdir -p /root/hengshu-mall/backups
-tar -czf "/root/hengshu-mall/backups/before-jd-$(date +%Y%m%d-%H%M%S).tar.gz" \
-  crmeb/app crmeb/config/upload.php crmeb/crmeb/services/upload crmeb/public/admin
-# 上一条备份成功后再继续。
-tar --no-same-owner -xzf /root/hengshu-mall/hengshu-mall-jd-update.tar.gz
-docker compose --profile workers restart phpfpm queue timer workerman
-docker compose --profile workers up -d queue timer workerman
-```
-
-更新后浏览器强制刷新后台。若没有“京东独立采集”配置或“链接采集”按钮，检查商城更新包是否已解压到上述目录。
-
-**2. 服务器执行：确认共享网络并启动采集服务。**
-
-```sh
-cd /root/hengshu-mall/crmeb-mall
-docker inspect "$(docker compose ps -q phpfpm)" \
-  --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}'
-```
-
-本项目发布配置默认输出 `crmeb-mall_default`。如果输出不同，把下面的 `crmeb-mall_default` 换成实际商城网络名。
+现在使用一个更新包完成商城与京东采集部署。源码根目录执行 `./package.ps1 -Update -Verify`，生成 `dist/hengshu-mall-update.tar.gz`。上传到 `/root/hengshu-mall/` 后：
 
 ```sh
 cd /root/hengshu-mall
-tar --no-same-owner -xzf hengshu-jd-crawler.tar.gz
-cd /root/hengshu-mall/jd-crawler
-MALL_NETWORK=crmeb-mall_default sh init-env.sh
-docker compose up -d --build
-docker compose ps
-docker compose exec jd-crawler python /app/healthcheck.py && echo '采集服务健康检查通过'
-grep -E '^(JD_CRAWLER_TOKEN|JD_VNC_PASSWORD)=' .env
+tar --no-same-owner -xzf hengshu-mall-update.tar.gz
+cd crmeb-mall
+docker-compose -f compose.yml up -d --build
+docker-compose -f compose.yml ps
+# jd-crawler 健康后查看登录信息：
+docker-compose -f compose.yml exec jd-crawler python -m jd_crawler.bootstrap show
 ```
 
-首次构建需要联网下载基础镜像、Chromium 和 Python 依赖。初始化脚本保留已有 `.env`；已有文件时，需要在其中修改 `MALL_NETWORK`，再启动。最后一条命令在自己的终端查看登录密码和接口密钥，不需要发送给他人。
+若服务器的命令为 `docker compose`，将上述 `docker-compose` 替换即可。也可用 `bash start.sh` 启动、`bash start.sh --info` 查看凭据。
 
-**3. 本地电脑执行：登录京东。**
+首次自动生成的密钥、VNC 密码和京东登录态保存在采集服务的命名卷，普通重启和容器重建会保留。现有商城 `.env`、`.constant`、安装锁、数据库和上传文件保持原位置，更新包不包含安装 SQL，不需要重新安装商城。队列、定时任务和长连接默认随 Compose 启动。
 
-把 `服务器IP` 替换成实际 SSH 地址，在本地 PowerShell 或终端执行并保持窗口打开：
+本地电脑执行 `ssh -N -L 6080:127.0.0.1:6080 root@服务器IP`，保持窗口打开。浏览器访问 <http://127.0.0.1:6080/vnc.html>，输入查询到的 `JD_VNC_PASSWORD`，在显示的 Chromium 中登录京东。后台采集配置地址填 `http://jd-crawler:8091`，密钥填 `JD_CRAWLER_TOKEN`。
 
-```sh
-ssh -N -L 6080:127.0.0.1:6080 root@服务器IP
-```
-
-用本地浏览器访问 <http://127.0.0.1:6080/vnc.html>，输入 `JD_VNC_PASSWORD`，在显示的 Chromium 中登录京东并完成页面要求的验证。无需开放公网 6080 或 8091 端口。
-
-**4. 后台配置并验收。**
-
-在“商品采集配置 → 接口选择”开启“京东独立采集”，地址填 `http://jd-crawler:8091`，密钥填 `JD_CRAWLER_TOKEN`，保存。该地址由商城 PHP 容器访问，不能换成 `http://127.0.0.1:8091`。
-
-进入 `/admin/product/add_product` 点击“链接采集”，输入完整京东商品详情链接，采集后核对价格，补全分类、库存、运费并保存。检查素材库“远程下载”和“京东视频”。素材按原字节保存；尚未完成或失败的视频转存会显示提示。
-
-排查时在 `/root/hengshu-mall/jd-crawler` 执行 `docker compose logs --tail=100 jd-crawler`，在商城目录执行 `docker compose --profile workers logs --tail=100 queue`。数据库及现有上传文件保持在商城原目录，京东登录态保存在采集服务的 `crawler-data` 卷中。
+完整操作、端口占用处理和旧独立服务迁移说明见 [单包更新说明](../help/release/README-update.md)。
 
 ## 素材原样保存
 

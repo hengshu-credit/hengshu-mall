@@ -2,10 +2,14 @@
 import os
 import json
 import urllib.request
+from pathlib import Path
+from jd_crawler.bootstrap import read_credentials
+
+credentials = read_credentials(Path(os.environ.get('JD_CRAWLER_DATA_DIR', '/data')), os.environ)
 
 request = urllib.request.Request(
     "http://127.0.0.1:8091/health",
-    headers={"Authorization": "Bearer " + os.environ["JD_CRAWLER_TOKEN"]},
+    headers={"Authorization": "Bearer " + credentials['JD_CRAWLER_TOKEN']},
 )
 with urllib.request.urlopen(request, timeout=3) as response:
     if response.status != 200:

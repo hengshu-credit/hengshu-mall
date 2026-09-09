@@ -16,7 +16,9 @@
       minHeight: windowHeight + 'px',
     }"
   >
+    <view v-if="homeLoading" class="home-loading">{{ $t(`正在加载`) }}</view>
     <PageDesign
+      v-else
       :style="colorStyle"
       :diyData="currentDiyData"
       :isHome="true"
@@ -25,6 +27,7 @@
       :productVideoStatus="confirm_video_status"
       :belongIndex="belongIndex"
       :errorNetwork="errorNetwork"
+      :errorMessage="homeErrorMessage"
       @bindSortId="bindSortId"
       @bindHeight="bindHeighta"
       @storeTap="storeTap"
@@ -218,6 +221,8 @@ export default {
       // #endif
       site_config: "",
       errorNetwork: false, // 是否断网
+      homeLoading: false,
+      homeErrorMessage: "",
       isHeaderSerch: false,
       showHomeComb: false,
       showCateNav: false,
@@ -724,27 +729,24 @@ export default {
       // uni.reLaunch({ url: "/pages/index/index" });
     },
     getDiyData() {
+      if (this.homeLoading) return;
+      this.homeLoading = true;
       let data = {};
       if (this.themeId) data.theme_id = this.themeId;
-      getThemeInfo("home", data)
+      return getThemeInfo("home", data)
         .then((res) => {
           uni.setStorageSync("diyData", JSON.stringify(res.data));
           this.setDiyData(res.data);
         })
         .catch((error) => {
-          // #ifdef APP-PLUS
-          if (error.status) {
-            uni.hideLoading();
-            if (this.errorNetwork) {
-              uni.showToast({
-                title: "请开启网络连接",
-                icon: "none",
-                duration: 2000,
-              });
-            }
-            this.errorNetwork = true;
-          }
-          // #endif
+          uni.hideLoading();
+          this.homeErrorMessage = error && error.status === 1
+            ? "网络连接断开"
+            : "页面暂时无法加载，请稍后重试";
+          this.errorNetwork = true;
+        })
+        .finally(() => {
+          this.homeLoading = false;
         });
     },
     diyData() {
@@ -882,6 +884,12 @@ export default {
 </script>
 
 <style lang="scss">
+.home-loading {
+  padding: 160rpx 32rpx;
+  text-align: center;
+  color: #666;
+  font-size: 28rpx;
+}
 .page {
   // padding-bottom: 50px;
   overflow-y: scroll;
