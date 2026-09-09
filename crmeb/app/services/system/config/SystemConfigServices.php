@@ -1333,7 +1333,14 @@ class SystemConfigServices extends BaseServices
         $service = app()->make(SystemConfigTabServices::class);
         $title = $service->value(['id' => $tabId], 'title');
         $list = $this->dao->getConfigTabAllList($tabId);
+        $isCollection = in_array('system_product_copy_type', array_column($list, 'menu_name'), true);
+        if ($isCollection) {
+            $list = array_values(array_filter($list, function ($item) {
+                return !in_array($item['menu_name'], JdCrawlerConfig::KEYS, true);
+            }));
+        }
         $formbuider = $this->createForm($list);
+        if ($isCollection) $formbuider = array_merge($formbuider, (new JdCrawlerConfig())->rules($this->builder));
         $name = 'setting';
         if ($url) {
             $name = explode('/', $url)[2] ?? $name;

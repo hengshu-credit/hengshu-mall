@@ -134,7 +134,7 @@ class SystemAttachmentServices extends BaseServices
             } else {
                 $fileInfo = $upload->getUploadInfo();
                 $fileType = pathinfo($fileInfo['name'], PATHINFO_EXTENSION);
-                if ($fileInfo && $type == 0 && !in_array($fileType, ['xlsx', 'xls', 'mp4'])) {
+                if ($fileInfo && $type == 0 && !in_array(strtolower($fileType), array_merge(['xlsx', 'xls'], \crmeb\services\upload\MediaFile::VIDEOS), true)) {
                     $data['name'] = $fileInfo['name'];
                     $data['real_name'] = $fileInfo['real_name'];
                     $data['att_dir'] = $fileInfo['dir'];
@@ -261,7 +261,7 @@ class SystemAttachmentServices extends BaseServices
         }
 
         $pathinfo = pathinfo($safeFilename);
-        if (!isset($pathinfo['extension']) || !in_array($pathinfo['extension'], ['avi', 'mp4', 'wmv', 'rm', 'mpg', 'mpeg', 'mov', 'flv', 'swf'])) {
+        if (!isset($pathinfo['extension']) || !in_array(strtolower($pathinfo['extension']), \crmeb\services\upload\MediaFile::VIDEOS, true)) {
             throw new AdminException('格式错误');
         }
         // 危险后缀黑名单，防止上传可执行脚本
@@ -283,6 +283,13 @@ class SystemAttachmentServices extends BaseServices
             $blob = '';
             for ($i = 1; $i <= $data['totalChunks']; $i++) {
                 $blob .= file_get_contents($all_dir . '/' . $safeFilename . '__' . $i);
+            }
+            try {
+                $rules = config('upload');
+                $rules['filesize'] = 1024 * 1024 * 1024;
+                \crmeb\services\upload\MediaFile::prepare($blob, $safeFilename, $rules);
+            } catch (\InvalidArgumentException $error) {
+                throw new AdminException($error->getMessage());
             }
             file_put_contents($all_dir . '/' . $safeFilename, $blob);
             for ($i = 1; $i <= $data['totalChunks']; $i++) {

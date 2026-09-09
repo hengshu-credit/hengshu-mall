@@ -235,6 +235,7 @@ class StoreProduct extends AuthController
             ['attrs', []],//规格
             ['description', ''],//商品详情
             ['description_images', []],//商品详情
+            ['soure_link', null],//采集来源；旧客户端未传时保留已有来源
             ['logistics', []],//物流方式
             ['freight', 1],//运费设置
             ['postage', 0],//邮费
@@ -270,7 +271,14 @@ class StoreProduct extends AuthController
             ['is_gift', 0],//是否礼品
             ['gift_price', 0],//礼品附加费
         ]);
-        $this->service->save((int)$id, $data);
+        if ($data['soure_link'] === null) {
+            unset($data['soure_link']);
+        } elseif (!is_string($data['soure_link']) || strlen($data['soure_link']) > 255 ||
+            ($data['soure_link'] !== '' && !preg_match('#^https?://[^\s]+$#D', $data['soure_link']))) {
+            return app('json')->fail('商品来源链接格式不正确');
+        }
+        $result = $this->service->save((int)$id, $data);
+        if (is_array($result) && !empty($result['collection_warnings'])) return app('json')->success($result);
         return app('json')->success('保存成功');
     }
 

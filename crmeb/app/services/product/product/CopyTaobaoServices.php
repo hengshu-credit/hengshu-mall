@@ -76,14 +76,20 @@ class CopyTaobaoServices extends BaseServices
                 ]);
                 break;
         }
-        if (isset($result['status']) && $result['status']) {
+        if (!in_array($result['status'] ?? false, [true, 200, '200'], true) || !is_array($result['data'] ?? null)) {
+            throw new AdminException($result['msg'] ?? '商品采集接口未配置或返回数据异常');
+        }
+        return $this->productForm($result['data']);
+    }
 
+    /** Common editor defaults for both legacy providers and the independent JD collector. */
+    public function productForm(array $productInfo): array
+    {
             /** @var StoreProductServices $ProductServices */
             $ProductServices = app()->make(StoreProductServices::class);
             /** @var StoreCategoryServices $storeCatecoryService */
             $storeCatecoryService = app()->make(StoreCategoryServices::class);
             $data = [];
-            $productInfo = $result['data'];
             if (count($productInfo['slider_image'])) {
                 $productInfo['slider_image'] = array_map(function ($item) {
                     $item = str_replace('\\', '/', $item);
@@ -96,7 +102,7 @@ class CopyTaobaoServices extends BaseServices
                 $menus[] = ['value' => $menu['id'], 'label' => $menu['html'] . $menu['cate_name'], 'disabled' => $menu['pid'] == 0 ? 0 : 1];//,'disabled'=>$menu['pid']== 0];
             }
             $data['cateList'] = $menus;
-            $productInfo['attrs'] = $result['data']['info']['value'];
+            $productInfo['attrs'] = $productInfo['info']['value'] ?? [];
             foreach ($productInfo['attrs'] as $attrs_k => $attrs_v) {
                 $productInfo['attrs'][$attrs_k]['attr_arr'] = array_values($attrs_v['detail']);
                 $productInfo['attrs'][$attrs_k]['is_show'] = 1;
@@ -124,9 +130,9 @@ class CopyTaobaoServices extends BaseServices
             $productInfo['mer_id'] = 0;
             $productInfo['mer_use'] = 0;
             $productInfo['recommend_image'] = '';
-            $productInfo['sales'] = '';
+            $productInfo['sales'] = $productInfo['sales'] ?? '';
             $productInfo['sort'] = 0;
-            $productInfo['spec_type'] = 1;
+            $productInfo['spec_type'] = $productInfo['spec_type'] ?? 1;
             $productInfo['is_virtual'] = 0;
             $productInfo['virtual_type'] = 0;
             $productInfo['spu'] = '';
@@ -135,7 +141,7 @@ class CopyTaobaoServices extends BaseServices
             $productInfo['freight'] = 3;
             $productInfo['recommend'] = [];
             $productInfo['logistics'] = ['1', '2'];
-            $productInfo['params_list'] = [];
+            $productInfo['params_list'] = $productInfo['params_list'] ?? [];
             $productInfo['label_list'] = [];
             $productInfo['protection_list'] = [];
             foreach ($productInfo['items'] as &$items) {
@@ -151,9 +157,6 @@ class CopyTaobaoServices extends BaseServices
             }
             $data['productInfo'] = $productInfo;
             return $data;
-        } else {
-            throw new AdminException($result['msg']);
-        }
     }
 
     /**
@@ -247,7 +250,7 @@ class CopyTaobaoServices extends BaseServices
                             $arcurl = $item;
                         else
                             $arcurl = 'http://' . ltrim($item, '\//');
-                        $uploadValue = $this->downloadImage($arcurl);
+                        $uploadValue = $this->downloadImage($this->descriptionImageUrl($arcurl));
                         //下载成功更新数据库
                         if (is_array($uploadValue)) {
                             //TODO 拼接图片地址
@@ -300,7 +303,7 @@ class CopyTaobaoServices extends BaseServices
 
         // 自动判断当前图片链接是否为需要使用curl下载的平台（淘宝、京东、天猫、1688）
         if ($type == 0 && strlen(trim($url))) {
-            $antiHotlinkingPlatforms = ['alicdn.com', 'taobao.com', 'tmall.com', 'jd.com', 'jdstatic.com', '1688.com'];
+            $antiHotlinkingPlatforms = ['alicdn.com', 'taobao.com', 'tmall.com', 'jd.com', 'jdstatic.com', '360buyimg.com', 'jdimg.com', '1688.com'];
             foreach ($antiHotlinkingPlatforms as $platform) {
                 if (stripos($url, $platform) !== false) {
                     $type = 1;
@@ -325,16 +328,29 @@ class CopyTaobaoServices extends BaseServices
         if ($type) {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); //TODO 跳过证书检查
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+            curl_setopt($ch, CURLOPT_ENCODING, '');
+            $content = '';
+            $maxSize = (int)Config::get('upload.filesize', 52428800);
+            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($handle, $chunk) use (&$content, $maxSize) {
+                if (strlen($content) + strlen($chunk) > $maxSize) return 0;
+                $content .= $chunk;
+                return strlen($chunk);
+            });
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
             if (stripos($url, "https://") !== FALSE) curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);  //TODO 从证书中检查SSL加密算法是否存在
             // 根据URL识别平台并获取对应的防盗链headers
             $headers = $this->getAntiHotlinkingHeaders($url);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            if (ini_get('open_basedir') == '' && ini_get('safe_mode') == 'Off') curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);//TODO 是否采集301、302之后的页面
-            $content = curl_exec($ch);
+            // The collected JD URLs are final CDN URLs; do not follow arbitrary redirects.
+            $response = curl_exec($ch);
+            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            if ($response === false || $status < 200 || $status >= 300) {
+                throw new AdminException('素材下载失败，请检查链接有效期、文件大小和网络后重试');
+            }
         } else {
             try {
                 ob_start();
@@ -348,7 +364,7 @@ class CopyTaobaoServices extends BaseServices
                 throw new AdminException($e->getMessage());
             }
         }
-        $size = strlen(trim($content));
+        $size = is_string($content) ? strlen($content) : 0;
         if (!$content || $size <= 2) throw new AdminException('图片流获取失败');
         $date_dir = date('Y') . '/' . date('m') . '/' . date('d');
         $upload_type = sys_config('upload_type', 1);
@@ -376,14 +392,8 @@ class CopyTaobaoServices extends BaseServices
     {
         $_empty = ['file_name' => '', 'ext_name' => $ex];
         if (!$url) return $_empty;
-        if (strpos($url, '?')) {
-            $_tarr = explode('?', $url);
-            $url = trim($_tarr[0]);
-        }
-        $arr = explode('.', $url);
-        if (!is_array($arr) || count($arr) <= 1) return $_empty;
-        $ext_name = trim($arr[count($arr) - 1]);
-        $ext_name = !$ext_name ? $ex : $ext_name;
+        $path = (string)parse_url($url, PHP_URL_PATH);
+        $ext_name = strtolower(pathinfo($path, PATHINFO_EXTENSION)) ?: $ex;
         return ['file_name' => md5($url) . '.' . $ext_name, 'ext_name' => $ext_name];
     }
 
@@ -404,13 +414,32 @@ class CopyTaobaoServices extends BaseServices
      */
     public function downloadCopyImage($image)
     {
+        return $this->storeCopiedMedia($image, false);
+    }
+
+    /** Recover the DOM URL from an escaped HTML src attribute without changing its query. */
+    public function descriptionImageUrl(string $attribute): string
+    {
+        $url = html_entity_decode($attribute, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return strpos($url, 'http') !== false ? $url : 'https://' . ltrim($url, '\\//');
+    }
+
+    public function downloadCopyVideo(string $url)
+    {
+        (new JdCrawlerServices())->videoUrl($url);
+        return $this->storeCopiedMedia($url, true);
+    }
+
+    private function storeCopiedMedia(string $image, bool $video)
+    {
         //查询附件分类
         /** @var SystemAttachmentCategoryServices $systemAttachmentCategoryService */
         $systemAttachmentCategoryService = app()->make(SystemAttachmentCategoryServices::class);
-        $AttachmentCategory = $systemAttachmentCategoryService->getOne(['name' => '远程下载']);
+        $category = $video ? ['name' => '京东视频', 'type' => 1] : ['name' => '远程下载'];
+        $AttachmentCategory = $systemAttachmentCategoryService->getOne($category);
         //不存在则创建
         if (!$AttachmentCategory) {
-            $AttachmentCategory = $systemAttachmentCategoryService->save(['pid' => '0', 'name' => '远程下载', 'enname' => '']);
+            $AttachmentCategory = $systemAttachmentCategoryService->save(array_merge(['pid' => '0', 'enname' => ''], $category));
         }
 
         //生成附件目录
@@ -422,7 +451,7 @@ class CopyTaobaoServices extends BaseServices
         /** @var SystemAttachmentServices $systemAttachmentService */
         $systemAttachmentService = app()->make(SystemAttachmentServices::class);
         $siteUrl = sys_config('site_url');
-        $uploadValue = $this->downloadImage($image);
+        $uploadValue = $this->downloadImage($image, '', 0, $video ? 60 : 30);
         if (is_array($uploadValue)) {
             //TODO 拼接图片地址
             if ($uploadValue['image_type'] == 1) {
@@ -441,6 +470,7 @@ class CopyTaobaoServices extends BaseServices
                     'att_type' => $uploadValue['mime'],
                     'image_type' => $uploadValue['image_type'],
                     'module_type' => 1,
+                    'type' => $video ? 1 : 0,
                     'time' => time(),
                     'pid' => $AttachmentCategory['id']
                 ]);
@@ -460,9 +490,9 @@ class CopyTaobaoServices extends BaseServices
         // 基础headers
         $baseHeaders = [
             'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept: image/webp,image/apng,image/*,*/*;q=0.8',
+            'Accept: */*',
+            'Cache-Control: no-transform',
             'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding: gzip, deflate, br',
             'Connection: keep-alive',
         ];
 
@@ -477,7 +507,7 @@ class CopyTaobaoServices extends BaseServices
             return array_merge($baseHeaders, [
                 'Referer: https://www.tmall.com/',  // 天猫首页
             ]);
-        } elseif (stripos($url, 'jd.com') !== false || stripos($url, 'jdstatic.com') !== false) {
+        } elseif (stripos($url, 'jd.com') !== false || stripos($url, 'jdstatic.com') !== false || stripos($url, '360buyimg.com') !== false || stripos($url, 'jdimg.com') !== false) {
             // 京东的图片
             return array_merge($baseHeaders, [
                 'Referer: https://www.jd.com/',  // 京东首页

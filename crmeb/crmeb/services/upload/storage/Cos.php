@@ -138,17 +138,7 @@ class Cos extends BaseUpload
             if (!$fileHandle) {
                 return $this->setError('上传的文件不存在');
             }
-            if ($this->validate) {
-                if (!in_array(strtolower(pathinfo($fileHandle->getOriginalName(), PATHINFO_EXTENSION)), $this->validate['fileExt'])) {
-                    return $this->setError('不合法的文件后缀');
-                }
-                if (filesize($fileHandle) > $this->validate['filesize']) {
-                    return $this->setError('文件过大');
-                }
-                if (!in_array($fileHandle->getOriginalMime(), $this->validate['fileMime'])) {
-                    return $this->setError('不合法的文件类型');
-                }
-            }
+            if (!$this->prepareUploadedFile($fileHandle)) return false;
             $key = $this->saveFileName($fileHandle->getRealPath(), $fileHandle->getOriginalExtension());
             $body = fopen($fileHandle->getRealPath(), 'rb');
             $body = (string)Utils::streamFor($body);
@@ -156,13 +146,14 @@ class Cos extends BaseUpload
             $key = $file;
             $body = $fileContent;
         }
+        if (!$this->prepareContent($body, $key)) return false;
         try {
             $key = $this->getUploadPath($key);
-            $this->fileInfo->uploadInfo = $this->app()->putObject($key, $body);
+            $this->fileInfo->uploadInfo = $this->app()->putObject($key, $body, $this->mediaInfo['mime']);
             $this->fileInfo->filePath = ($this->cdn ?: $this->uploadUrl) . '/' . $key;
             $this->fileInfo->realName = isset($fileHandle) ? $fileHandle->getOriginalName() : $key;
             $this->fileInfo->fileName = $key;
-            $this->fileInfo->filePathWater = $this->water($this->fileInfo->filePath);
+            $this->fileInfo->filePathWater = $this->authThumb ? $this->water($this->fileInfo->filePath) : $this->fileInfo->filePath;
             $this->authThumb && $this->thumb($this->fileInfo->filePath);
             return $this->fileInfo;
         } catch (UploadException $e) {
@@ -207,6 +198,7 @@ class Cos extends BaseUpload
         $filePath = $this->getFilePath($filePath);
         $data = ['big' => $filePath, 'mid' => $filePath, 'small' => $filePath];
         $this->fileInfo->filePathBig = $this->fileInfo->filePathMid = $this->fileInfo->filePathSmall = $this->fileInfo->filePathWater = $filePath;
+        if (!$this->canProcessImage($filePath)) return $data;
         if ($filePath) {
             $config = $this->thumbConfig;
             foreach ($this->thumb as $v) {
@@ -236,6 +228,7 @@ class Cos extends BaseUpload
     public function water(string $filePath = '')
     {
         $filePath = $this->getFilePath($filePath);
+        if (!$this->canProcessImage($filePath)) return $filePath;
         $waterConfig = $this->waterConfig;
         $waterPath = $filePath;
         if ($waterConfig['image_watermark_status'] && $filePath) {

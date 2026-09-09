@@ -115,40 +115,11 @@ class Local extends BaseUpload
         if (!$fileHandle) {
             return $this->setError('上传的文件不存在');
         }
-        if ($this->validate) {
-            if (!in_array(strtolower(pathinfo($fileHandle->getOriginalName(), PATHINFO_EXTENSION)), $this->validate['fileExt'])) {
-                return $this->setError('不合法的文件后缀');
-            }
-            if (filesize($fileHandle) > $this->validate['filesize']) {
-                return $this->setError('文件过大');
-            }
-            if (!in_array($fileHandle->getOriginalMime(), $this->validate['fileMime'])) {
-                return $this->setError('不合法的文件类型');
-            }
-            // 危险后缀黑名单检查
-            if (in_array(strtolower(pathinfo($fileHandle->getOriginalName(), PATHINFO_EXTENSION)), $this->dangerousExtensions)) {
-                return $this->setError('不支持的文件格式');
-            }
-            // 对所有上传文件进行内容安全检测
-            // if ($this->checkFileContent($fileHandle) === false) {
-            //     return false;
-            // }
-            if (in_array($fileHandle->getOriginalMime(), ['image/x-icon', 'image/png', 'image/gif', 'image/jpeg', 'image/jpg', 'image/webp'])) {
-                $stream = fopen($fileHandle->getPathname(), 'r');
-                $content = (fread($stream, filesize($fileHandle->getPathname())));
-                if (is_resource($stream)) {
-                    fclose($stream);
-                }
-                $image = @imagecreatefromstring($content);
-                if ($image === false) {
-                    return $this->setError('文件内容不合法');
-                }
-            }
-        }
+        if (!$this->prepareUploadedFile($fileHandle)) return false;
         $disk = 'public';
         $path = $this->path;
         $rule = null;
-        if (in_array($fileHandle->getOriginalMime(), ['application/x-x509-ca-cert', 'application/octet-stream'])) {
+        if (in_array($this->mediaInfo['ext'], ['pem', 'crt', 'key'], true)) {
             $disk = 'pem';
             $path = '';
             $rule = function () {
@@ -169,7 +140,7 @@ class Local extends BaseUpload
         $this->fileInfo->realName = $fileHandle->getOriginalName();
         $this->fileInfo->fileName = $this->fileInfo->uploadInfo->getFilename();
         $this->fileInfo->filePath = $this->defaultPath . '/' . str_replace('\\', '/', $fileName);
-        if ($this->checkImage(public_path() . $this->fileInfo->filePath) && $this->authThumb && pathinfo($fileName, PATHINFO_EXTENSION) != 'ico' && pathinfo($fileName, PATHINFO_EXTENSION) != 'gif') {
+        if ($this->canProcessImage($this->fileInfo->filePath) && $this->checkImage(public_path() . $this->fileInfo->filePath) && $this->authThumb && pathinfo($fileName, PATHINFO_EXTENSION) != 'ico' && pathinfo($fileName, PATHINFO_EXTENSION) != 'gif') {
             try {
                 $this->thumb($this->fileInfo->filePath, $this->fileInfo->fileName);
             } catch (\Throwable $e) {
@@ -190,20 +161,7 @@ class Local extends BaseUpload
         if (!$key) {
             $key = $this->saveFileName();
         }
-        // 扩展名安全验证
-        $ext = strtolower(pathinfo($key, PATHINFO_EXTENSION));
-        if (in_array($ext, $this->dangerousExtensions)) {
-            return $this->setError('不支持的文件格式');
-        }
-        // 文件大小验证 (默认最大50MB)
-        $maxSize = $this->validate['filesize'] ?? 52428800;
-        if (strlen($fileContent) > $maxSize) {
-            return $this->setError('文件过大');
-        }
-        // 文件内容安全检测
-        if (!$this->checkContentSafety($fileContent)) {
-            return $this->setError('文件内容包含非法代码');
-        }
+        if (!$this->prepareContent($fileContent, $key)) return false;
         $dir = $this->uploadDir($this->path);
         if (!$this->validDir($dir)) {
             return $this->setError('Failed to generate upload directory, please check the permission!');
@@ -215,7 +173,7 @@ class Local extends BaseUpload
         $this->fileInfo->fileName = $key;
         $this->defaultPath = Config::get('filesystem.disks.' . Config::get('filesystem.default') . '.url');
         $this->fileInfo->filePath = $this->defaultPath . '/' . $this->path . '/' . $key;
-        if ($this->checkImage(public_path() . $this->fileInfo->filePath) && $this->authThumb) {
+        if ($this->canProcessImage($this->fileInfo->filePath) && $this->checkImage(public_path() . $this->fileInfo->filePath) && $this->authThumb) {
             try {
                 $this->thumb($this->fileInfo->filePath, $this->fileInfo->fileName);
             } catch (\Throwable $e) {
@@ -236,20 +194,7 @@ class Local extends BaseUpload
         if (!$key) {
             $key = $this->saveFileName();
         }
-        // 扩展名安全验证
-        $ext = strtolower(pathinfo($key, PATHINFO_EXTENSION));
-        if (in_array($ext, $this->dangerousExtensions)) {
-            return $this->setError('不支持的文件格式');
-        }
-        // 文件大小验证
-        $maxSize = $this->validate['filesize'] ?? 52428800;
-        if (strlen($fileContent) > $maxSize) {
-            return $this->setError('文件过大');
-        }
-        // 文件内容安全检测
-        if (!$this->checkContentSafety($fileContent)) {
-            return $this->setError('文件内容包含非法代码');
-        }
+        if (!$this->prepareContent($fileContent, $key)) return false;
         $dir = $this->uploadDir($this->path);
         if (!$this->validDir($dir)) {
             return $this->setError('Failed to generate upload directory, please check the permission!');
@@ -276,6 +221,7 @@ class Local extends BaseUpload
         $config = $this->thumbConfig;
         $data = ['big' => $filePath, 'mid' => $filePath, 'small' => $filePath];
         $this->fileInfo->filePathBig = $this->fileInfo->filePathMid = $this->fileInfo->filePathSmall = $this->fileInfo->filePathWater = $filePath;
+        if (!$this->canProcessImage($filePath)) return $data;
         //地址存在且不是远程地址
         $filePath = str_replace(sys_config('site_url'), '', $filePath);
         if ($filePath && !$this->checkFilePathIsRemote($filePath)) {
@@ -317,6 +263,8 @@ class Local extends BaseUpload
      */
     public function water(string $filePath = '')
     {
+        $filePath = $this->getFilePath($filePath);
+        if (!$this->canProcessImage($filePath)) return $filePath;
         $waterConfig = $this->waterConfig;
         if ($waterConfig['image_watermark_status'] && $filePath) {
 

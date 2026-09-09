@@ -1,0 +1,35 @@
+name: hengshu-jd-crawler
+
+services:
+  jd-crawler:
+    build: .
+    image: hengshu-jd-crawler:local
+    restart: unless-stopped
+    init: false
+    shm_size: 1gb
+    environment:
+      TZ: Asia/Shanghai
+      JD_CRAWLER_TOKEN: ${JD_CRAWLER_TOKEN:?Run init-env.sh first}
+      JD_VNC_PASSWORD: ${JD_VNC_PASSWORD:?Run init-env.sh first}
+      JD_CRAWLER_HOST: 0.0.0.0
+      JD_CRAWLER_PORT: 8091
+      JD_CRAWLER_DATA_DIR: /data
+      JD_CRAWLER_JOB_TIMEOUT: ${JD_CRAWLER_JOB_TIMEOUT:-240}
+      JD_CRAWLER_RETENTION_HOURS: 24
+      JD_BROWSER_ADDRESS: 127.0.0.1:9222
+    volumes:
+      - crawler-data:/data
+    ports:
+      - "127.0.0.1:${JD_LOGIN_PORT:-6080}:6080"
+    networks:
+      mall:
+        aliases:
+          - jd-crawler
+
+volumes:
+  crawler-data:
+
+networks:
+  mall:
+    external: true
+    name: ${MALL_NETWORK:-crmeb-mall_default}

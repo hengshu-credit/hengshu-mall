@@ -310,6 +310,7 @@ class StoreProductServices extends BaseServices
             }
         }
         $productInfo['video_open'] = $productInfo['video_link'] != '' ? 1 : 0;
+        $productInfo['collection_warnings'] = (new JdVideoImportServices())->warnings((int)$id, (string)$productInfo['video_link']);
         if (!empty($productInfo['video_link']) && (strpos($productInfo['video_link'], 'http') !== false)) {
             $productInfo['seletVideo'] = 1;
         } else {
@@ -724,7 +725,18 @@ class StoreProductServices extends BaseServices
         if (isset($data['description_images'])) {
             $descriptionImages = $data['description_images'];
         }
-        $this->transaction(function () use ($id, $is_copy, $data, $descriptionImages, $description, $cate_id, $storeDescriptionServices, $storeProductCateServices, $storeProductAttrServices, $storeProductCouponServices, $storeCategoryServices, $detail, $attr, $coupon_ids, $type, $slider_image) {
+        $collectedVideoJob = null;
+        $videoToImport = '';
+        if (!$id && $type == -1 && (new JdVideoImportServices())->isRemoteVideo((string)($data['video_link'] ?? ''))) {
+            $videoToImport = (string)$data['video_link'];
+            (new JdCrawlerServices())->videoUrl($videoToImport);
+            if (sys_config('queue_open', 0) != 1) {
+                // Finish transfer before opening a database transaction; failure leaves no new product.
+                $data['video_link'] = app()->make(CopyTaobaoServices::class)->downloadCopyVideo($videoToImport);
+                $videoToImport = '';
+            }
+        }
+        $this->transaction(function () use ($id, $is_copy, $data, $descriptionImages, $description, $cate_id, $storeDescriptionServices, $storeProductCateServices, $storeProductAttrServices, $storeProductCouponServices, $storeCategoryServices, $detail, $attr, $coupon_ids, $type, $slider_image, $videoToImport, &$collectedVideoJob) {
             if ($data['spec_type'] == 0) {
                 $attr = [
                     [
@@ -793,6 +805,7 @@ class StoreProductServices extends BaseServices
 
                 //采集商品下载图片
                 if ($type == -1) {
+                    if ($videoToImport !== '') $collectedVideoJob = [$res->id, $videoToImport];
                     $s_image_down = [];
                     //下载商品轮播图
                     foreach ($slider_image as $s_image) {
@@ -810,7 +823,8 @@ class StoreProductServices extends BaseServices
                         if (sys_config('queue_open', 0) == 1) {
                             ProductCopyJob::dispatch('copyDescriptionImage', [$res->id, $description, $d_image, count($match[1])]);
                         } else {
-                            $d_img = app()->make(CopyTaobaoServices::class)->downloadCopyImage(!is_int(strpos($d_image, 'http')) ? 'http://' . ltrim($d_image, '\//') : $d_image);
+                            $copyService = app()->make(CopyTaobaoServices::class);
+                            $d_img = $copyService->downloadCopyImage($copyService->descriptionImageUrl($d_image));
                             $description = str_replace($d_image, $d_img, $description);
                         }
                     }
@@ -834,6 +848,8 @@ class StoreProductServices extends BaseServices
                 }
             }
         });
+        // Publish after the product transaction commits so a fast worker can see it.
+        return ['collection_warnings' => $collectedVideoJob ? (new JdVideoImportServices())->schedule(...$collectedVideoJob) : []];
     }
 
     /**

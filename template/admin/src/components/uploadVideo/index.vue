@@ -2,7 +2,7 @@
   <div>
     <div class="mt20 ml20">
       <el-input class="perW35" v-model="videoLink" placeholder="请输入视频链接" />
-      <input type="file" ref="refid" style="display: none" @change="zh_uploadFile_change" />
+      <input type="file" ref="refid" style="display: none" :accept="videoUploadAccept" @change="zh_uploadFile_change" />
       <el-button
         v-if="upload_type !== '1' || videoLink"
         type="primary"
@@ -22,10 +22,14 @@
         :headers="header"
         :multiple="true"
         style="display: inline-block"
-        accept=".mp4"
+        :accept="videoUploadAccept"
       >
         <el-button type="primary" icon="ios-cloud-upload-outline">上传视频</el-button>
       </el-upload>
+      <div class="mt10">
+        可上传 mp4、webm、mov、m4v、ogv、avi、wmv、rm、mpg、mpeg、flv 原文件；预览能力取决于浏览器及视频编码，m3u8
+        请使用视频链接。
+      </div>
       <Progress :percent="progress" :stroke-width="5" v-if="upload.videoIng" />
       <div class="video-style" v-if="formValidate.video_link">
         <video
@@ -50,7 +54,7 @@ import { uploadByPieces } from '@/utils/upload'; //引入uploadByPieces方法
 import { productGetTempKeysApi, uploadType } from '@/api/product';
 import Setting from '@/setting';
 import { getCookies } from '@/libs/util';
-import { isVideoUpload } from '@/utils';
+import { isVideoUpload, VIDEO_UPLOAD_ACCEPT } from '@/utils';
 
 // import '../../../public/UEditor/dialogs/internal';
 export default {
@@ -69,6 +73,7 @@ export default {
       upload_type: '',
       uploadData: {},
       header: {},
+      videoUploadAccept: VIDEO_UPLOAD_ACCEPT,
     };
   },
   created() {
@@ -97,7 +102,7 @@ export default {
       }
     },
     videoSaveToUrl(file) {
-      if (isVideoUpload(filex))
+      if (isVideoUpload(file))
         uploadByPieces({
           file: file, // 视频实体
           pieceSize: 3, // 分片大小
@@ -109,7 +114,7 @@ export default {
             this.$message.error(e.msg);
           },
           uploading: (chunk, allChunk) => {
-            this.videoIng = true;
+            this.upload.videoIng = true;
             let st = Math.floor((chunk / allChunk) * 100);
             this.progress = st;
           },
@@ -137,12 +142,11 @@ export default {
     },
     zh_uploadFile_change(evfile) {
       let that = this;
-      if (evfile.target.files[0].type !== 'video/mp4') {
-        return that.$message.error('只能上传mp4文件');
-      }
+      const file = evfile.target.files[0];
+      if (!file || !isVideoUpload(file)) return false;
       let types = {
-        key: evfile.target.files[0].name,
-        contentType: evfile.target.files[0].type,
+        key: file.name,
+        contentType: file.type,
       };
       productGetTempKeysApi(types).then((res) => {
         that.$videoCloud

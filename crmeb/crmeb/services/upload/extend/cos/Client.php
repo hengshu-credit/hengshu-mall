@@ -173,7 +173,7 @@ class Client
      * @email 136327134@qq.com
      * @date 2022/9/29
      */
-    public function putObject(string $key, $body)
+    public function putObject(string $key, $body, string $contentType = 'image/jpeg')
     {
 
         $this->checkOptions();
@@ -181,7 +181,7 @@ class Client
         $url = $this->makeUpUrl();
 
         $header = [
-            'Content-Type' => 'image/jpeg',
+            'Content-Type' => $contentType,
             'x-cos-acl' => $this->cosacl,
             'Content-MD5' => base64_encode(md5($body, true)),
             'Host' => $url

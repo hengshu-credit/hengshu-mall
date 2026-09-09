@@ -137,24 +137,15 @@ class Jdoss extends BaseUpload
         if (!$fileHandle) {
             return $this->setError('上传的文件不存在');
         }
-        if ($this->validate) {
-            if (!in_array(strtolower(pathinfo($fileHandle->getOriginalName(), PATHINFO_EXTENSION)), $this->validate['fileExt'])) {
-                return $this->setError('不合法的文件后缀');
-            }
-            if (filesize($fileHandle) > $this->validate['filesize']) {
-                return $this->setError('文件过大');
-            }
-            if (!in_array($fileHandle->getOriginalMime(), $this->validate['fileMime'])) {
-                return $this->setError('不合法的文件类型');
-            }
-        }
+        if (!$this->prepareUploadedFile($fileHandle)) return false;
         $key = $this->saveFileName($fileHandle->getRealPath(), $fileHandle->getOriginalExtension());
         $key = $this->getUploadPath($key);
         try {
             $uploadInfo = $this->app()->putObject([
                 'Bucket' => $this->storageName,
                 'Key' => $key,
-                'SourceFile' => $fileHandle->getRealPath()
+                'SourceFile' => $fileHandle->getRealPath(),
+                'ContentType' => $this->mediaInfo['mime'],
             ]);
             if (!isset($uploadInfo['ObjectURL'])) {
                 return $this->setError('Upload failure');
@@ -163,7 +154,7 @@ class Jdoss extends BaseUpload
             $this->fileInfo->realName = $fileHandle->getOriginalName();
             $this->fileInfo->filePath = ($this->cdn ?: $this->uploadUrl) . '/' . $key;
             $this->fileInfo->fileName = $key;
-            $this->fileInfo->filePathWater = $this->water($this->fileInfo->filePath);
+            $this->fileInfo->filePathWater = $this->authThumb ? $this->water($this->fileInfo->filePath) : $this->fileInfo->filePath;
             $this->authThumb && $this->thumb($this->fileInfo->filePath);
             return $this->fileInfo;
         } catch (\Throwable $e) {
@@ -177,12 +168,13 @@ class Jdoss extends BaseUpload
             if (!$key) {
                 $key = $this->saveFileName();
             }
+            if (!$this->prepareContent($fileContent, $key)) return false;
             $key = $this->getUploadPath($key);
-            $fileContent = (string)EntityBody::factory($fileContent);
             $uploadInfo = $this->app()->putObject([
                 'Bucket' => $this->storageName,
                 'Key' => $key,
-                'Body' => $fileContent
+                'Body' => $fileContent,
+                'ContentType' => $this->mediaInfo['mime'],
             ]);
             $uploadInfo = $uploadInfo->toArray();
             if (isset($uploadInfo['@metadata']['statusCode']) && $uploadInfo['@metadata']['statusCode'] !== 200) {
@@ -192,7 +184,7 @@ class Jdoss extends BaseUpload
             $this->fileInfo->realName = $key;
             $this->fileInfo->filePath = ($this->cdn ?: $this->uploadUrl) . '/' . $key;
             $this->fileInfo->fileName = $key;
-            $this->fileInfo->filePathWater = $this->water($this->fileInfo->filePath);
+            $this->fileInfo->filePathWater = $this->authThumb ? $this->water($this->fileInfo->filePath) : $this->fileInfo->filePath;
             $this->authThumb && $this->thumb($this->fileInfo->filePath);
             return $this->fileInfo;
         } catch (\Throwable $e) {
@@ -390,6 +382,7 @@ class Jdoss extends BaseUpload
         $filePath = $this->getFilePath($filePath);
         $data = ['big' => $filePath, 'mid' => $filePath, 'small' => $filePath];
         $this->fileInfo->filePathBig = $this->fileInfo->filePathMid = $this->fileInfo->filePathSmall = $this->fileInfo->filePathWater = $filePath;
+        if (!$this->canProcessImage($filePath)) return $data;
         if ($filePath) {
             $config = $this->thumbConfig;
             foreach ($this->thumb as $v) {
@@ -419,6 +412,7 @@ class Jdoss extends BaseUpload
     public function water(string $filePath = '')
     {
         $filePath = $this->getFilePath($filePath);
+        if (!$this->canProcessImage($filePath)) return $filePath;
         $waterConfig = $this->waterConfig;
         $waterPath = $filePath;
         if ($waterConfig['image_watermark_status'] && $filePath) {

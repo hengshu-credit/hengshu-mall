@@ -125,23 +125,13 @@ class Qiniu extends BaseUpload
         if (!$fileHandle) {
             return $this->setError('上传的文件不存在');
         }
-        if ($this->validate) {
-            if (!in_array(strtolower(pathinfo($fileHandle->getOriginalName(), PATHINFO_EXTENSION)), $this->validate['fileExt'])) {
-                return $this->setError('不合法的文件后缀');
-            }
-            if (filesize($fileHandle) > $this->validate['filesize']) {
-                return $this->setError('文件过大');
-            }
-            if (!in_array($fileHandle->getOriginalMime(), $this->validate['fileMime'])) {
-                return $this->setError('不合法的文件类型');
-            }
-        }
+        if (!$this->prepareUploadedFile($fileHandle)) return false;
         $key = $this->saveFileName($fileHandle->getRealPath(), $fileHandle->getOriginalExtension());
         $key = $this->getUploadPath($key);
         $token = $this->app()->uploadToken($this->storageName);
         try {
             $uploadMgr = new UploadManager();
-            [$result, $error] = $uploadMgr->putFile($token, $key, $fileHandle->getRealPath());
+            [$result, $error] = $uploadMgr->putFile($token, $key, $fileHandle->getRealPath(), null, $this->mediaInfo['mime']);
             if ($error !== null) {
                 return $this->setError($error->message());
             }
@@ -149,7 +139,7 @@ class Qiniu extends BaseUpload
             $this->fileInfo->realName = $fileHandle->getOriginalName();
             $this->fileInfo->filePath = $this->uploadUrl . '/' . $key;
             $this->fileInfo->fileName = $key;
-            $this->fileInfo->filePathWater = $this->water($this->fileInfo->filePath);
+            $this->fileInfo->filePathWater = $this->authThumb ? $this->water($this->fileInfo->filePath) : $this->fileInfo->filePath;
             $this->authThumb && $this->thumb($this->fileInfo->filePath);
             return $this->fileInfo;
         } catch (UploadException $e) {
@@ -168,11 +158,12 @@ class Qiniu extends BaseUpload
         if (!$key) {
             $key = $this->saveFileName();
         }
+        if (!$this->prepareContent($fileContent, $key)) return false;
         $key = $this->getUploadPath($key);
         $token = $this->app()->uploadToken($this->storageName, $key);
         try {
             $uploadMgr = new UploadManager();
-            [$result, $error] = $uploadMgr->put($token, $key, $fileContent);
+            [$result, $error] = $uploadMgr->put($token, $key, $fileContent, null, $this->mediaInfo['mime']);
             if ($error !== null) {
                 return $this->setError($error->message());
             }
@@ -180,7 +171,7 @@ class Qiniu extends BaseUpload
             $this->fileInfo->realName = $key;
             $this->fileInfo->filePath = ($this->cdn ?: $this->uploadUrl) . '/' . $key;
             $this->fileInfo->fileName = $key;
-            $this->fileInfo->filePathWater = $this->water($this->fileInfo->filePath);
+            $this->fileInfo->filePathWater = $this->authThumb ? $this->water($this->fileInfo->filePath) : $this->fileInfo->filePath;
             $this->authThumb && $this->thumb($this->fileInfo->filePath);
             return $this->fileInfo;
         } catch (UploadException $e) {
@@ -200,6 +191,7 @@ class Qiniu extends BaseUpload
         $filePath = $this->getFilePath($filePath);
         $data = ['big' => $filePath, 'mid' => $filePath, 'small' => $filePath];
         $this->fileInfo->filePathBig = $this->fileInfo->filePathMid = $this->fileInfo->filePathSmall = $this->fileInfo->filePathWater = $filePath;
+        if (!$this->canProcessImage($filePath)) return $data;
         if ($filePath) {
             $config = $this->thumbConfig;
             foreach ($this->thumb as $v) {
@@ -229,6 +221,7 @@ class Qiniu extends BaseUpload
     public function water(string $filePath = '')
     {
         $filePath = $this->getFilePath($filePath);
+        if (!$this->canProcessImage($filePath)) return $filePath;
         $waterConfig = $this->waterConfig;
         $waterPath = $filePath;
         if ($waterConfig['image_watermark_status'] && $filePath) {

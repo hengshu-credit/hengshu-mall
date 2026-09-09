@@ -243,6 +243,7 @@ import Setting from '@/setting';
 import { getCookies } from '@/libs/util';
 import uploadImg from '@/components/uploadImg';
 import { VueTreeList, Tree, TreeNode } from 'vue-tree-list';
+import { isPicUpload } from '@/utils';
 export default {
   name: 'uploadPictures',
   components: { uploadImg, VueTreeList },
@@ -670,10 +671,7 @@ export default {
       // if (file.size > 2097152) {
       //   this.$message.error(file.name + "大小超过2M!");
       // } else
-      if (!/image\/\w+/.test(file.type)) {
-        this.$message.error('请上传以jpg、jpeg、png等结尾的图片文件'); //FileExt.toLowerCase()
-        return false;
-      }
+      if (!isPicUpload(file)) return false;
       this.uploadData = {
         pid: this.treeId,
       };

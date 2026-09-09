@@ -44,6 +44,7 @@
                   :headers="header"
                   :multiple="true"
                   :limit="limit"
+                  :accept="imageUploadAccept"
                 >
                   <i slot="default" class="el-icon-plus"></i>
                   <div
@@ -60,7 +61,7 @@
                   </div>
                 </el-upload>
                 <div class="tips">
-                  建议上传图片最大宽度750px，不超过3MB；仅支持jpeg、jpg、png格式，可拖拽调整上传顺序
+                  支持jpg、jpeg、png、gif、webp、avif、svg、bmp、ico格式，可拖拽调整上传顺序
                 </div>
               </div>
             </div>
@@ -138,8 +139,7 @@ import Setting from '@/setting';
 import { getCookies } from '@/libs/util';
 import { fileUpload, scanUploadQrcode, scanUploadGet } from '@/api/setting';
 import QRCode from 'qrcodejs2';
-import compressImg from '@/utils/compressImg.js';
-import { isPicUpload } from '@/utils/index';
+import { IMAGE_UPLOAD_ACCEPT, isPicUpload } from '@/utils/index';
 export default {
   name: '',
   props: {
@@ -175,6 +175,7 @@ export default {
         'Authori-zation': 'Bearer ' + getCookies('token'),
       },
       uploadData: {},
+      imageUploadAccept: IMAGE_UPLOAD_ACCEPT,
       props: { checkStrictly: true, emitPath: false, label: 'title', value: 'id' },
       disabled: false,
       ruleForm: {
@@ -343,31 +344,12 @@ export default {
     handleDownload(file) {
       console.log(file);
     },
-    async fileChange(file, fileList) {
+    fileChange(file, fileList) {
       if (isPicUpload(file)) {
-        if (file.size >= 2097152) {
-          await this.comImg(file.raw).then((res) => {
-            fileList.map((e) => {
-              if (e.uid === file.uid) {
-                e.raw = res;
-              }
-            });
-            this.ruleForm.imgList = fileList;
-          });
-        } else {
-          this.ruleForm.imgList = fileList;
-        }
+        this.ruleForm.imgList = fileList;
       } else {
-        // 从ruleForm对象的imgList数组中删除最后一个元素
-        this.ruleForm.imgList.splice(this.ruleForm.imgList.length, 1);
+        this.ruleForm.imgList = fileList.filter((item) => item.uid !== file.uid);
       }
-    },
-    comImg(file) {
-      return new Promise((resolve, reject) => {
-        compressImg(file).then((res) => {
-          resolve(res);
-        });
-      });
     },
     loadData(item, callback) {
       getCategoryListApi({

@@ -13,6 +13,7 @@ namespace app\jobs;
 
 
 use app\services\product\product\CopyTaobaoServices;
+use app\services\product\product\JdVideoImportServices;
 use app\services\product\product\StoreDescriptionServices;
 use app\services\product\product\StoreProductServices;
 use app\services\product\sku\StoreProductAttrValueServices;
@@ -30,6 +31,26 @@ class ProductCopyJob extends BaseJobs
 {
     use QueueTrait;
 
+    /** Persist a collected video without overwriting a subsequent manual edit. */
+    public function copyVideo($id, $hash)
+    {
+        $imports = new JdVideoImportServices();
+        try {
+            $services = app()->make(StoreProductServices::class);
+            $video = (string)$services->value(['id' => $id], 'video_link');
+            if ($video === '' || hash('sha256', $video) !== $hash) return true;
+            $imports->state((int)$id, $hash, 'running');
+            $path = app()->make(CopyTaobaoServices::class)->downloadCopyVideo($video);
+            $services->update(['id' => $id, 'video_link' => $video], ['video_link' => $path]);
+            $imports->state((int)$id, $hash, 'stored');
+        } catch (\Throwable $e) {
+            $imports->state((int)$id, $hash, 'failed');
+            Log::error('下载采集商品视频失败，商品ID:' . (int)$id . '，请检查素材服务并重新上传视频');
+            return false;
+        }
+        return true;
+    }
+
     /**
      * 下载商品详情图片
      * @param $id
@@ -42,11 +63,7 @@ class ProductCopyJob extends BaseJobs
             $copyTaobao = app()->make(CopyTaobaoServices::class);
             /** @var StoreDescriptionServices $storeDescriptionServices */
             $storeDescriptionServices = app()->make(StoreDescriptionServices::class);
-            if (is_int(strpos($image, 'http'))) {
-                $d_image = $image;
-            } else {
-                $d_image = 'http://' . ltrim($image, '\//');
-            }
+            $d_image = $copyTaobao->descriptionImageUrl($image);
             $description_cache = CacheService::get('desc_images_' . $id);
             if ($description_cache === null || $description_cache === '') {
                 $description_cache = $description;

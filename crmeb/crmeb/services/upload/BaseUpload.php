@@ -92,6 +92,39 @@ abstract class BaseUpload extends BaseStorage
      */
     protected $authThumb = false;
 
+    protected $mediaInfo = [];
+
+    /** Validate before any driver writes bytes to disk or a bucket. */
+    protected function prepareContent(&$content, string $name, string $mime = ''): bool
+    {
+        $this->mediaInfo = [];
+        try {
+            if (is_resource($content)) $content = stream_get_contents($content);
+            if (!is_string($content)) throw new \InvalidArgumentException('文件内容格式不正确');
+            $this->mediaInfo = MediaFile::prepare($content, $name, $this->validate ?: $this->getConfig(), $mime);
+            return true;
+        } catch (\InvalidArgumentException $error) { return $this->setError($error->getMessage()); }
+    }
+
+    protected function prepareUploadedFile($file): bool
+    {
+        $rules = $this->validate ?: $this->getConfig();
+        if (filesize($file->getPathname()) > ($rules['filesize'] ?? 52428800)) return $this->setError('文件过大');
+        $bytes = file_get_contents($file->getPathname());
+        if (!$this->prepareContent($bytes, $file->getOriginalName(), $file->getOriginalMime())) return false;
+        // A generic MIME must never change a verified .avif/.svg/.webm into an unknown suffix.
+        $file->setExtension($this->mediaInfo['ext']);
+        return true;
+    }
+
+    /** Use conservative shared transforms; modern/animated media always retain their original URL. */
+    protected function canProcessImage(string $path): bool
+    {
+        $decoders = ['jpg' => 'imagecreatefromjpeg', 'jpeg' => 'imagecreatefromjpeg', 'png' => 'imagecreatefrompng'];
+        $ext = MediaFile::extension($path);
+        return isset($decoders[$ext]) && function_exists($decoders[$ext]);
+    }
+
     protected function initialize(array $config)
     {
         $this->fileInfo = $this->downFileInfo = new \StdClass();
@@ -307,7 +340,9 @@ abstract class BaseUpload extends BaseStorage
         if (isset($this->fileInfo->filePath)) {
             // 如果文件的后缀是pem或者crt，则使用getFileHeaders获取文件大小和类型
             $fileExt = pathinfo($this->fileInfo->filePath, PATHINFO_EXTENSION);
-            if ($fileExt === 'pem' || $fileExt === 'crt') {
+            if ($this->mediaInfo) {
+                $headers = ['size' => $this->mediaInfo['size'], 'type' => $this->mediaInfo['mime']];
+            } elseif ($fileExt === 'pem' || $fileExt === 'crt') {
                 $headers = $this->getFileHeaders(sys_config('site_url') . $this->fileInfo->filePath);
             } else {
                 if (strstr($this->fileInfo->filePath, 'http') === false) {
@@ -324,8 +359,8 @@ abstract class BaseUpload extends BaseStorage
             return [
                 'name' => $this->fileInfo->fileName,
                 'real_name' => $this->fileInfo->realName ?? '',
-                'size' => $headers['size'] ?? 0,
-                'type' => $headers['type'] ?? 'image/jpeg',
+                'size' => $this->mediaInfo['size'] ?? $headers['size'] ?? 0,
+                'type' => $this->mediaInfo['mime'] ?? $headers['type'] ?? 'image/jpeg',
                 'dir' => $this->fileInfo->filePath,
                 'thumb_path' => $this->fileInfo->filePath,
                 'thumb_path_big' => $this->fileInfo->filePathBig ?? '',
@@ -348,7 +383,9 @@ abstract class BaseUpload extends BaseStorage
         if (isset($this->downFileInfo->downloadFilePath)) {
             // 如果文件的后缀是pem或者crt，则使用getFileHeaders获取文件大小和类型
             $fileExt = pathinfo($this->downFileInfo->downloadFilePath, PATHINFO_EXTENSION);
-            if ($fileExt === 'pem' || $fileExt === 'crt') {
+            if ($this->mediaInfo) {
+                $headers = ['size' => $this->mediaInfo['size'], 'type' => $this->mediaInfo['mime']];
+            } elseif ($fileExt === 'pem' || $fileExt === 'crt') {
                 $headers = $this->getFileHeaders(sys_config('site_url') . $this->downFileInfo->downloadFilePath);
             } else {
                 if (strstr($this->downFileInfo->downloadFilePath, 'http') === false) {
@@ -365,8 +402,8 @@ abstract class BaseUpload extends BaseStorage
             return [
                 'name' => $this->downFileInfo->downloadFileName,
                 'real_name' => $this->downFileInfo->downloadRealName ?? '',
-                'size' => $headers['size'] ?? 0,
-                'type' => $headers['type'] ?? 'image/jpeg',
+                'size' => $this->mediaInfo['size'] ?? $headers['size'] ?? 0,
+                'type' => $this->mediaInfo['mime'] ?? $headers['type'] ?? 'image/jpeg',
                 'dir' => $this->downFileInfo->downloadFilePath ?? '',
                 'thumb_path' => $this->downFileInfo->downloadFilePath ?? '',
                 'time' => time(),

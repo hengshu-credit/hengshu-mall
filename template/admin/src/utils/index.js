@@ -8,6 +8,71 @@
 // | Author: CRMEB Team <admin@crmeb.com>
 // +----------------------------------------------------------------------
 import { Message } from 'element-ui';
+
+export const IMAGE_UPLOAD_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.svg', '.bmp', '.ico'];
+export const IMAGE_UPLOAD_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+  'image/svg+xml',
+  'image/bmp',
+  'image/x-ms-bmp',
+  'image/vnd.microsoft.icon',
+  'image/x-icon',
+];
+export const VIDEO_UPLOAD_EXTENSIONS = [
+  '.mp4',
+  '.webm',
+  '.mov',
+  '.m4v',
+  '.ogv',
+  '.avi',
+  '.wmv',
+  '.rm',
+  '.mpg',
+  '.mpeg',
+  '.flv',
+];
+export const VIDEO_UPLOAD_MIME_TYPES = [
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'video/x-quicktime',
+  'video/x-m4v',
+  'video/ogg',
+  'video/x-msvideo',
+  'video/avi',
+  'video/x-ms-wmv',
+  'application/vnd.rn-realmedia',
+  'video/vnd.rn-realvideo',
+  'video/mpeg',
+  'video/x-flv',
+];
+export const IMAGE_UPLOAD_ACCEPT = [...IMAGE_UPLOAD_EXTENSIONS, ...IMAGE_UPLOAD_MIME_TYPES].join(',');
+export const VIDEO_UPLOAD_ACCEPT = [...VIDEO_UPLOAD_EXTENSIONS, ...VIDEO_UPLOAD_MIME_TYPES].join(',');
+
+function getUploadFile(file) {
+  return file && file.raw ? file.raw : file || {};
+}
+
+function getFileExtension(file) {
+  const name = String((file && file.name) || '');
+  const dot = name.lastIndexOf('.');
+  return dot >= 0 ? name.slice(dot).toLowerCase() : '';
+}
+
+function matchesUploadType(file, extensions, mimeTypes) {
+  const uploadFile = getUploadFile(file);
+  const extension = getFileExtension(file && file.name ? file : uploadFile);
+  if (!extensions.includes(extension)) return false;
+  const mimeType = String(uploadFile.type || file.type || '')
+    .split(';')[0]
+    .trim()
+    .toLowerCase();
+  return !mimeType || mimeType === 'application/octet-stream' || mimeTypes.includes(mimeType);
+}
 export function importAll(r) {
   let __modules = {};
   r.keys().forEach((key) => {
@@ -19,11 +84,9 @@ export function importAll(r) {
 }
 
 export function isPicUpload(file) {
-  const typeArry = ['.jpg', '.png', '.jpeg', '.JPG', '.PNG', '.JPEG', '.gif', '.GIF', '.webp', '.WEBP'];
-  const type = file.name.substring(file.name.lastIndexOf('.'));
-  const isImage = typeArry.indexOf(type) > -1;
+  const isImage = matchesUploadType(file, IMAGE_UPLOAD_EXTENSIONS, IMAGE_UPLOAD_MIME_TYPES);
   if (!isImage) {
-    Message.error('上传图片格式不对');
+    Message.error('图片仅支持 jpg、jpeg、png、gif、webp、avif、svg、bmp、ico 格式');
   }
   return isImage;
 }
@@ -39,13 +102,11 @@ export function isVoiceUpload(file) {
 }
 
 export function isVideoUpload(file) {
-  const typeArry = ['.mp4', '.MP4'];
-  const type = file.name.substring(file.name.lastIndexOf('.'));
-  const isImage = typeArry.indexOf(type) > -1;
-  if (!isImage) {
-    Message.error('上传文件必须为mp4格式视频');
+  const isVideo = matchesUploadType(file, VIDEO_UPLOAD_EXTENSIONS, VIDEO_UPLOAD_MIME_TYPES);
+  if (!isVideo) {
+    Message.error('视频文件格式不支持；m3u8 请使用视频链接');
   }
-  return isImage;
+  return isVideo;
 }
 
 export function isFileUpload(file) {

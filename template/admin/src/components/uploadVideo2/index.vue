@@ -85,7 +85,7 @@
               :headers="header"
               :multiple="true"
               style="display: inline-block"
-              accept=".mp4"
+              :accept="videoUploadAccept"
             >
               <el-button class="mr8" size="small" type="primary">上传视频</el-button>
             </el-upload>
@@ -252,12 +252,16 @@
     <el-dialog title="查看视频" append-to-body :visible.sync="videoModal" width="1024px">
       <video :src="imageUrl" controls />
     </el-dialog>
-    <input type="file" ref="refid" style="display: none" @change="zh_uploadFile_change" />
+    <input type="file" ref="refid" style="display: none" :accept="videoUploadAccept" @change="zh_uploadFile_change" />
     <!-- 输入链接弹窗 -->
     <el-dialog title="输入视频链接" append-to-body :visible.sync="inputModal" width="400px">
       <div class="flex">
         <el-input class="mr-20" v-model="inputUrl" placeholder="请输入视频链接" />
         <el-button type="primary" @click="uploadByUrl">使用</el-button>
+      </div>
+      <div class="mt10">
+        可上传 mp4、webm、mov、m4v、ogv、avi、wmv、rm、mpg、mpeg、flv 原文件；预览能力取决于浏览器及视频编码，m3u8
+        请使用视频链接。
       </div>
     </el-dialog>
   </div>
@@ -280,7 +284,7 @@ import Setting from '@/setting';
 import { getCookies } from '@/libs/util';
 import uploadImg from '@/components/uploadImg';
 import { VueTreeList, Tree, TreeNode } from 'vue-tree-list';
-import { isVideoUpload } from '@/utils';
+import { isVideoUpload, VIDEO_UPLOAD_ACCEPT } from '@/utils';
 export default {
   name: 'uploadPictures',
   components: { uploadImg, VueTreeList },
@@ -363,6 +367,7 @@ export default {
       },
       inputModal: false, // 输入链接弹窗
       inputUrl: '', // 输入的视频链接
+      videoUploadAccept: VIDEO_UPLOAD_ACCEPT,
     };
   },
   mounted() {
@@ -402,13 +407,11 @@ export default {
     },
     zh_uploadFile_change(evfile) {
       let that = this;
-      if (evfile.target.files[0].type !== 'video/mp4') {
-        return that.$message.error('只能上传mp4文件');
-      }
-      debugger;
+      const file = evfile.target.files[0];
+      if (!file || !isVideoUpload(file)) return false;
       let types = {
-        key: evfile.target.files[0].name,
-        contentType: evfile.target.files[0].type,
+        key: file.name,
+        contentType: file.type,
       };
       productGetTempKeysApi(types).then((res) => {
         that.$videoCloud
@@ -424,7 +427,7 @@ export default {
             videoCloudUpload({
               pid: this.treeId || 0,
               video_path: res.url,
-              video_name: evfile.target.files[0].name,
+              video_name: file.name,
             }).then((res) => {
               this.getFileList();
             });
@@ -454,7 +457,7 @@ export default {
             this.$message.error(e.msg);
           },
           uploading: (chunk, allChunk) => {
-            this.videoIng = true;
+            this.upload.videoIng = true;
             let st = Math.floor((chunk / allChunk) * 100);
             this.progress = st;
           },

@@ -261,10 +261,12 @@ class SystemAttachment extends AuthController
             ['video_name', ''],
             ['video_path', '']
         ]);
+        $ext = \crmeb\services\upload\MediaFile::extension((string)(parse_url($data['video_path'], PHP_URL_PATH) ?? ''));
+        if (!in_array($ext, \crmeb\services\upload\MediaFile::VIDEOS, true)) return app('json')->fail('不支持的视频格式');
         $this->service->attachmentAdd(
             $data['video_name'],
             0,
-            'video/mp4',
+            \crmeb\services\upload\MediaFile::MIMES[$ext],
             $data['video_path'],
             $data['video_path'],
             $data['pid'],

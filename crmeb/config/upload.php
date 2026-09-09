@@ -15,7 +15,7 @@ return [
     //上传文件大小 50M
     'filesize' => 52428800,
     //上传文件后缀类型
-    'fileExt' => ['jpg', 'jpeg', 'png', 'gif', 'pem', 'mp3', 'wma', 'wav', 'amr', 'mp4', 'key', 'xlsx', 'xls', 'txt', 'ico', 'crt', 'webp', 'zip'],
+    'fileExt' => ['jpg', 'jpeg', 'png', 'gif', 'pem', 'mp3', 'wma', 'wav', 'amr', 'mp4', 'key', 'xlsx', 'xls', 'txt', 'ico', 'crt', 'webp', 'avif', 'svg', 'bmp', 'webm', 'mov', 'm4v', 'ogv', 'avi', 'wmv', 'rm', 'mpg', 'mpeg', 'flv', 'zip'],
     //上传文件类型
     'fileMime' => [
         'image/jpg',
@@ -35,6 +35,18 @@ return [
         'image/vnd.microsoft.icon',
         'application/x-x509-ca-cert',
         'image/webp',
+        'image/avif',
+        'image/svg+xml',
+        'image/bmp',
+        'video/webm',
+        'video/quicktime',
+        'video/ogg',
+        'video/x-m4v',
+        'video/x-msvideo',
+        'video/x-ms-wmv',
+        'application/vnd.rn-realmedia',
+        'video/mpeg',
+        'video/x-flv',
         'application/x-zip-compressed',
         // 补充缺失
         'audio/x-ms-wma',              // wma

@@ -154,6 +154,14 @@
         ></other-setting>
 
         <el-form-item>
+          <el-button
+            v-if="!$route.params.id && currentTab === '1'"
+            v-auth="['product-crawl-save']"
+            type="success"
+            v-db-click
+            @click="openCollection"
+            >链接采集</el-button
+          >
           <el-button v-if="currentTab !== '1'" v-db-click @click="upTab">上一步</el-button>
           <el-button
             class="submission"
@@ -957,6 +965,9 @@ export default {
     getEditorContent(data) {
       this.content = data;
     },
+    openCollection() {
+      this.modals = true;
+    },
     cancel() {
       this.modals = false;
     },
@@ -976,43 +987,67 @@ export default {
         this.upload_type = res.data.upload_type;
       });
     },
+    showCollectionWarnings(warnings) {
+      if (!Array.isArray(warnings)) return;
+      const messages = warnings.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim());
+      if (messages.length) this.$message.warning(messages.join('；'));
+    },
     // 初始化数据展示
     infoData(data, isCopy) {
-      let cate_id = data.cate_id.map(Number);
-      let label_id = data.label_id.map(Number);
-      this.attrs = data.items || [];
+      if (!isCopy && this.$route && this.$route.params && this.$route.params.id) {
+        this.showCollectionWarnings(data.collection_warnings);
+      }
+      const cate_id = Array.isArray(data.cate_id) ? data.cate_id.map(Number) : [];
+      const label_id = Array.isArray(data.label_id) ? data.label_id.map(Number) : [];
+      const coupons = Array.isArray(data.coupons) ? data.coupons : [];
+      const { attr } = data;
+      const productData = { ...data };
+      delete productData.attr;
+      delete productData.collection_warnings;
+      const isShow = isCopy
+        ? 0
+        : productData.is_show === undefined
+          ? this.formValidate.is_show
+          : productData.is_show;
+      this.attrs = Array.isArray(data.items) ? data.items : [];
       let ids = [];
-      data.coupons.map((item) => {
+      coupons.map((item) => {
         ids.push(item.id);
       });
-      this.formValidate = data;
-      this.seletVideo = data.seletVideo;
-      this.contents = data.description;
-      this.couponName = data.coupons;
+      this.formValidate = {
+        ...this.formValidate,
+        ...productData,
+        cate_id,
+        label_id,
+        coupons,
+        is_show: isShow,
+      };
+      this.seletVideo = data.seletVideo === undefined ? this.seletVideo : data.seletVideo;
+      this.contents = data.description || '';
+      this.content = this.contents;
+      this.couponName = coupons;
       this.formValidate.coupon_ids = ids;
       this.updateIds = ids;
-      this.dataLabel = data.label_id;
-      this.updateName = data.coupons;
-      this.virtualbtn(data.virtual_type, 1);
+      this.dataLabel = Array.isArray(data.label_id) ? data.label_id : [];
+      this.updateName = coupons;
+      this.virtualbtn(this.formValidate.virtual_type, 1);
       this.formValidate.logistics = data.logistics || ['1'];
       this.formValidate.custom_form = data.custom_form || [];
       if (this.formValidate.custom_form.length != 0) {
         this.customBtn = 1;
       }
-      this.formValidate.cate_id = cate_id;
-      if (data.attr) {
-        this.oneFormValidate = [data.attr];
-        this.oneFormValidate[0].vip_proportion = (
-          (this.oneFormValidate[0].vip_price / this.oneFormValidate[0].price) *
-          100
-        ).toFixed(2);
+      if (attr) {
+        const currentAttr = this.oneFormValidate[0] || {};
+        const singleAttr = { ...currentAttr, ...attr };
+        singleAttr.vip_proportion = singleAttr.price > 0 ? ((singleAttr.vip_price / singleAttr.price) * 100).toFixed(2) : 0;
+        this.oneFormValidate = [singleAttr];
       }
       this.getproductLabelUseListApi();
 
       this.formValidate.header = [];
-      this.spec_type = data.spec_type;
+      this.spec_type = this.formValidate.spec_type;
       this.formValidate.spec_type = this.spec_type;
-      this.formValidate.is_virtual = data.is_virtual;
+      this.formValidate.is_virtual = this.formValidate.is_virtual || 0;
       this.attrs.map((item) => {
         if (item.add_pic) this.canSel = false;
       });
@@ -1040,16 +1075,18 @@ export default {
         ];
 
         this.generateHeader(this.attrs);
-        this.manyFormValidate = [...this.oneFormBatch, ...data.attrs];
+        this.manyFormValidate = [...this.oneFormBatch, ...(Array.isArray(data.attrs) ? data.attrs : [])];
       }
 
       setTimeout((e) => {
-        this.checkAllGroup(data.is_sub);
+        this.checkAllGroup(this.formValidate.is_sub || []);
       }, 1000);
       this.watchActivity();
     },
     //关闭淘宝弹窗并生成数据；
     onClose(data) {
+      this.type = -1;
+      data.is_show = 0;
       this.modals = false;
       this.infoData(data, 1);
     },
@@ -2010,6 +2047,7 @@ export default {
             .then(async (res) => {
               this.openSubimit = false;
               this.$message.success(res.msg);
+              this.showCollectionWarnings(res.data && res.data.collection_warnings);
               if (this.$route.params.id === '0') {
                 cacheDelete().catch((err) => {
                   this.$message.error(err.msg);

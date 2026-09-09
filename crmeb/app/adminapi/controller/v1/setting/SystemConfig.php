@@ -515,6 +515,7 @@ class SystemConfig extends AuthController
         }
 
 
+        $post = (new \app\services\system\config\JdCrawlerConfig())->prepareSave($post, $this->services);
         foreach ($post as $k => $v) {
             $config_one = $this->services->getOne(['menu_name' => $k]);
             if ($config_one) {
