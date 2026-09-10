@@ -23,6 +23,13 @@ use think\facade\Log;
  */
 class StoreProductDao extends BaseDao
 {
+    public function search(array $where = [], bool $search = true)
+    {
+        $query = parent::search($where, $search);
+        if (app('http')->getName() === 'api') return \app\services\merchant\MerchantProducts::constrain($query);
+        return $query;
+    }
+
     /**
      * 设置模型
      * @return string

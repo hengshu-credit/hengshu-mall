@@ -54,6 +54,7 @@ class YuePayServices extends BaseServices
                 return ['status' => true];
             }
             $orderInfo = $currentOrder->toArray();
+            if ($type === 'pay_product') \app\services\merchant\MerchantProducts::assertOrderPayable($orderInfo);
             if (!empty($orderInfo['is_cancel']) || !empty($orderInfo['is_del']) || !empty($orderInfo['is_system_del'])) {
                 throw new ApiException('订单已失效');
             }

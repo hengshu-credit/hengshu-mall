@@ -302,6 +302,8 @@ switch ($step) {
 
             //读取数据文件
             $sqldata = file_get_contents(SITE_DIR . 'install/' . $sqlFile);
+            $merchantSql = preg_replace('/\R/', ' ', file_get_contents(dirname(rtrim(SITE_DIR, '/\\')) . '/upgrade/merchants.sql'));
+            $sqldata .= "\n" . str_replace(';', ";\n", $merchantSql);
             // sql_split joins lines without spaces; keep each added statement on one line.
             $brandSql = preg_replace('/\R/', ' ', file_get_contents(dirname(rtrim(SITE_DIR, '/\\')) . '/upgrade/product_brands.sql'));
             $sqldata .= "\n" . str_replace(';', ";\n", $brandSql);

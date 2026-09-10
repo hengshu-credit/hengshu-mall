@@ -37,6 +37,16 @@ class StoreProduct extends BaseModel
      */
     protected $name = 'store_product';
 
+    public function searchSellerShopIdAttr($query, $value)
+    {
+        if ($value !== '' && $value !== null) $query->where('seller_shop_id', (int)$value);
+    }
+
+    public function searchMerchantTypeIdAttr($query, $value)
+    {
+        if ($value !== '' && $value !== null) $query->whereIn('seller_shop_id', function ($sub) use ($value) { $sub->name('merchant_shop')->where('type_id', (int)$value)->field('id'); });
+    }
+
     /**
      * 一对一关联
      * 商品关联商品商品详情

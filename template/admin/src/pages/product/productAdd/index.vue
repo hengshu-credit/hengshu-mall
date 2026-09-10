@@ -509,6 +509,7 @@ export default {
         store_name: '',
         cate_id: [],
         brand_ids: [],
+        seller_shop_id: null,
         brand_list: [],
         label_id: [],
         keyword: '',

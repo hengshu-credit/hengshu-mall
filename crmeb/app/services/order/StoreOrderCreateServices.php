@@ -145,6 +145,7 @@ class StoreOrderCreateServices extends BaseServices
      */
     public function createOrder($uid, $key, $userInfo, $addressId, $payType, $useIntegral = false, $couponId = 0, $mark = '', $combinationId = 0, $pinkId = 0, $seckillId = 0, $bargainId = 0, $shippingType = 1, $real_name = '', $phone = '', $storeId = 0, $news = false, $advanceId = 0, $customForm = [], $invoice_id = 0, $is_gift = 0, $gift_mark = '')
     {
+        \app\services\merchant\MerchantInstaller::ensure();
         /** @var StoreOrderServices $orderService */
         $storeOrderServices = app()->make(StoreOrderServices::class);
         $bargainServices = app()->make(StoreBargainServices::class);
@@ -307,6 +308,8 @@ class StoreOrderCreateServices extends BaseServices
             if ($couponId && !\think\facade\Db::name('store_coupon_user')->where('id', $couponId)->where('uid', $uid)->where('status', 0)->where('is_fail', 0)->where('start_time', '<', time())->where('end_time', '>', time())->update(['status' => 1, 'use_time' => time()])) {
                 throw new ApiException('优惠券已使用或已失效，请重新选择');
             }
+            // Snapshot merchant ownership under the same locks as order creation.
+            $orderInfo = array_replace($orderInfo, \app\services\merchant\MerchantProducts::orderSnapshot($cartInfo));
             //创建订单
             $order = $this->dao->save($orderInfo);
             if (!$order) {

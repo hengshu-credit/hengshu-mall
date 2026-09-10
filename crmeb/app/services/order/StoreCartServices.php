@@ -236,6 +236,7 @@ class StoreCartServices extends BaseServices
      */
     public function setCart(int $uid, int $product_id, int $cart_num = 1, string $product_attr_unique = '', int $type = 0, bool $new = true, int $combination_id = 0, int $seckill_id = 0, int $bargain_id = 0, int $advance_id = 0)
     {
+        \app\services\merchant\MerchantProducts::assertPurchasable($product_id);
         if ($cart_num < 1) $cart_num = 1;
         if ($type == 0) {
             //检查限购
@@ -639,7 +640,13 @@ class StoreCartServices extends BaseServices
         /** @var StoreProductServices $productServices */
         $productServices = app()->make(StoreProductServices::class);
         $valid = $invalid = [];
+        $merchantVisibleProducts = \app\services\merchant\MerchantProducts::constrain(\think\facade\Db::name('store_product'))
+            ->whereIn('id', array_column($cartList, 'product_id'))->column('id');
         foreach ($cartList as &$item) {
+            if (!in_array((int)$item['product_id'], $merchantVisibleProducts)) {
+                $item['status'] = 0;
+                $item['invalid_reason'] = '所属商户暂停营业或资料失效';
+            }
             if ($item['type'] == 0) $item['min_qty'] = $item['productInfo']['min_qty'];
             $item['productInfo']['express_delivery'] = false;
             $item['productInfo']['store_mention'] = false;

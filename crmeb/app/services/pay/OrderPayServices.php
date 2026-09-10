@@ -106,6 +106,7 @@ class OrderPayServices
      */
     public function beforePay(array $orderInfo, string $payType, array $options = [])
     {
+        \app\services\merchant\MerchantProducts::assertOrderPayable($orderInfo);
         $wechat = $payType == PayServices::WEIXIN_PAY;
 
         $payType = $this->getPayType($payType);

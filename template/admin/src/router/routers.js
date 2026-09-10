@@ -10,6 +10,7 @@
 
 import index from './modules/index';
 import product from './modules/product';
+import merchant from './modules/merchant';
 import order from './modules/order';
 import user from './modules/user';
 // import echarts from './modules/echarts'
@@ -161,6 +162,7 @@ const frameIn = [
   agent,
   cms,
   product,
+  merchant,
   marketing,
   order,
   user,

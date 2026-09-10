@@ -116,6 +116,7 @@ class StoreProductServices extends BaseServices
      */
     public function getList(array $where)
     {
+        \app\services\merchant\MerchantInstaller::ensure();
         $where['store_stock'] = sys_config('store_stock') > 0 ? sys_config('store_stock') : 2;
         [$page, $limit] = $this->getPageValue();
         $cateIds = [];
@@ -134,7 +135,7 @@ class StoreProductServices extends BaseServices
             $order_string = 'sales ' . $where['sales'];
         }
         unset($where['sales']);
-        $list = $this->dao->getList($where, $page, $limit, $order_string);
+        $list = \app\services\merchant\MerchantProducts::summaries($this->dao->getList($where, $page, $limit, $order_string));
         $cateIds = implode(',', array_column($list, 'cate_id'));
         /** @var StoreCategoryServices $categoryService */
         $categoryService = app()->make(StoreCategoryServices::class);
@@ -215,6 +216,10 @@ class StoreProductServices extends BaseServices
     public function setShow(array $ids, int $is_show)
     {
         if (empty($ids)) throw new AdminException('参数错误');
+        \app\services\merchant\MerchantInstaller::ensure();
+        sort($ids);
+        return $this->transaction(function () use ($ids, $is_show) {
+        if ($is_show) foreach ($ids as $merchantProductId) \app\services\merchant\MerchantProducts::prepare(['is_show'=>1], (int)$merchantProductId);
 //        if ($is_show == 0) {
 //            //下架检测是否有参与活动商品
 //            $this->checkActivity($ids);
@@ -224,11 +229,12 @@ class StoreProductServices extends BaseServices
         foreach ($ids as $id) {
             $cartService->changeStatus($id, $is_show);
         }
-        $res = $this->dao->batchUpdate($ids, ['is_show' => $is_show]);
+        $res = $this->dao->batchUpdate($ids, $is_show ? ['is_show' => 1, 'merchant_lock' => 1] : ['is_show' => 0]);
         /** @var StoreProductCateServices $storeProductCateServices */
         $storeProductCateServices = app()->make(StoreProductCateServices::class);
         $storeProductCateServices->batchUpdate($ids, ['status' => $is_show], 'product_id');
         return true;
+        });
     }
 
     /**
@@ -323,6 +329,7 @@ class StoreProductServices extends BaseServices
         $brandServices = app()->make(StoreProductBrandServices::class);
         $productInfo['brand_ids'] = $brandServices->productBrandIds((int)$id);
         $productInfo['brand_list'] = $brandServices->productBrands((int)$id);
+        $productInfo = \app\services\merchant\MerchantProducts::summaries([$productInfo])[0];
         $label_id = explode(',', $productInfo['label_id']);
         $productInfo['label_id'] = $userLabelServices->getLabelList(['ids' => $label_id], ['id', 'label_name']);
         $productInfo['give_integral'] = floatval($productInfo['give_integral']);
@@ -605,6 +612,7 @@ class StoreProductServices extends BaseServices
      */
     public function save(int $id, array $data)
     {
+        \app\services\merchant\MerchantInstaller::ensure();
         $brandIds = array_key_exists('brand_ids', $data) ? ProductBrandScope::ids($data['brand_ids']) : null;
         unset($data['brand_ids'], $data['brand_list']);
         if (count($data['cate_id']) < 1) throw new AdminException('请选择商品分类');
@@ -744,6 +752,7 @@ class StoreProductServices extends BaseServices
         // Initialize missing brand tables before MySQL opens the product transaction.
         $brandServices = $brandIds !== null ? app()->make(StoreProductBrandServices::class) : null;
         $this->transaction(function () use ($id, $brandIds, $brandServices, $is_copy, $data, $descriptionImages, $description, $cate_id, $storeDescriptionServices, $storeProductCateServices, $storeProductAttrServices, $storeProductCouponServices, $storeCategoryServices, $detail, $attr, $coupon_ids, $type, $slider_image, $videoToImport, &$collectedVideoJob) {
+            $data = \app\services\merchant\MerchantProducts::prepare($data, $id);
             if ($data['spec_type'] == 0) {
                 $attr = [
                     [
@@ -1491,6 +1500,7 @@ class StoreProductServices extends BaseServices
      */
     public function productDetail(Request $request, int $id, int $type)
     {
+        $merchantSummary = \app\services\merchant\MerchantProducts::assertPurchasable($id);
         $uid = (int)$request->uid();
         $data['uid'] = $uid;
 
@@ -1656,6 +1666,8 @@ class StoreProductServices extends BaseServices
         $data['replyChance'] = $replyChance;
         $data['replyCount'] = $replyCount;
         $data['mer_id'] = 0;
+        $data['merchant'] = $merchantSummary;
+        $data['seller_shop_id'] = (int)$data['merchant']['id'];
         $vip_user = $uid ? app()->make(UserServices::class)->value(['uid' => $uid], 'is_money_level') : 0;
         if ($storeInfo['recommend_list'] != '') {
             $recommend_list = explode(',', $storeInfo['recommend_list']);

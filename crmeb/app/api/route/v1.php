@@ -572,6 +572,19 @@ Route::group(function () {
     ->middleware(\app\api\middleware\StationOpenMiddleware::class)
     ->middleware(\app\api\middleware\AuthTokenMiddleware::class, false);
 
+Route::group('merchant', function () {
+    Route::get('config', 'v1.user.MerchantApplication/config');
+    Route::get('applications', 'v1.user.MerchantApplication/index');
+    Route::get('application/:id', 'v1.user.MerchantApplication/info');
+    Route::post('application/save/:id', 'v1.user.MerchantApplication/save');
+    Route::post('application/submit/:id', 'v1.user.MerchantApplication/submit');
+    Route::post('application/withdraw/:id', 'v1.user.MerchantApplication/withdraw');
+    Route::post('document/upload', 'v1.user.MerchantApplication/upload');
+    Route::get('document/:id', 'v1.user.MerchantApplication/document');
+})->middleware(\app\http\middleware\AllowOriginMiddleware::class)
+  ->middleware(\app\api\middleware\StationOpenMiddleware::class)
+  ->middleware(\app\api\middleware\AuthTokenMiddleware::class, true);
+
 Route::miss(function () {
     if (app()->request->isOptions()) {
         $header = Config::get('cookie.header');

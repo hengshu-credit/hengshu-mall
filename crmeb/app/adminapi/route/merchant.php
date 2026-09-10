@@ -15,6 +15,28 @@ use think\facade\Route;
  */
 Route::group('merchant', function () {
 
+    Route::get('config', 'v1.merchant.MerchantManager/config')->option(['real_name' => '商户管理']);
+    Route::get('shop/list', 'v1.merchant.MerchantManager/index')->option(['real_name' => '商户管理']);
+    Route::get('shop/options', 'v1.merchant.MerchantManager/options')->option(['real_name' => '商户管理']);
+    Route::get('shop/info/:id', 'v1.merchant.MerchantManager/info')->option(['real_name' => '商户管理']);
+    Route::post('shop/save/:id', 'v1.merchant.MerchantManager/save')->option(['real_name' => '商户管理']);
+    Route::post('shop/submit/:id', 'v1.merchant.MerchantManager/submit')->option(['real_name' => '商户管理']);
+    Route::post('shop/status/:id', 'v1.merchant.MerchantManager/status')->option(['real_name' => '商户管理']);
+    Route::get('shop/history/:id', 'v1.merchant.MerchantManager/history')->option(['real_name' => '商户管理']);
+    Route::get('shop/export/:id', 'v1.merchant.MerchantManager/export')->option(['real_name' => '商户管理']);
+    Route::get('application/list', 'v1.merchant.MerchantManager/applications')->option(['real_name' => '商户管理']);
+    Route::get('application/info/:id', 'v1.merchant.MerchantManager/applicationInfo')->option(['real_name' => '商户管理']);
+    Route::post('application/review/:id', 'v1.merchant.MerchantManager/review')->option(['real_name' => '商户管理']);
+    Route::post('application/withdraw/:id', 'v1.merchant.MerchantManager/withdraw')->option(['real_name' => '商户管理']);
+    Route::get('type/list', 'v1.merchant.MerchantManager/types')->option(['real_name' => '商户管理']);
+    Route::post('type/save/:id', 'v1.merchant.MerchantManager/saveType')->option(['real_name' => '商户管理']);
+    Route::delete('type/delete/:id', 'v1.merchant.MerchantManager/deleteType')->option(['real_name' => '商户管理']);
+    Route::get('tag/list', 'v1.merchant.MerchantManager/tags')->option(['real_name' => '商户管理']);
+    Route::post('tag/save/:id', 'v1.merchant.MerchantManager/saveTag')->option(['real_name' => '商户管理']);
+    Route::delete('tag/delete/:id', 'v1.merchant.MerchantManager/deleteTag')->option(['real_name' => '商户管理']);
+    Route::post('document/upload', 'v1.merchant.MerchantManager/upload')->option(['real_name' => '商户管理']);
+    Route::get('document/:id', 'v1.merchant.MerchantManager/document')->option(['real_name' => '商户管理']);
+
     /** 门店 */
     Route::group(function () {
         //门店设置详情

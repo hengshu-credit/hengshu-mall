@@ -29,6 +29,10 @@
 			}
 		},
 		{
+			"path": "pages/merchant/application",
+			"style": { "navigationBarTitleText": "商户入驻" }
+		},
+		{
 			"path": "pages/order_addcart/order_addcart",
 			"style": {
 				"navigationStyle": "custom",

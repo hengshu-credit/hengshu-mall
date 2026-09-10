@@ -22,6 +22,9 @@
                   <el-option label="虚拟商品" value="3" />
                 </el-select>
               </el-form-item>
+              <el-form-item label="所属商户：">
+                <merchant-select v-model="artFrom.seller_shop_id" clearable allow-unavailable placeholder="全部商户" class="form_content_width" />
+              </el-form-item>
               <el-form-item label="商品分类：" label-for="pid">
                 <el-cascader
                   v-model="artFrom.cate_id"
@@ -272,6 +275,9 @@
           <template slot-scope="scope">
             <span>{{ scope.row.product_type }}</span>
           </template>
+        </el-table-column>
+        <el-table-column label="所属商户" min-width="150" show-overflow-tooltip>
+          <template slot-scope="{ row }"><div>{{ row.merchant_name || '平台商城' }}</div><small style="color:#909399">{{ row.merchant_type_name }}</small></template>
         </el-table-column>
         <el-table-column label="商品售价" min-width="100">
           <template slot-scope="scope">
@@ -591,6 +597,7 @@ import toExcel from '../../../utils/Excel.js';
 import { mapState } from 'vuex';
 import taoBao from './taoBao';
 import goodsDetail from './components/goodsDetail.vue';
+import MerchantSelect from '@/components/merchantSelect';
 import couponList from '@/components/couponList';
 import { exportProductList, exportProductExport } from '@/api/export';
 import settings from '@/setting';
@@ -621,6 +628,7 @@ export default {
     attribute,
     taoBao,
     goodsDetail,
+    MerchantSelect,
     userLabel,
     couponList,
     goodsImport,
@@ -665,6 +673,7 @@ export default {
         xs: 24,
       },
       artFrom: {
+        seller_shop_id: this.$route.query.seller_shop_id ? Number(this.$route.query.seller_shop_id) : null,
         page: 1,
         limit: 15,
         cate_id: '',
@@ -706,6 +715,11 @@ export default {
   },
   watch: {
     $route() {
+      if (this.$route.name === 'product_productList') {
+        this.artFrom.seller_shop_id = this.$route.query.seller_shop_id ? Number(this.$route.query.seller_shop_id) : null;
+        this.artFrom.page = 1;
+        this.getDataList();
+      }
       if (this.$route.fullPath === this.$routeProStr + '/product/product_list?type=5') {
         this.getPath();
       }

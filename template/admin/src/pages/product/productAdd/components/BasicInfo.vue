@@ -118,6 +118,12 @@
         />
       </el-form-item>
     </el-col>
+
+    <el-col :span="24">
+      <el-form-item label="所属商户：" prop="seller_shop_id" required>
+        <merchant-select v-model="formValidate.seller_shop_id" class="content_width" :auto-default="!formValidate.id" />
+      </el-form-item>
+    </el-col>
     <el-col :span="24">
       <el-form-item label="商品标签：">
         <div class="flex">
@@ -144,12 +150,14 @@
 <script>
 import useLabel from '@/components/goodsLabel/useLabel';
 import ProductBrandSelect from '@/components/productBrandSelect';
+import MerchantSelect from '@/components/merchantSelect';
 
 export default {
   name: 'BasicInfo',
   components: {
     useLabel,
     ProductBrandSelect,
+    MerchantSelect,
   },
   props: {
     formValidate: {

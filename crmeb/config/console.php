@@ -26,6 +26,7 @@ return [
     'user' => null,
     // 指令定义
     'commands' => [
+        'merchant:install' => \crmeb\command\MerchantInstall::class,
         'marketing-style:install' => \crmeb\command\MarketingStyleInstall::class,
         'full-reduction:install' => \crmeb\command\FullReductionInstall::class,
         'product-brand:install' => \crmeb\command\ProductBrandInstall::class,

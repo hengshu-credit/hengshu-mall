@@ -14,6 +14,7 @@ namespace app\services\system;
 use app\dao\system\SystemMenusDao;
 use app\services\BaseServices;
 use app\services\product\product\ProductBrandInstaller;
+use app\services\merchant\MerchantInstaller;
 use app\services\activity\fullreduction\FullReductionInstaller;
 use app\services\activity\style\MarketingStyleInstaller;
 use app\services\system\admin\SystemRoleServices;
@@ -74,6 +75,7 @@ class SystemMenusServices extends BaseServices
      */
     public function getMenusList($rouleId, int $level)
     {
+        MerchantInstaller::menus();
         MarketingStyleInstaller::install();
         FullReductionInstaller::install();
         ProductBrandInstaller::install();
@@ -96,6 +98,7 @@ class SystemMenusServices extends BaseServices
      */
     public function getList(array $where, array $field = ['*'])
     {
+        MerchantInstaller::menus();
         MarketingStyleInstaller::install();
         FullReductionInstaller::install();
         ProductBrandInstaller::install();

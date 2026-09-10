@@ -74,6 +74,7 @@ class StoreProduct extends AuthController
     public function saveCacheData(CacheServices $services)
     {
         $data = $this->request->postMore([
+            ['seller_shop_id', null],
             ['cate_id', []],
             ['brand_ids', []],
             ['store_name', ''],
@@ -132,6 +133,8 @@ class StoreProduct extends AuthController
     public function index()
     {
         $where = $this->request->getMore([
+            ['seller_shop_id', ''],
+            ['merchant_type_id', ''],
             ['store_name', ''],
             ['cate_id', ''],
             ['type', 1],
@@ -222,6 +225,7 @@ class StoreProduct extends AuthController
     public function save($id)
     {
         $data = $this->request->postMore([
+            ['seller_shop_id', null],
             ['virtual_type', 0],// 商品类型
             ['cate_id', []],//分类id
             ['brand_ids', null],//旧客户端未传时保留品牌关系
