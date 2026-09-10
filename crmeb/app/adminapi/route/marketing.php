@@ -14,6 +14,25 @@ use think\facade\Route;
  * 优惠卷，砍价，拼团，秒杀 路由
  */
 Route::group('marketing', function () {
+    Route::group(function () {
+        Route::get('style/list', 'v1.marketing.MarketingStyle/index')->option(['real_name'=>'营销样式列表']);
+        Route::get('style/info/:id', 'v1.marketing.MarketingStyle/info')->option(['real_name'=>'营销样式详情']);
+        Route::get('style/options', 'v1.marketing.MarketingStyle/options')->option(['real_name'=>'营销样式使用范围']);
+        Route::post('style/save/:id', 'v1.marketing.MarketingStyle/save')->option(['real_name'=>'保存营销样式']);
+        Route::put('style/status/:id', 'v1.marketing.MarketingStyle/status')->option(['real_name'=>'启停营销样式']);
+        Route::delete('style/del/:id', 'v1.marketing.MarketingStyle/delete')->option(['real_name'=>'删除营销样式']);
+    })->option(['parent'=>'marketing','cate_name'=>'营销样式']);
+
+    Route::group(function () {
+        Route::get('full_reduction/list', 'v1.marketing.StoreFullReduction/index')->option(['real_name' => '满减活动列表']);
+        Route::get('full_reduction/options', 'v1.marketing.StoreFullReduction/options')->option(['real_name' => '满减活动选择项']);
+        Route::get('full_reduction/info/:id', 'v1.marketing.StoreFullReduction/info')->option(['real_name' => '满减活动详情']);
+        Route::post('full_reduction/save/:id', 'v1.marketing.StoreFullReduction/save')->option(['real_name' => '保存满减活动']);
+        Route::put('full_reduction/status/:id', 'v1.marketing.StoreFullReduction/status')->option(['real_name' => '启停满减活动']);
+        Route::put('full_reduction/sort/:id', 'v1.marketing.StoreFullReduction/sort')->option(['real_name' => '满减活动排序']);
+        Route::delete('full_reduction/del/:id', 'v1.marketing.StoreFullReduction/delete')->option(['real_name' => '删除满减活动']);
+        Route::post('full_reduction/batch_delete', 'v1.marketing.StoreFullReduction/batchDelete')->option(['real_name' => '批量删除满减活动']);
+    })->option(['parent' => 'marketing', 'cate_name' => '满减活动']);
 
     /** 优惠券 */
     Route::group(function () {

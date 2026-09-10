@@ -24,6 +24,20 @@ export default {
   component: LayoutMain,
   children: [
     {
+      path: 'style/list', name: `${pre}styleList`,
+      meta: { auth: ['marketing-style-list'], title: '营销样式' },
+      component: () => import('@/pages/marketing/style/index'),
+    },
+    {
+      path: 'full_reduction/list',
+      name: `${pre}fullReduction`,
+      meta: {
+        auth: ['marketing-full-reduction-list'],
+        title: '满减活动',
+      },
+      component: () => import('@/pages/marketing/fullReduction/index'),
+    },
+    {
       path: 'store_combination/index',
       name: `${pre}combinalist`,
       meta: {

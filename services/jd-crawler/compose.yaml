@@ -2,7 +2,13 @@ name: hengshu-jd-crawler
 
 services:
   jd-crawler:
-    build: .
+    build:
+      context: .
+      args:
+        PYTHON_IMAGE: ${JD_PYTHON_IMAGE:-python:3.12-slim-bookworm}
+        DEBIAN_MIRROR: ${JD_DEBIAN_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/debian}
+        DEBIAN_SECURITY_MIRROR: ${JD_DEBIAN_SECURITY_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/debian-security}
+        PIP_INDEX_URL: ${JD_PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
     image: hengshu-jd-crawler:local
     restart: unless-stopped
     init: false

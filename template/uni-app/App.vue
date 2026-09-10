@@ -16,7 +16,7 @@ import { mapGetters } from "vuex";
 import colors from "@/mixins/color.js";
 import Cache from "@/utils/cache";
 import { debug } from "util";
-import { applyTheme } from "@/utils/theme.js";
+import { applyTheme, startThemeRefresh, stopThemeRefresh } from "@/utils/theme.js";
 
 export default {
   globalData: {
@@ -59,6 +59,7 @@ export default {
     },
   },
   onShow() {
+    startThemeRefresh();
     const queryData = uni.getEnterOptionsSync(); // uni-app版本 3.5.1+ 支持
     if (queryData.query.spread) {
       this.$Cache.set("spread", queryData.query.spread);
@@ -293,10 +294,10 @@ export default {
     });
   },
   onHide() {
+    stopThemeRefresh();
     // #ifdef H5
     this.$Cache.clear("snsapiKey");
     // #endif
-    this.$Cache.clear("previewThemeId");
   },
   methods: {
     remoteRegister(remote_token) {
@@ -347,6 +348,9 @@ export default {
 @import url("@/plugin/emoji-awesome/css/tuoluojiang.css");
 @import url("@/plugin/animate/animate.min.css");
 @import "static/css/base.css";
+/* #ifdef H5 */
+@import "static/css/storeNavigation.css";
+/* #endif */
 @import "static/iconfont/iconfont.css";
 @import "static/css/guildford.css";
 @import "static/css/style.scss";

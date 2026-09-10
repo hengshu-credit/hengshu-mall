@@ -1,0 +1,8 @@
+/* Page action bars are outside the footer component; these rules must be global. */
+body.has-store-navigation uni-tabbar { display: none !important; }
+body.has-store-navigation uni-page-body::after { content: ''; display: block; height: var(--store-nav-height, 0px); }
+body.has-store-navigation .store-navigation-scroll-space { padding-bottom: calc(var(--store-original-padding, 0px) + var(--store-nav-height, 0px)) !important; }
+body.has-store-navigation .store-navigation-action { bottom: var(--store-nav-offset, 0px) !important; transition: bottom 180ms ease; }
+@media (prefers-reduced-motion: reduce) {
+  body.has-store-navigation .store-navigation-action { transition: none; }
+}

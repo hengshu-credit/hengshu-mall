@@ -203,6 +203,7 @@ Route::group(function () {
     Route::group(function () {
         //购物车类
         Route::get('cart/list', 'v1.store.StoreCartController/lst')->name('cartList')->option(['real_name' => '购物车列表']); //购物车列表
+        Route::post('cart/full_reduction_quote', 'v1.store.StoreCartController/fullReductionQuote')->option(['real_name' => '购物车满减试算']);
         Route::post('cart/add', 'v1.store.StoreCartController/add')->name('cartAdd')->option(['real_name' => '购物车添加']); //购物车添加
         Route::post('cart/del', 'v1.store.StoreCartController/del')->name('cartDel')->option(['real_name' => '购物车删除']); //购物车删除
         Route::post('order/cancel', 'v1.order.StoreOrderController/cancel')->name('orderCancel')->option(['real_name' => '订单取消']); //订单取消

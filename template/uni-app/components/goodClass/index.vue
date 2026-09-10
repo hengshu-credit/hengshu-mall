@@ -6,7 +6,7 @@
 				<span class="pictrue_log pictrue_log_class" v-if="item.activity && item.activity.type === '1' && $permission('seckill')">{{$t(`秒杀`)}}</span>
 				<span class="pictrue_log pictrue_log_class" v-if="item.activity && item.activity.type === '2' && $permission('bargain')">{{$t(`砍价`)}}</span>
 				<span class="pictrue_log pictrue_log_class" v-if="item.activity && item.activity.type === '3' && $permission('combination')">{{$t(`拼团`)}}</span>
-				<image :src="item.image" mode=""></image>
+				<image :src="item.image" mode=""></image><marketing-style :marketing-style="item.marketing_style" />
 			</view>
 			<view class="pictxt">
 				<view class="text line2">{{item.store_name}}</view>
@@ -228,3 +228,5 @@
 		}
 	}
 </style>
+
+<style scoped>.pictrue{position:relative}</style>

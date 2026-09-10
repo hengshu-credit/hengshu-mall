@@ -45,7 +45,7 @@
 		mounted() {
 			this.timer()
 		},
-		onHide() {
+		beforeDestroy() {
 			clearInterval(this.timecount)
 		},
 		methods: {

@@ -8,6 +8,7 @@
           class="serch-wrapper acea-row row-middle"
           :style="[serchWrapperStyle, txtPosition]"
         >
+          <page-action-buttons :buttons="actions.left" :config="actions" :product="product" @action="$emit('action', $event)" />
           <view
             class="logo skeleton-rect"
             v-if="styleConfig == 0 && styleTypeConfig == 1 && logoConfig"
@@ -49,6 +50,7 @@
               <text v-else>{{ dataConfig.tipConfig.value }}</text>
             </view>
           </navigator>
+          <page-action-buttons :buttons="actions.right" :config="actions" :product="product" @action="$emit('action', $event)" />
         </view>
       </view>
       <!-- #endif -->
@@ -64,7 +66,7 @@
             class="serch-box"
             :style="[
               serchWrapperStyle,
-              { height: serchHeight + 'px' },
+              { height: special ? '96rpx' : serchHeight + 'px' },
               { paddingRight: (!special ? serchRight : 0) + 'px' },
             ]"
           >
@@ -72,6 +74,7 @@
               class="serch-wrapper acea-row row-middle"
               :style="[txtPosition]"
             >
+              <page-action-buttons :buttons="actions.left" :config="actions" :product="product" @action="$emit('action', $event)" />
               <view
                 class="logo skeleton-rect"
                 v-if="styleConfig == 0 && styleTypeConfig == 1 && logoConfig"
@@ -119,6 +122,7 @@
                   }}</text>
                 </view>
               </navigator>
+              <page-action-buttons :buttons="actions.right" :config="actions" :product="product" @action="$emit('action', $event)" />
             </view>
           </view>
         </view>
@@ -134,13 +138,17 @@
 
 <script>
 import commonWrapper from "./commonWrapper.vue";
+import pageActionButtons from '@/components/pageActionButtons';
+import { headerActions } from '../../../shared/pageActions';
 let statusBarHeight = uni.getWindowInfo().statusBarHeight;
 export default {
   name: "headerSerch",
   components: {
     commonWrapper,
+    pageActionButtons,
   },
   props: {
+    product: { type: Object, default: () => ({}) },
     dataConfig: {
       type: Object,
       default: () => {},
@@ -184,6 +192,7 @@ export default {
     };
   },
   computed: {
+    actions() { return headerActions(this.dataConfig.headerActions); },
     configData() {
       return {
         ...this.dataConfig,
@@ -521,3 +530,5 @@ export default {
   text-align: center;
 }
 </style>
+
+<style scoped>.search-box .search{gap:6px}.search-box .box{flex:1;min-width:40px}.serch-wrapper{gap:12rpx}.serch-wrapper .input{flex:1;min-width:80rpx}.serch-wrapper .input .search{width:100%;min-width:0}</style>

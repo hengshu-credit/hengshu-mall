@@ -44,6 +44,11 @@ class StoreCartController
         return app('json')->success($this->services->getUserCartList($request->uid(), $status));
     }
 
+    public function fullReductionQuote(Request $request)
+    {
+        return app('json')->success($this->services->quoteFullReduction((int)$request->uid(), $request->post('ids', [])));
+    }
+
     /**
      * 购物车 添加
      * @param Request $request

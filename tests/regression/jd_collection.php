@@ -79,6 +79,17 @@ try { $client->poll($id, 8); checkJd('failure should throw', false); } catch (cr
     checkJd('login failure actionable without leaking upstream message', strpos($e->getMessage(), '登录') !== false && strpos($e->getMessage(), 'secret') === false);
 }
 $config = new app\services\system\config\JdCrawlerConfig();
+checkJd('existing JD installations select local provider without losing settings', $config->provider() === 3);
+$tabs = $config->tabs([['id' => 89, 'value' => 89, 'label' => '基础配置', 'pid' => 41], ['id' => 90, 'value' => 90, 'label' => '99api配置', 'pid' => 41]], 89);
+checkJd('local JD settings have a separate sibling tab', count($tabs) === 3 && $tabs[1]['value'] === $config::TAB_ID);
+checkJd('other configuration pages do not gain JD tabs', count($config->tabs([['id' => 2, 'value' => 2]], 89)) === 1);
+$providerRule = json_decode(json_encode($config->providerRule(new crmeb\services\FormBuilder())), true);
+checkJd('basic collection provider offers local JD', $providerRule['value'] === 3 && $providerRule['options'][2]['value'] === 3);
+$settings['jd_crawler_enabled'] = 0;
+$settings['system_product_copy_type'] = 3;
+checkJd('selected local provider enables JD collection', $config::enabled());
+$settings['jd_crawler_enabled'] = 1;
+$settings['system_product_copy_type'] = 1;
 $post = $config->validate(['jd_crawler_enabled' => 1, 'jd_crawler_url' => 'http://jd-crawler:8091/', 'jd_crawler_token' => '']);
 checkJd('blank secret keeps current key', !isset($post['jd_crawler_token']) && $post['jd_crawler_url'] === 'http://jd-crawler:8091');
 rejectJd('unsafe configuration rejected', function () use ($config) { $config->validate(['jd_crawler_url' => 'file:///etc/passwd']); });
@@ -123,8 +134,9 @@ $legacyForm = $copy->productForm($legacy)['productInfo'];
 checkJd('legacy multi-spec collection preserved', $legacyForm['spec_type'] === 1 && $legacyForm['items'][0]['detail'][0]['value'] === '蓝色' && $legacyForm['attrs'][0]['attr_arr'][0] === '蓝色');
 $legacyProvider = new class {
     public $result;
+    public $calls = 0;
     public function copy($name) { return $this; }
-    public function goods($url, $options = []) { return $this->result; }
+    public function goods($url, $options = []) { $this->calls++; return $this->result; }
 };
 $container->instances[app\services\serve\ServeServices::class] = $legacyProvider;
 $settings['system_product_copy_type'] = 2; $settings['copy_product_apikey'] = 'fixture-only';
@@ -133,7 +145,7 @@ checkJd('99API boolean success contract still works', $copy->copyProduct('taobao
 $legacyProvider->result = ['status' => false, 'msg' => 'synthetic failure'];
 rejectJd('99API failure is still rejected', function () use ($copy) { $copy->copyProduct('taobao', '', '', 'https://item.taobao.com/item.htm?id=123'); });
 $formRules = json_decode(json_encode($config->rules(new crmeb\services\FormBuilder())), true);
-checkJd('secret is blank password field in settings form', $formRules[2]['value'] === '' && $formRules[2]['props']['type'] === 'password');
+checkJd('separate JD tab contains connection fields and a blank password', count($formRules) === 2 && $formRules[1]['value'] === '' && $formRules[1]['props']['type'] === 'password');
 $container->instances['json'] = new class {
     public function success($data = '') { return ['status' => 200, 'data' => $data]; }
     public function fail($msg) { return ['status' => 400, 'msg' => $msg]; }
@@ -165,8 +177,35 @@ checkJd('invalid source rejected before saving', (new JdSaveController(['soure_l
 class JdCopyController extends app\adminapi\controller\v1\product\CopyTaobao {
     public function __construct(array $input, $service) { $this->request = new JdInput($input); $this->services = $service; $this->adminId = 8; }
 }
+$reportedUrl = 'https://item.jd.com/100278221408.html?pcdk=fixture&spmTag=tracking%23fixture';
+$container->instances[app\services\product\product\JdCrawlerServices::class] = $service;
+$savedSettings = $settings;
+$legacyCalls = $legacyProvider->calls;
+foreach ([
+    ['jd_crawler_enabled' => 0],
+    ['jd_crawler_enabled' => 1, 'jd_crawler_token' => ''],
+] as $missingConfig) {
+    $settings = array_merge($savedSettings, $missingConfig);
+    try {
+        (new JdCopyController(['type' => 'taobao', 'url' => $reportedUrl], $copy))->copyProduct();
+        checkJd('missing JD configuration should throw', false);
+    } catch (crmeb\exceptions\AdminException $e) {
+        $expected = $settings['jd_crawler_enabled'] ? '访问密钥' : '启用京东独立采集';
+        checkJd('JD configuration failure is actionable without legacy token access', strpos($e->getMessage(), $expected) !== false && $legacyProvider->calls === $legacyCalls);
+    }
+}
+$settings = $savedSettings;
 $container->instances[app\services\product\product\JdCrawlerServices::class] = $client;
 $client->reply = ['job_id' => $id, 'state' => 'queued'];
+$response = (new JdCopyController(['type' => 'taobao', 'url' => $reportedUrl], $copy))->copyProduct();
+checkJd('tracked JD link routes by host and strips tracking before collection', $response['data']['task_id'] === $id && end($client->calls)[2]['url'] === 'https://item.jd.com/100278221408.html' && $legacyProvider->calls === $legacyCalls);
+$legacyProvider->result = ['status' => true, 'data' => $legacy];
+$response = (new JdCopyController(['url' => 'https://item.taobao.com/item.htm?id=123'], $copy))->copyProduct();
+checkJd('local JD provider rejects other platforms without paid token access', $response['status'] === 400 && $legacyProvider->calls === $legacyCalls);
+$settings['jd_crawler_enabled'] = 0;
+$response = (new JdCopyController(['type' => 'taobao', 'url' => 'https://item.taobao.com/item.htm?id=123'], $copy))->copyProduct();
+checkJd('other platforms still use configured legacy collection', $response['data']['productInfo']['spec_type'] === 1 && $legacyProvider->calls === $legacyCalls + 1);
+$settings['jd_crawler_enabled'] = 1;
 $response = (new JdCopyController(['url' => $raw['source_url']], $copy))->copyProduct();
 checkJd('existing controller starts JD job without paid provider', $response['data']['task_id'] === $id);
 $client->reply = ['job_id' => $id, 'state' => 'succeeded', 'product' => $raw];

@@ -9,31 +9,79 @@
       </div>
 
       <div class="config-body">
+        <div class="palette-mode">
+          <span>配色方案</span>
+          <el-radio-group v-model="paletteMode" @change="changeMode"
+            ><el-radio label="preset">预设配色</el-radio><el-radio label="custom">自定义配色</el-radio></el-radio-group
+          >
+        </div>
+        <div class="palette-grid">
+          <button
+            v-for="preset in presets"
+            :key="preset.palette_id"
+            class="palette-swatch"
+            :class="{ selected: paletteMode === 'preset' && palette.palette_id === preset.palette_id }"
+            :aria-label="preset.label"
+            :aria-pressed="paletteMode === 'preset' && palette.palette_id === preset.palette_id"
+            @click="choosePreset(preset)"
+          >
+            <span class="swatch-colors"
+              ><i :style="{ background: preset.theme_color }"></i><i :style="{ background: preset.gradient_color }"></i
+              ><i :style="{ background: preset.sub_color }"></i></span
+            ><span>{{ preset.label }}</span>
+          </button>
+        </div>
+        <p class="palette-help">
+          主题色用于价格、选中状态与主要按钮；辅助色用于次要按钮。组件选择“自定义”时保留自己的配色。
+        </p>
         <div class="">
           <div class="config-item">
             <div class="label">主题颜色</div>
             <div class="color-picker-row">
-              <el-color-picker v-model="themeColor"></el-color-picker>
-              <span class="color-value">{{ themeColor }}</span>
+              <el-color-picker v-model="themeColor" @change="paletteMode = 'custom'"></el-color-picker>
+              <el-input
+                v-model="themeColor"
+                aria-label="主题颜色"
+                @input="paletteMode = 'custom'"
+                maxlength="7"
+                size="small"
+              />
             </div>
           </div>
 
           <div class="config-item">
             <div class="label">渐变颜色</div>
             <div class="color-picker-row">
-              <el-color-picker v-model="gradientColor"></el-color-picker>
-              <span class="color-value">{{ gradientColor }}</span>
+              <el-color-picker v-model="gradientColor" @change="paletteMode = 'custom'"></el-color-picker>
+              <el-input
+                v-model="gradientColor"
+                aria-label="渐变颜色"
+                @input="paletteMode = 'custom'"
+                maxlength="7"
+                size="small"
+              />
             </div>
           </div>
 
           <div class="config-item">
             <div class="label">辅助颜色</div>
             <div class="color-picker-row">
-              <el-color-picker v-model="subColor"></el-color-picker>
-              <span class="color-value">{{ subColor }}</span>
+              <el-color-picker v-model="subColor" @change="paletteMode = 'custom'"></el-color-picker>
+              <el-input
+                v-model="subColor"
+                aria-label="辅助颜色"
+                @input="paletteMode = 'custom'"
+                maxlength="7"
+                size="small"
+              />
             </div>
           </div>
         </div>
+        <div class="palette-save">
+          <el-button type="primary" :loading="saving" :disabled="!ready" @click="saveOnly">保存配色</el-button
+          ><span v-if="dirty">有未保存的配色</span>
+        </div>
+        <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" />
         <div class="qrcode-section">
           <div class="qrcode-list">
             <div class="qrcode-item">
@@ -49,22 +97,8 @@
     <div class="preview-panel">
       <div class="preview-title">预览效果</div>
 
-      <div class="preview-list">
-        <!-- 模拟预览图 0 1 2 -->
-        <div class="preview-item" v-for="i in [0, 1, 2]" :key="i">
-          <div class="phone-mockup">
-            <img
-              :style="{ background: themeColor }"
-              :src="require('@/assets/images/theme-bg-' + i + '.png')"
-              alt="preview"
-            />
-            <div v-if="i == 0" class="buy-btn">
-              <div class="btn btn-outline" :style="{ background: subColor }">加入购物车</div>
-              <div class="btn btn-primary" :style="{ background: themeColor }">立即购买</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <p class="palette-help">即时展示四个页面的配色效果，页面内容与布局以各自装修为准。</p>
+      <theme-palette-preview :palette="palette" />
     </div>
 
     <!-- 风格选择弹窗 -->
@@ -191,11 +225,21 @@
 import { themeSave, themeInfo, getThemeList } from '@/api/diy';
 import QRCode from 'qrcodejs2';
 import Setting from '@/setting';
+import { themePresets, normalizePalette, validPalette } from '../../../../../../../shared/themePalette';
+import ThemePalettePreview from './ThemePalettePreview';
 
 export default {
   name: 'StyleConfig',
+  components: { ThemePalettePreview },
+  inject: { setDirty: { default: () => () => {} } },
   data() {
     return {
+      presets: themePresets,
+      paletteMode: 'preset',
+      ready: false,
+      dirty: false,
+      saving: false,
+      loadError: '',
       themeColor: '#E93323',
       gradientColor: '#FF7F00',
       subColor: '#FFC300',
@@ -213,6 +257,17 @@ export default {
     };
   },
   computed: {
+    rawPalette() {
+      return {
+        theme_color: this.themeColor,
+        gradient_color: this.gradientColor,
+        sub_color: this.subColor,
+        palette_mode: this.paletteMode,
+      };
+    },
+    palette() {
+      return normalizePalette(this.rawPalette);
+    },
     filteredStyleList() {
       return this.styleList.filter((item) => {
         const matchSearch = item.name.includes(this.searchKeyword);
@@ -220,10 +275,44 @@ export default {
       });
     },
   },
+  watch: {
+    rawPalette: {
+      deep: true,
+      handler() {
+        if (this.ready) {
+          this.dirty = true;
+          this.setDirty(true);
+        }
+      },
+    },
+  },
   mounted() {
     if (this.$route.query.id != 0) this.initData();
+    else {
+      this.usePalette(themePresets[0]);
+      this.$nextTick(() => {
+        this.ready = true;
+        this.creatQrCode();
+      });
+    }
   },
   methods: {
+    usePalette(value) {
+      const p = normalizePalette(value);
+      this.themeColor = p.theme_color;
+      this.gradientColor = p.gradient_color;
+      this.subColor = p.sub_color;
+      this.paletteMode = p.palette_mode;
+    },
+    choosePreset(preset) {
+      this.usePalette(preset);
+    },
+    changeMode(mode) {
+      if (mode === 'preset')
+        this.choosePreset(
+          this.presets.find((p) => p.palette_id === normalizePalette(this.rawPalette).palette_id) || this.presets[0],
+        );
+    },
     openStyleDialog() {
       this.styleDialogVisible = true;
       this.page = 1;
@@ -255,9 +344,7 @@ export default {
       this.getStyleList();
     },
     handleStyleSelect(item) {
-      this.themeColor = item.theme_data?.theme_color || '#E93323';
-      this.gradientColor = item.theme_data?.gradient_color || '#FF7F00';
-      this.subColor = item.theme_data?.sub_color || '#FFC300';
+      this.usePalette(item.theme_data);
       this.$message.success('已应用风格颜色');
       this.styleDialogVisible = false;
       this.showDetail = false;
@@ -309,77 +396,163 @@ export default {
     },
     // 初始化数据
     initData() {
+      this.ready = false;
+      this.loadError = '';
       this.$nextTick(() => {
         this.creatQrCode();
       });
-      themeInfo(this.$route.query.id, 'theme').then((res) => {
-        if (res.data) {
-          this.themeColor = res.data.theme_color;
-          this.gradientColor = res.data.gradient_color;
-          this.subColor = res.data.sub_color;
-        }
-      });
-    },
-    saveOnly() {
-      this.$confirm('确认仅保存风格吗？', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }).then(() => {
-        themeSave(this.$route.query.id, {
-          type: 'theme',
-          value: {
-            theme_color: this.themeColor,
-            gradient_color: this.gradientColor,
-            sub_color: this.subColor,
-            light_color: this.bgLight(),
-          },
-        }).then((res) => {
-          if (this.$route.query.id == 0) {
-            this.$router.replace({ query: { ...this.$route.query, id: res.data.id } });
-          }
-          this.$message({
-            type: 'success',
-            message: res.msg,
-          });
-        });
-      });
-    },
-    saveAndClose() {
-      // 保存主题配置数据
-      themeSave(this.$route.query.id, {
-        type: 'theme',
-        value: {
-          theme_color: this.themeColor,
-          gradient_color: this.gradientColor,
-          sub_color: this.subColor,
-          light_color: this.bgLight(),
-        },
-      })
+      themeInfo(this.$route.query.id, 'theme')
         .then((res) => {
-          // 如果是新建（id为0），更新路由参数
-          if (this.$route.query.id == 0) {
-            this.$router.replace({ query: { ...this.$route.query, id: res.data.id } });
-          }
-
-          // 显示成功消息
-          this.$message({
-            type: 'success',
-            message: res.msg,
+          this.usePalette(res.data);
+          this.$nextTick(() => {
+            this.ready = true;
+            this.dirty = false;
+            this.setDirty(false);
           });
-
-          // 保存成功后跳转回主题列表页面
-          this.$router.push(`${Setting.routePre}/setting/my_theme`);
         })
         .catch((err) => {
-          // 保存失败时的处理
-          this.$message.error(err.msg || '保存失败');
+          this.loadError = err.msg || '主题配色加载失败，请重试';
         });
+    },
+    saveOnly() {
+      if (!this.ready || this.saving) return Promise.resolve(false);
+      if (!validPalette(this.rawPalette)) {
+        this.$message.error('请填写有效的 HEX 色值，例如 #3388FF');
+        return Promise.resolve(false);
+      }
+      this.saving = true;
+      const submitted = JSON.stringify(this.rawPalette);
+      return themeSave(this.$route.query.id, {
+        type: 'theme',
+        value: this.palette,
+      })
+        .then((res) => {
+          if (this.$route.query.id == 0) {
+            this.$router.replace({ query: { ...this.$route.query, id: res.data.id } });
+          }
+          this.$message({
+            type: 'success',
+            message: res.msg,
+          });
+          this.dirty = JSON.stringify(this.rawPalette) !== submitted;
+          this.setDirty(this.dirty);
+          return !this.dirty;
+        })
+        .catch((error) => {
+          this.$message.error(error.msg || '配色保存失败，请重试');
+          return false;
+        })
+        .finally(() => {
+          this.saving = false;
+        });
+    },
+    saveAndClose() {
+      return this.saveOnly().then((saved) => {
+        if (saved) this.$router.push(`${Setting.routePre}/setting/my_theme`);
+        return saved;
+      });
     },
   },
 };
 </script>
 
+<style scoped>
+.style-config-container {
+  display: grid !important;
+  grid-template-columns: 360px minmax(0, 1fr);
+  overflow: auto;
+}
+.style-config-container .config-panel {
+  padding: 24px !important;
+  min-width: 0;
+}
+.style-config-container .config-body {
+  display: block !important;
+  padding: 16px !important;
+}
+.style-config-container .preview-panel {
+  padding: 24px !important;
+  min-width: 0;
+  overflow: auto;
+}
+.palette-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 8px;
+  margin-bottom: 16px;
+}
+.palette-swatch {
+  padding: 5px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: #555;
+  font-size: 11px;
+}
+.palette-swatch:hover,
+.palette-swatch.selected {
+  border-color: #155eef;
+  background: #eff5ff;
+}
+.swatch-colors {
+  display: flex;
+  height: 24px;
+  margin-bottom: 7px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.swatch-colors i {
+  flex: 1;
+}
+.palette-help {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.8;
+  margin: 0 0 20px;
+}
+.palette-save {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.palette-save span {
+  font-size: 12px;
+  color: #a66612;
+}
+.style-config-container .color-picker-row {
+  min-width: 0;
+  flex: 1;
+}
+.style-config-container .color-picker-row .el-input {
+  width: 130px;
+}
+.style-config-container .panel-header {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.style-config-container .qrcode-section {
+  margin: 12px 0 0 !important;
+  padding: 16px 0 0 !important;
+  border-left: 0 !important;
+  border-top: 1px solid #eee;
+}
+.style-config-container .preview-title {
+  margin-bottom: 8px !important;
+}
+@media (max-width: 1000px) {
+  .style-config-container {
+    grid-template-columns: 320px minmax(260px, 1fr);
+  }
+}
+</style>
 <style lang="scss" scoped>
 /* fade-transform */
 .fade-transform-leave-active,

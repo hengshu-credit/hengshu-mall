@@ -68,6 +68,7 @@
             :imgUrls="imgUrls"
             @showSwiperImg="showSwiperImg"
           ></productConSwiper>
+          <marketing-style :marketing-style="storeInfo.marketing_style" marketing-kind="atmosphere" />
           <view class="bg-color">
             <view class="nav acea-row row-between-wrapper">
               <view class="money">

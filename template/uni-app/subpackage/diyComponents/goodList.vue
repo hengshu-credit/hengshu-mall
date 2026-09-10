@@ -35,7 +35,7 @@
             @tap="goDetail(item)"
           >
             <easy-loadimage
-              :image-src="item.image"
+              :marketing-style="item.marketing_style" :image-src="item.image"
               width="224rpx"
               height="224rpx"
               :borderRadius="imgStyle"
@@ -199,7 +199,7 @@
                 <view class="pictrue">
                   <easy-loadimage
                     mode="widthFix"
-                    :image-src="item.image"
+                    :marketing-style="item.marketing_style" :image-src="item.image"
                     width="100%"
                     height="346rpx"
                     :borderRadius="imgStyle"
@@ -352,7 +352,7 @@
                 <view class="pictrue">
                   <easy-loadimage
                     mode="widthFix"
-                    :image-src="item.image"
+                    :marketing-style="item.marketing_style" :image-src="item.image"
                     width="100%"
                     height="346rpx"
                     :borderRadius="imgStyle"
@@ -509,7 +509,7 @@
             >
               <easy-loadimage
                 mode="widthFix"
-                :image-src="item.image"
+                :marketing-style="item.marketing_style" :image-src="item.image"
                 width="144rpx"
                 height="144rpx"
                 :borderRadius="imgStyle"
@@ -553,7 +553,7 @@
             >
               <easy-loadimage
                 mode="widthFix"
-                :image-src="item.image"
+                :marketing-style="item.marketing_style" :image-src="item.image"
                 width="100%"
                 height="210rpx"
                 :borderRadius="imgStyle"
@@ -613,7 +613,7 @@
           >
             <easy-loadimage
               mode="widthFix"
-              :image-src="item.image"
+              :marketing-style="item.marketing_style" :image-src="item.image"
               width="100%"
               height="360rpx"
               :borderRadius="imgStyle"
@@ -778,7 +778,7 @@
             >
               <easy-loadimage
                 mode="widthFix"
-                :image-src="item.image"
+                :marketing-style="item.marketing_style" :image-src="item.image"
                 width="200rpx"
                 height="200rpx"
                 :borderRadius="imgStyle"
@@ -1137,7 +1137,7 @@ export default {
     },
     /* 价格颜色 */
     priceColor() {
-      return this.dataConfig.toneCartConfig.tabVal
+      return this.dataConfig.toneConfig.tabVal
         ? this.dataConfig.goodsPriceColor.color[0].item
         : "var(--view-theme)";
     },

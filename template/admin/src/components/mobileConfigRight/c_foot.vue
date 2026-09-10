@@ -12,7 +12,7 @@
             <div class="img-wrapper">
               <div class="img-item" v-for="(img, j) in item.imgList" @click="modalPicTap(index, j)">
                 <div class="pictrue" v-if="img">
-                  <img :src="img" alt="" />
+                  <img :src="iconUrl(img)" alt="" />
                   <p class="txt">替换</p>
                 </div>
                 <div class="empty-img" v-else>
@@ -25,14 +25,14 @@
           <div class="c_row-item" v-if="navStyle != 2">
             <el-col class="label" :span="4"> 名称 </el-col>
             <el-col class="slider-box" :span="20">
-              <el-input v-model="item.name" placeholder="选填不超过10个字" />
+              <el-input v-model="item.name" :maxlength="configObj.name === 'mainNavigation' ? 8 : 10" placeholder="填写菜单名称" />
             </el-col>
           </div>
           <div class="c_row-item">
             <el-col class="label" :span="4"> 链接 </el-col>
             <el-col class="slider-box" :span="20">
               <div>
-                <el-input v-model="item.link" placeholder="选填不超过10个字">
+                <el-input v-model="item.link" placeholder="选择或填写商城页面链接">
                   <i class="el-icon-link" slot="suffix" @click="getLink(index)" />
                 </el-input>
               </div>
@@ -61,6 +61,7 @@
 </template>
 
 <script>
+import setting from '@/setting';
 import vuedraggable from 'vuedraggable';
 import uploadPictures from '@/components/uploadPictures';
 import linkaddress from '@/components/linkaddress';
@@ -121,8 +122,14 @@ export default {
   },
   created() {
     this.footConfig = this.configObj[this.configNme];
+    this.navStyle = this.configObj.navStyleConfig.tabVal;
   },
   methods: {
+    iconUrl(url) {
+      if (this.configObj.name !== 'mainNavigation') return url;
+      if (/^\/static\/images\/[1-4]-00[12]\.png$/.test(url)) url = '/statics/mp_view' + url;
+      return url && url.startsWith('/') ? setting.apiBaseURL.replace(/adminapi\/?$/, '').replace(/\/$/, '') + url : url;
+    },
     linkUrl(e) {
       this.footConfig[this.itemIndex].link = e;
     },
@@ -139,13 +146,14 @@ export default {
     // 获取图片信息
     getPic(pc) {
       this.$nextTick(() => {
-        this.footConfig[this.itemIndex].imgList[this.itemChildIndex] = pc.att_dir;
+        this.$set(this.footConfig[this.itemIndex].imgList, this.itemChildIndex, pc.att_dir);
         this.modalPic = false;
-        this.$store.commit('mobildConfig/footUpdata', this.footConfig);
+        if (this.configObj.name !== 'mainNavigation') this.$store.commit('mobildConfig/footUpdata', this.footConfig);
       });
     },
     // 添加模块
     addMenu() {
+      if (this.footConfig.length >= 5) return;
       let obj = {
         imgList: [this.noPic, this.noPic],
         name: '自定义',
@@ -154,6 +162,7 @@ export default {
       this.footConfig.push(obj);
     },
     deleteMenu(index) {
+      if (this.configObj.name === 'mainNavigation' && this.footConfig.length === 1) return this.$message.warning('至少保留一个菜单，可在画布中删除整个导航栏');
       this.$msgbox({
         title: '提示',
         message: '是否确定删除该菜单',

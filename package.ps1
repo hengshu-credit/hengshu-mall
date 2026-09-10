@@ -18,7 +18,7 @@ try {
             & npm.cmd ci --legacy-peer-deps
             if ($LASTEXITCODE -ne 0) { throw 'Installing admin dependencies failed.' }
         }
-        $major = [int]((& $node -p 'process.versions.node.split(".")[0]').Trim())
+        $major = [int]((& $node -p 'parseInt(process.versions.node)').Trim())
         if ($major -ge 17 -and $env:NODE_OPTIONS -notmatch 'openssl-legacy-provider') {
             $env:NODE_OPTIONS = "$oldNodeOptions --openssl-legacy-provider".Trim()
         }
@@ -26,7 +26,10 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Admin production build failed.' }
     } finally { Pop-Location }
     New-Item -ItemType Directory -Path $stageParent -Force | Out-Null
+    $h5Output = Join-Path $stageParent 'h5'
+    & (Join-Path $projectRoot 'help/release/build-h5.ps1') -OutputPath $h5Output
     $packageArgs = @((Join-Path $projectRoot 'help/release/package.cjs'), $stageParent)
+    $packageArgs += @('--h5', $h5Output)
     if ($Update) { $packageArgs += '--update' }
     & $node @packageArgs
     if ($LASTEXITCODE -ne 0) { throw 'Packaging failed.' }

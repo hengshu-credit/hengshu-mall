@@ -516,12 +516,13 @@ export function getCustomerType(data) {
  * 获取开屏广告
  * @returns {*}
  */
-export function getOpenAdv(data) {
+export function getOpenAdv(data, options = {}) {
   return request.get(
     "get_open_adv",
     {},
     {
       noAuth: true,
+      timeout: options.timeout,
     },
   );
 }

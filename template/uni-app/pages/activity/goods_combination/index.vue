@@ -35,6 +35,7 @@
 				@tap="openSubcribe(item)">
 				<view class="pictrue">
 					<image :src="item.image"></image>
+					<marketing-style :marketing-style="item.marketing_style" />
 				</view>
 				<view class="text">
 					<view class="name line2">{{item.title}}</view>
@@ -230,6 +231,7 @@
 				color: #fff;
 
 				.pictrue {
+  position: relative;
 					width: 46rpx;
 					height: 46rpx;
 					position: relative;
@@ -242,6 +244,7 @@
 					}
 
 					&~.pictrue {
+  position: relative;
 						margin-left: -8rpx;
 					}
 
@@ -272,6 +275,7 @@
 				margin: 0 auto 18rpx auto;
 
 				.pictrue {
+  position: relative;
 					width: 186rpx;
 					height: 186rpx;
 

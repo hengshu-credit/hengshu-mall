@@ -475,9 +475,13 @@ export default {
             display: flex;
             width: 100%;
             justify-content: space-between;
+            gap: 4px;
 
             .el-button {
-              width: 48%;
+              flex: 1;
+              padding-left: 5px;
+              padding-right: 5px;
+              margin-left: 0;
             }
           }
         }

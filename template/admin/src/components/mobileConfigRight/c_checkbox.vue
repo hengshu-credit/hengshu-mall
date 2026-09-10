@@ -9,7 +9,7 @@
           :label="item.id"
           :disabled="
             (selectedData.length >= 3 && userStyle && configData.userType && !selectedData.includes(item.id)) ||
-            (configData.type.length >= 3 && configData.name == 'showContent' && !configData.type.includes(item.id)) ||
+            (configData.type.length >= (configData.maxList || 3) && configData.name == 'showContent' && !configData.type.includes(item.id)) ||
             (configData.type.length >= configData.maxList && !configData.type.includes(item.id))
               ? true
               : false

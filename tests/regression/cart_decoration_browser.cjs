@@ -1,0 +1,101 @@
+// Production H5 with isolated theme and cart responses; no business writes reach the service.
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
+const {chromium}=require('playwright');
+const {root,transform}=require('./theme_component_harness.cjs');
+const h5=path.resolve(process.env.CRMEB_H5_BUILD||path.join(root,'.build/theme-consistency/h5'));
+function shared(name){const m={exports:{}};new Function('module','exports','require',transform(fs.readFileSync(path.join(root,'template/shared',name+'.js'),'utf8')))(m,m.exports,id=>shared(id.replace('./','')));return m.exports;}
+const cart=shared('cartPageConfig').normalizeCartPage({page_title:'我的购物袋',background_color:'#DBEAFE',empty_text:'购物袋还是空的',show_service:false,show_recommend:false,checkout_text:'去结算',button_color:'#FF5A24'});
+cart.list_style.fillet.val=18;cart.checkout_style.fillet.val=20;cart.checkout_style.marginConfig.val=8;
+let navigation=shared('navigationComponent').navigationComponent();navigation.fillet.val=16;
+const userTitle=shared('pageTitleComponent').pageTitleComponent({title:'我的中心'},1);
+userTitle.paddingConfig.val=6;userTitle.marginConfig.val=4;userTitle.fillet.val=12;
+let empty=false;
+const server=http.createServer((req,res)=>{
+  const pathname=new URL(req.url,'http://localhost').pathname;
+  if(pathname==='/external-fixture'){res.setHeader('Content-Type','text/html');return res.end('<p>Title URL destination</p>');}
+  if(pathname==='/fixture-product.png'){res.setHeader('Content-Type','image/png');return fs.createReadStream(path.join(root,'template/admin/src/assets/images/product-diy.png')).pipe(res);}
+  if(pathname.startsWith('/api/'))return http.get('http://127.0.0.1:8011'+req.url,r=>{res.writeHead(r.statusCode,r.headers);r.pipe(res);}).on('error',()=>{res.writeHead(502);res.end();});
+  let file=path.resolve(h5,'.'+pathname);if(!file.startsWith(h5+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile())file=path.join(h5,'index.html');
+  res.setHeader('Content-Type',({'.js':'application/javascript','.css':'text/css','.html':'text/html','.png':'image/png','.svg':'image/svg+xml'})[path.extname(file)]||'application/octet-stream');fs.createReadStream(file).pipe(res);
+});
+(async()=>{
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
+  const titleUrl=base+'/external-fixture?from=title&lang=zh#tips';
+  cart.title_component.headerActions=shared('pageActions').headerActions({left:[{type:'link',label:'选购',showLabel:true,link:'/pages/goods/goods_search/index'}],right:[{type:'cartManage',showLabel:true},{type:'url',label:'帮助',showLabel:true,link:titleUrl}]});
+  const browser=await chromium.launch({channel:'chrome',headless:true});
+  try{
+    const page=await browser.newPage({viewport:{width:375,height:812}}),errors=[];
+    page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(12000);
+    await page.route('**/api/**',async route=>{
+      const u=new URL(route.request().url());let data;
+      if(u.pathname==='/api/theme_info/cart')data=cart;
+      else if(u.pathname==='/api/theme/navigation')data=navigation;
+      else if(u.pathname==='/api/cart/count')data={count:empty?0:1,ids:empty?[]:[101]};
+      else if(u.pathname==='/api/cart/list')data={valid:empty||u.searchParams.get('invalid')==='1'?[]:[{id:101,product_id:22,cart_num:1,attrStatus:true,status:true,truePrice:99,productInfo:{id:22,store_name:'测试商品',image:base+'/fixture-product.png',stock:20,price:99}}],invalid:[]};
+      else if(u.pathname==='/api/user')data={uid:1,nickname:'测试用户',orderStatusNum:{}};
+      else if(u.pathname==='/api/theme_info/user')data={value:{1:userTitle},navigation_mode:'page'};
+      else if(u.pathname==='/api/user/set_visit')data={};
+      else if(u.pathname==='/api/v2/new_coupon')data=[];
+      else if(route.request().method()!=='GET')return route.fulfill({json:{status:400,msg:'No fixture writes'}});
+      else return route.continue();
+      return route.fulfill({json:{status:200,msg:'成功',data}});
+    });
+    await page.goto(base+'/pages/index/index',{waitUntil:'networkidle'});
+    await page.evaluate(()=>{getApp().$store.commit('LOGIN',{token:'fixture-cart',time:0});getApp().$store.commit('SETUID',1);getApp().$router.push({type:'switchTab',path:'/pages/order_addcart/order_addcart'});});
+    await page.locator('.shoppingCart .list .item').waitFor();
+    await page.waitForFunction(()=>getCurrentPages().at(-1).$vm.cartDecoration.page_title==='我的购物袋');
+    assert.equal(await page.locator('.page-title-text').innerText(),'我的购物袋');
+    assert.equal(await page.locator('.page-title-bar [aria-label="选购"] .icon-sousuo').count(),1);
+    assert.equal(await page.locator('.page-title-bar [aria-label="帮助"] .icon-baobeilianjie').count(),1);
+    assert.equal(await page.locator('.page-title-bar .icon-lianjie').count(),0);
+    assert.equal(await page.locator('.shoppingCart').evaluate(el=>getComputedStyle(el.parentElement).backgroundColor),'rgb(219, 234, 254)');
+    assert.equal(await page.locator('.shoppingCart .nav').evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)','the quantity row exposes the page background');
+    await page.locator('.cart-list-manage').filter({hasText:'管理'}).click();
+    await page.locator('.page-title-bar [aria-label="取消"]').waitFor();
+    assert.equal(await page.evaluate(()=>getCurrentPages().at(-1).$vm.footerswitch),false);
+    assert.equal(await page.locator('.cart-list-manage').innerText(),'取消');
+    await page.locator('.page-title-bar [aria-label="取消"]').click();
+    assert.equal(await page.locator('.labelNav').count(),0);
+    assert.equal(await page.locator('.shoppingCart .list .item').first().evaluate(el=>getComputedStyle(el).borderRadius),'18px');
+    assert.equal(await page.locator('.shoppingCart .placeOrder').innerText(),'去结算');
+    await page.waitForFunction(()=>document.querySelector('.cart-checkout-dock').getBoundingClientRect().bottom<=document.querySelector('.store-navigation .footer-dock').getBoundingClientRect().top+1);
+    fs.mkdirSync(path.join(root,'.build/theme-consistency/screenshots'),{recursive:true});
+    await page.screenshot({path:path.join(root,'.build/theme-consistency/screenshots/h5-cart.png')});
+    cart.checkout_text='确认结算';cart.list_style.fillet.val=8;
+    await page.evaluate(()=>getApp().$router.push({type:'switchTab',path:'/pages/user/index'}));
+    await page.waitForURL('**/pages/user/index');
+    await page.locator('.page-title-text').filter({hasText:'我的中心'}).waitFor();
+    const titleSurface=await page.locator('.page-title-bar').evaluate(el=>({height:el.getBoundingClientRect().height,surface:el.parentElement.getBoundingClientRect().height,radius:getComputedStyle(el.parentElement).borderRadius}));
+    assert.deepEqual(titleSurface,{height:44,surface:56,radius:'12px'},'basic title uses the same 44px content plus configured padding as the editor');
+    await page.evaluate(()=>getApp().$router.push({type:'switchTab',path:'/pages/order_addcart/order_addcart'}));
+    await page.waitForFunction(()=>document.querySelector('.shoppingCart .placeOrder')?.textContent.trim()==='确认结算');
+    assert.equal(await page.locator('.shoppingCart .list .item').first().evaluate(el=>getComputedStyle(el).borderRadius),'8px');
+    cart.checkout_hidden=true;cart.list_hidden=true;
+    await page.evaluate(()=>getApp().$router.push({type:'switchTab',path:'/pages/user/index'}));await page.waitForURL('**/pages/user/index');
+    await page.evaluate(()=>getApp().$router.push({type:'switchTab',path:'/pages/order_addcart/order_addcart'}));
+    await page.waitForFunction(()=>document.querySelector('.shoppingCart .list')?.style.display==='none' && !document.querySelector('.cart-checkout-dock'));
+    assert.equal(await page.locator('.cart-checkout-dock').count(),0,'hidden checkout is not displayed by the client');
+    await page.locator('.shoppingCart .list').waitFor({state:'attached'});
+    assert.equal(await page.locator('.shoppingCart .list').evaluate(el=>getComputedStyle(el).display),'none');
+    cart.checkout_hidden=false;cart.list_hidden=false;
+    empty=true;navigation=[];
+    await page.evaluate(()=>getApp().$router.push({type:'switchTab',path:'/pages/user/index'}));await page.waitForURL('**/pages/user/index');
+    await page.evaluate(()=>getApp().$router.push({type:'switchTab',path:'/pages/order_addcart/order_addcart'}));
+    await page.locator('.noCart .tips').waitFor();
+    assert.equal(await page.locator('.noCart .tips').innerText(),'购物袋还是空的');
+    assert.equal(await page.locator('.noCart').evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)','the empty cart exposes the configured page background');
+    assert.equal(await page.locator('.cart-checkout-dock').count(),0);
+    assert.equal(await page.locator('.cart-list-manage').count(),0,'empty cart has no product management row');
+    await page.locator('.page-title-bar [aria-label="管理"]').click();
+    await page.locator('.page-title-bar [aria-label="取消"]').waitFor();
+    await page.locator('.page-title-bar [aria-label="取消"]').click();
+    await page.locator('.page-title-bar [aria-label="帮助"]').click();
+    await page.waitForURL('**/pages/annex/web_view/index?url=*');
+    await page.waitForFunction(expected=>Array.from(document.querySelectorAll('iframe')).some(el=>el.src===expected),titleUrl);
+    await page.goBack();
+    await page.locator('.page-title-bar [aria-label="选购"]').click();
+    await page.waitForURL('**/pages/goods/goods_search/index');
+    assert.deepEqual(errors,[]);
+    console.log('PASS production cart UI: background, title, management, navigation clearance, empty state, selected page and complete URL destination');
+  }finally{await browser.close();server.closeAllConnections();server.close();}
+})().catch(error=>{console.error(error);server.close();process.exitCode=1;});

@@ -3,7 +3,7 @@
 		<block v-for="(item,index) in benefit" :key="index">
 			<view class='item' @tap="goDetail(item)" hover-class="none">
 				<view class='pictrue'>
-					<easy-loadimage mode="widthFix" :image-src="item.image"></easy-loadimage>
+					<easy-loadimage mode="widthFix" :marketing-style="item.marketing_style" :image-src="item.image"></easy-loadimage>
 				</view>
 				<view class='money'>
 					<text class="rmb">{{$t(`￥`)}} </text><text class="price"> {{item.price}}</text>

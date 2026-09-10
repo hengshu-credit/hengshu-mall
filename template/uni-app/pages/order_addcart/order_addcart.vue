@@ -1,42 +1,34 @@
 <template>
   <view :style="colorStyle">
-    <view class="shoppingCart copy-data" v-if="canShow">
-      <view class="labelNav acea-row row-around row-middle">
-        <view class="item">
+  <view :style="cartStyles.page">
+    <view v-if="cartDecoration.show_title && !cartDecoration.title_component.isHide" class="cart-page-title" :style="{paddingTop: statusBarHeight + 'px', background: cartDecoration.title_background_color}">
+      <page-title :dataConfig="cartDecoration.title_component" :managing="!footerswitch" @action="$event === 'cartManage' && manage()" />
+    </view>
+    <view class="shoppingCart copy-data decorated-cart" v-if="canShow">
+      <view v-if="cartDecoration.show_service && !cartDecoration.service_hidden" :style="cartStyles.service.outer">
+      <view class="labelNav acea-row row-around row-middle" :style="cartStyles.service.inner">
+        <view class="item" v-for="(label, index) in cartDecoration.service_labels" :key="index">
           <text class="iconfont icon-xuanzhong"></text>
-          {{ $t(`100%正品保证`) }}
-        </view>
-        <view class="item">
-          <text class="iconfont icon-xuanzhong"></text>
-          {{ $t(`所有商品精挑细选`) }}
-        </view>
-        <view class="item">
-          <text class="iconfont icon-xuanzhong"></text>
-          {{ $t(`售后无忧`) }}
+          {{ $t(label) }}
         </view>
       </view>
-      <view class="nav acea-row row-between-wrapper">
+      </view>
+      <view v-if="cartDecoration.show_list && !cartDecoration.list_hidden && (cartList.valid.length || cartList.invalid.length)" class="nav acea-row row-between-wrapper">
         <view>
           {{ $t(`购物数量`) }}
           <text class="num font-num">{{ cartCount }}</text>
         </view>
-        <view
-          v-if="cartList.valid.length > 0 || cartList.invalid.length > 0"
-          class="administrate acea-row row-center-wrapper"
-          @click="manage"
-        >
-          {{ footerswitch ? $t(`管理`) : $t(`取消`) }}
-        </view>
+        <view class="cart-list-manage" role="button" @click="manage">{{ $t(footerswitch ? '管理' : '取消') }}</view>
       </view>
       <view
         v-if="
           (cartList.valid.length > 0 || cartList.invalid.length > 0) && canShow
         "
       >
-        <view class="list">
+        <view v-show="cartDecoration.show_list && !cartDecoration.list_hidden" class="list" :style="cartStyles.list.outer">
           <checkbox-group @change="checkboxChange">
             <block v-for="(item, index) in cartList.valid" :key="index">
-              <view class="item acea-row row-between-wrapper">
+              <view class="item acea-row row-between-wrapper" :style="cartStyles.list.inner">
                 <!-- #ifndef MP -->
                 <checkbox
                   :value="item.id.toString()"
@@ -76,7 +68,7 @@
                         item.productInfo.attrInfo.suk
                       }}</view
                     >
-                    <view class="money" v-if="item.attrStatus"
+                    <view class="money" v-if="item.attrStatus" :style="cartStyles.price"
                       >{{ $t(`￥`) }}{{ item.truePrice }}</view
                     >
                     <view
@@ -183,19 +175,18 @@
       >
         <view class="emptyBox">
           <image :src="imgHost + '/statics/images/no-thing.png'"></image>
-          <view class="tips">{{ $t(`暂无商品`) }}</view>
+          <view class="tips">{{ $t(cartDecoration.empty_text) }}</view>
         </view>
         <recommend
-          v-if="hostProduct.length"
+          v-if="cartDecoration.show_recommend && hostProduct.length"
           :hostProduct="hostProduct"
         ></recommend>
       </view>
       <view :style="[medHeight]"></view>
+      <view class="cart-checkout-dock" v-if="cartDecoration.show_checkout && !cartDecoration.checkout_hidden && cartList.valid.length > 0 && canShow" :style="[cartStyles.checkout.outer, componentStyle]">
       <view
         class="footer acea-row row-between-wrapper"
-        :style="[componentStyle]"
-        v-if="cartList.valid.length > 0 && canShow"
-        :class="is_diy && is_diy_set ? 'on' : ''"
+        :style="cartStyles.checkout.inner"
       >
         <view>
           <checkbox-group @change="checkboxAllChange">
@@ -206,10 +197,10 @@
           </checkbox-group>
         </view>
         <view class="money acea-row row-middle" v-if="footerswitch == true">
-          <text class="font-color">{{ $t(`￥`) }}{{ selectCountPrice }}</text>
+          <view><text :style="cartStyles.price">{{ $t(`￥`) }}{{ selectCountPrice }}</text><view v-if="Number(fullReductionPrice) > 0" class="full-reduction-saving">满减 -￥{{ fullReductionPrice }}</view><view v-if="reductionLoading" class="full-reduction-saving">优惠计算中</view><view v-if="reductionError" class="full-reduction-saving" @tap="refreshReductionQuote">优惠计算失败，点此重试</view></view>
           <form @submit="subOrder">
-            <button class="placeOrder bg-color" formType="submit">
-              {{ $t(`立即下单`) }}
+            <button class="placeOrder" :disabled="reductionLoading || !!reductionError || disabledChangeNumber" :style="cartStyles.button" formType="submit">
+              {{ $t(cartDecoration.checkout_text) }}
             </button>
           </form>
         </view>
@@ -223,6 +214,7 @@
             </button>
           </form>
         </view>
+      </view>
       </view>
     </view>
     <productWindow
@@ -242,8 +234,8 @@
     <!-- <authorize :isAuto="isAuto" :isShowAuth="isShowAuth" @authColse="authColse"></authorize> -->
     <!-- #endif -->
     <!-- <view class="uni-p-b-96"></view> -->
-    <view class="uni-p-b-98"></view>
-    <pageFooter @newDataStatus="newDataStatus"></pageFooter>
+    <pageFooter @newDataStatus="newDataStatus" @heightChange="navigationHeight = $event" @configuration="configuredNavigation = !!$event.mainNavigation"></pageFooter>
+  </view>
   </view>
 </template>
 
@@ -256,6 +248,7 @@ let sysHeight = 0;
 // #endif
 import {
   getCartList,
+  getFullReductionQuote,
   getCartCounts,
   changeCartNum,
   cartDel,
@@ -270,12 +263,16 @@ import productWindow from "@/components/productWindow";
 import authorize from "@/components/Authorize";
 // #endif
 import pageFooter from "@/components/pageFooter/index.vue";
+import PageTitle from '@/subpackage/diyComponents/pageTitle.vue';
 import colors from "@/mixins/color";
 import { HTTP_REQUEST_URL, DEBOUNCETIME } from "@/config/app";
 import { Throttle } from "@/utils/validate.js";
+import { getThemeInfo } from '@/api/api.js';
+import { normalizeCartPage, cartPageStyles } from '../../../shared/cartPageConfig';
 
 export default {
   components: {
+    PageTitle,
     pageFooter,
     recommend,
     productWindow,
@@ -300,6 +297,10 @@ export default {
       isAllSelect: false, //全选
       selectValue: [], //选中的数据
       selectCountPrice: 0.0,
+      fullReductionPrice: '0.00',
+      reductionLoading: false,
+      reductionError: '',
+      reductionRequestId: 0,
       isAuto: false, //没有授权的不会自动授权
       isShowAuth: false, //是否隐藏授权
       hotScroll: false,
@@ -335,29 +336,33 @@ export default {
       isFooter: false,
       btmNum: 0,
       pdHeight: 0, //自定义底部导航上下边距和
+      navigationHeight: 0,
+      configuredNavigation: false,
+      cartDecoration: normalizeCartPage(),
+      checkoutHeight: 0,
+      statusBarHeight: 0,
     };
   },
   computed: {
     ...mapGetters(["isLogin"]),
+    cartStyles() { return cartPageStyles(this.cartDecoration, 'rpx', url => url && url.startsWith('/') ? HTTP_REQUEST_URL + url : url); },
     componentStyle() {
-      if (this.btmNum) {
-        let styleObject = {};
-        styleObject["bottom"] = `${this.btmNum * 2 + 104}rpx`;
-        return styleObject;
-      }
+      return { bottom: this.navigationHeight + 'px' };
     },
     medHeight() {
-      let styleObject = {
-        color: "#f5f5f5",
-        height: "120rpx",
-      };
-      if (this.btmNum) {
-        styleObject["height"] = `${this.btmNum * 2 + 120}rpx`;
-      }
-      return styleObject;
+      return { height: this.checkoutHeight + 'px' };
     },
   },
+  watch: {
+    cartDecoration: { deep:true, handler(){this.$nextTick(this.measureCartCheckout);} },
+    canShow(){this.$nextTick(this.measureCartCheckout);},
+    'cartList.valid.length'(){this.$nextTick(this.measureCartCheckout);},
+    footerswitch(){this.$nextTick(this.measureCartCheckout);},
+  },
   onLoad(options) {
+    // #ifndef H5
+    this.statusBarHeight = (uni.getWindowInfo ? uni.getWindowInfo() : uni.getSystemInfoSync()).statusBarHeight || 0;
+    // #endif
     uni.hideTabBar();
     let that = this;
     let routes = getCurrentPages(); // 获取当前打开过的页面路由数组
@@ -365,6 +370,7 @@ export default {
     this.activeRouter = "/" + curRoute;
   },
   onShow() {
+    this.loadCartDecoration();
     // #ifndef MP
     if (!this.isLogin) toLogin();
     // #endif
@@ -418,7 +424,26 @@ export default {
   onUnload() { this.stopCartLoading(); },
   beforeDestroy() { this.stopCartLoading(); },
   methods: {
+    async loadCartDecoration() {
+      const requestId=this._cartDecorationRequest=(this._cartDecorationRequest||0)+1;
+      try {
+        const res=await getThemeInfo('cart',{theme_id:uni.getStorageSync('previewThemeId')||0});
+        if(this._isDestroyed||requestId!==this._cartDecorationRequest)return;
+        this.cartDecoration=normalizeCartPage(res.data);
+        // #ifdef H5
+        if (typeof document !== 'undefined') document.title = this.cartDecoration.page_title;
+        // #endif
+        // #ifdef APP-PLUS
+        plus.navigator.setStatusBarStyle(this.cartDecoration.title_text_color === '#FFFFFF' ? 'light' : 'dark');
+        // #endif
+      }catch(error){ /* Keep the current decoration when offline. */ }
+    },
+    measureCartCheckout() {
+      uni.createSelectorQuery().in(this).select('.cart-checkout-dock').boundingClientRect(rect=>{if(!this._isDestroyed)this.checkoutHeight=rect?rect.height:0;}).exec();
+    },
     stopCartLoading() {
+      this.reductionRequestId++;
+      this.reductionLoading = false;
       this._cartActive = false;
       this._cartPageId = (this._cartPageId || 0) + 1;
       this._cartRequestId = (this._cartRequestId || 0) + 1;
@@ -691,6 +716,7 @@ export default {
       }
     },
     subOrder(event) {
+      if (this.reductionLoading || this.reductionError || this.disabledChangeNumber) return this.$util.Tips({ title: '请等待优惠计算完成，或重试后结算' });
       let that = this,
         selectValue = that.selectValue;
       if (selectValue.length > 0) {
@@ -817,6 +843,20 @@ export default {
         }
         that.selectCountPrice = selectCountPrice;
       }
+      this.refreshReductionQuote();
+    },
+    async refreshReductionQuote() {
+      const requestId = ++this.reductionRequestId;
+      this.fullReductionPrice = '0.00'; this.reductionError = '';
+      if (!this.selectValue.length) { this.selectCountPrice = '0.00'; this.reductionLoading = false; return; }
+      this.reductionLoading = true;
+      try {
+        const { data } = await getFullReductionQuote(this.selectValue.map(String));
+        if (requestId !== this.reductionRequestId) return;
+        this.selectCountPrice = data.pay_price;
+        this.fullReductionPrice = data.full_reduction_price;
+      } catch (error) { if (requestId === this.reductionRequestId) this.reductionError = typeof error === 'string' ? error : (error.msg || '优惠计算失败'); }
+      finally { if (requestId === this.reductionRequestId) this.reductionLoading = false; }
     },
     /**
      * 购物车手动填写
@@ -932,6 +972,7 @@ export default {
       changeCartNum(cartId, cartNum)
         .then((res) => {
           successCallback && successCallback(res.data);
+          if (!successCallback) this.switchSelect();
         })
         .catch((err) => {
           errorCallback && errorCallback();
@@ -1173,6 +1214,7 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.full-reduction-saving { font-size: 20rpx; line-height: 28rpx; color: #e93323; text-align: right; }
 .shoppingCart {
   /* #ifdef H5 */
   // padding-bottom: 0;
@@ -1512,4 +1554,28 @@ export default {
     height: 304rpx;
   }
 }
+</style>
+
+<style scoped lang="scss">
+.decorated-cart.shoppingCart {
+  .labelNav { position:relative;top:auto;height:auto;min-height:76rpx;padding:0;gap:8rpx; }
+  .nav { position:relative;top:auto;margin-bottom:16rpx; }
+  .nav,.noCart { background-color:transparent; }
+  .list,.noCart { margin-top:0; }
+  .list .item .picTxt { flex:1;min-width:0;width:auto;margin-left:16rpx; }
+  .list .item .picTxt .text { flex:1;min-width:0;width:auto;padding-left:16rpx; }
+  .list .item .picTxt .pictrue { flex-shrink:0; }
+  .cart-checkout-dock { position:fixed;bottom:0;left:0;right:0;z-index:277;padding-bottom:env(safe-area-inset-bottom); }
+  .cart-checkout-dock .footer { position:relative;bottom:auto;height:auto;min-height:96rpx;width:auto;backdrop-filter:none;border:0;gap:12rpx; }
+  .footer .money { margin-left:auto; }
+  .footer .checkAll { margin-left:8rpx; }
+  .footer .placeOrder { width:auto;min-width:180rpx;margin-left:16rpx;padding:0 20rpx; }
+}
+/* #ifdef H5 */
+.decorated-cart .cart-checkout-dock { bottom:var(--store-nav-offset,0px)!important; }
+/* #endif */
+</style>
+
+<style scoped>
+.cart-page-title{position:sticky;top:0;z-index:300}
 </style>

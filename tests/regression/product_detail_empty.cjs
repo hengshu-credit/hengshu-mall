@@ -74,7 +74,8 @@ function page() {
     methods: { ...bottom.options.methods, $t: s => s },
   }).$mount();
   assert.ok(rendered.$el.classList.contains('eject'), 'The detail footer remains visible without a product');
-  assert.match(rendered.$el.textContent, /客服.*店铺.*收藏.*购物车.*暂不可购买/s);
+  assert.match(rendered.$el.textContent, /首页.*收藏.*购物车.*暂不可购买/s);
+  assert.doesNotMatch(rendered.$el.textContent, /客服|店铺|分享/, 'Legacy fallback keeps the original three shortcuts');
   assert.ok(rendered.$el.querySelector('button[disabled]'), 'Unavailable purchase action must be disabled');
   rendered.$on('setCollect', () => emitted.push('collect'));
   rendered.$on('goBuy', () => emitted.push('buy'));
@@ -87,6 +88,13 @@ function page() {
   assert.match(rendered.$el.textContent, /加入购物车.*立即购买/s);
   rendered.setCollect(); rendered.goBuy();
   assert.deepEqual(emitted, ['collect', 'buy'], 'Valid product actions remain available');
+  rendered.diyData = { actions_mode: 'components', value: { bar: { name:'bottomMenu',showContent:{type:[4]},entryConfig:{tabVal:0},cartButton:{tabVal:0},buyButton:{tabVal:1} } } };
+  await Vue.nextTick();
+  assert.match(rendered.$el.textContent,/分享/,'Configured share entry must survive detail-page defaults');
+  assert.doesNotMatch(rendered.$el.textContent,/客服|店铺|收藏|立即购买/,'Unselected actions and hidden purchase buttons must disappear');
+  rendered.$on('share',()=>emitted.push('share')); rendered.goShare(); assert.equal(emitted.at(-1),'share');
+  rendered.diyData = { actions_mode:'components',value:{} }; await Vue.nextTick();
+  assert.equal(rendered.$el.nodeType,8,'Deleting the component must not restore the legacy toolbar');
   assert.ok(!detail.full.includes('<shareRedPackets'), 'Product detail must not mount the yellow commission float');
   rendered.$destroy();
   console.log('PASS: product errors stay on page, missing IDs, retry recovery, visible disabled footer and removed commission float');

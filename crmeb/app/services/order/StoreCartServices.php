@@ -398,6 +398,24 @@ class StoreCartServices extends BaseServices
         }
     }
 
+    /** Quote only explicitly selected, owned cart rows; never accept client prices or quantities. */
+    public function quoteFullReduction(int $uid, $ids): array
+    {
+        if (!is_array($ids) || count($ids) > 1000) throw new ApiException('购物车选择不正确');
+        foreach ($ids as $id) if ((!is_string($id) && !is_int($id)) || !preg_match('/^[1-9][0-9]{0,19}$/D', (string)$id)) throw new ApiException('购物车ID不正确');
+        $ids = array_values(array_unique(array_map('strval', $ids)));
+        if (!$ids) return ['total_price' => '0.00', 'full_reduction_price' => '0.00', 'pay_price' => '0.00', 'activities' => []];
+        $rows = $this->dao->getCartList(['uid' => $uid, 'status' => 1, 'is_del' => 0, 'is_pay' => 0, 'is_new' => 0, 'id' => implode(',', $ids)], 0, 0, ['productInfo', 'attrInfo']);
+        if (count($rows) !== count($ids)) throw new ApiException('部分购物车商品已失效，请刷新后重试');
+        foreach ($rows as $cart) if (empty($cart['productInfo']) || !empty($cart['productInfo']['is_del']) || empty($cart['productInfo']['is_show'])) throw new ApiException('部分商品已下架，请刷新购物车');
+        [$rows, $valid, $invalid] = $this->handleCartList($uid, $rows);
+        foreach ($valid as $cart) if (!$cart['attrStatus'] || $cart['cart_num'] > $cart['trueStock']) throw new ApiException('商品库存不足，请刷新购物车');
+        if ($invalid) throw new ApiException('部分购物车商品无法购买，请重新选择');
+        $quote = app()->make(\app\services\activity\fullreduction\FullReductionQuoteServices::class)->quote($uid, $valid);
+        unset($quote['lines']);
+        return $quote;
+    }
+
     /**
      * 购物车重选
      * @param int $cart_id

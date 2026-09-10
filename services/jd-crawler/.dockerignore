@@ -1,7 +1,11 @@
-.env
-.venv
-data
+*
+!Dockerfile
+!requirements.txt
+!entrypoint.sh
+!healthcheck.py
+!LICENSE.upstream
+!UPSTREAM.md
+!src/
+!src/**
 **/__pycache__
 **/*.pyc
-.git
-tests

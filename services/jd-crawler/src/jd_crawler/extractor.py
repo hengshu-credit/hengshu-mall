@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import re
 from urllib.parse import urlsplit
 
-from .contract import ContractError, canonicalize_item_url, map_product
+from .contract import ContractError, canonicalize_item_url, map_product, normalize_media_url
 from .vendor.cherrypainter_dom import UpstreamDomExtractors
 
 
@@ -53,8 +54,17 @@ var urls = [];
 var seen = {};
 function nativeSrc(img) {
     if (!img) return '';
-    return img.getAttribute('data-origin') || img.getAttribute('data-src') ||
-           img.getAttribute('src') || img.currentSrc || '';
+    var original = img.getAttribute('data-origin') || img.getAttribute('data-original') ||
+        img.getAttribute('data-large') || img.getAttribute('data-big') ||
+        img.getAttribute('jqimg') || img.getAttribute('data-zoom-image');
+    if (original) return original;
+    var srcset = img.getAttribute('data-srcset') || img.getAttribute('srcset') || '';
+    var candidates = srcset.split(',').map(function(part) {
+        var bits = part.trim().split(/\s+/); return {url: bits[0], size: parseFloat(bits[1]) || 0};
+    }).filter(function(part) { return part.url; });
+    candidates.sort(function(a, b) { return b.size - a.size; });
+    return (candidates[0] && candidates[0].url) || img.getAttribute('data-lazyload') ||
+        img.getAttribute('data-src') || img.currentSrc || img.getAttribute('src') || '';
 }
 function add(img, filterTools) {
     if (!img) return;
@@ -63,13 +73,14 @@ function add(img, filterTools) {
     var value = nativeSrc(img).trim();
     var lowered = value.toLowerCase();
     if (filterTools && (lowered.indexOf('shaidan') > -1 || lowered.indexOf('imagetools') > -1)) return;
-    if (value && !seen[value]) {
-        seen[value] = true;
+    var key = value.replace(/^.*(?:\/jfs\/|_jfs\/)/, 'jfs/');
+    if (value && !seen[key]) {
+        seen[key] = true;
         urls.push(value);
     }
 }
 add(document.querySelector('#spec-img'), false);
-var carousel = document.querySelectorAll('.image-carousel-track .item img, [class*="image-carousel-track"] .item img');
+var carousel = document.querySelectorAll('#spec-list img, .spec-list img, .image-carousel-track .item img, [class*="image-carousel-track"] .item img');
 for (var i = 0; i < carousel.length; i++) add(carousel[i], true);
 if (carousel.length === 0) {
     var fallback = document.querySelectorAll('[class*="_gallery_"] img, .image-carousel img');
@@ -85,6 +96,53 @@ return JSON.stringify(urls);
     if not isinstance(values, list):
         return []
     return [value for value in values if isinstance(value, str)]
+
+
+def original_image_candidate(value: str) -> str | None:
+    """Try JD's static asset path only for known thumbnail paths; keep format/query intact."""
+    value = normalize_media_url(value)
+    if not value:
+        return None
+    parts = urlsplit(value)
+    if not (parts.hostname or '').endswith('.360buyimg.com'):
+        return None
+    match = re.fullmatch(r'/n[0-9]+/(?:s[0-9]+x[0-9]+_)?jfs/(.+)', parts.path)
+    if not match:
+        match = re.fullmatch(r'/n[0-9]+/s[0-9]+x[0-9]+/jfs/(.+)', parts.path)
+    if not match:
+        return None
+    return parts._replace(path='/imgzone/jfs/' + match[1]).geturl()
+
+
+def _prefer_full_size_gallery(tab: object, urls: list[str]) -> list[str]:
+    """Only select a source that the browser loads and verifies is at least as large."""
+    pairs = [[url, original_image_candidate(url)] for url in urls[:30]]
+    script = r"""
+const pairs = arguments[0];
+function measure(url) {
+    return new Promise(resolve => {
+        if (!url) return resolve(null);
+        const img = new Image();
+        const timer = setTimeout(() => { img.src = ''; resolve(null); }, 5000);
+        img.onload = () => { clearTimeout(timer); resolve({url, w: img.naturalWidth, h: img.naturalHeight}); };
+        img.onerror = () => { clearTimeout(timer); resolve(null); };
+        img.src = url;
+    });
+}
+return Promise.all(pairs.map(async pair => {
+    if (!pair[1] || pair[0] === pair[1]) return pair[0];
+    const [current, original] = await Promise.all(pair.map(measure));
+    return current && original && original.w >= current.w && original.h >= current.h &&
+        (original.w > current.w || original.h > current.h) ? original.url : pair[0];
+}));
+"""
+    try:
+        result = tab.run_js(script, pairs)
+        if isinstance(result, list) and len(result) == len(pairs):
+            return [value if value in pair else pair[0] for value, pair in zip(result, pairs)] + urls[30:]
+    except Exception:
+        pass
+    return urls
 
 
 def _extract_video_candidates(tab: object) -> list[str]:
@@ -133,8 +191,20 @@ def extract_product(
     raw = extractor._extract_all_by_js()
     if isinstance(raw, dict):
         raw = dict(raw)
-        raw["native_gallery"] = native_gallery
+        raw["native_gallery"] = _prefer_full_size_gallery(tab, native_gallery)
         raw["video_candidates"] = _extract_video_candidates(tab)
+    # Reveal description tabs without following shop links or interacting with verification.
+    try:
+        tab.run_js(r"""
+document.querySelectorAll('.tab-main li, .left-tabs-title li, [role="tab"]').forEach(function(el) {
+    if (/^(商品详情|商品介绍|详情)$/.test(el.textContent.trim()) && !el.querySelector('a[href^="http"]')) el.click();
+});
+document.querySelectorAll('#detail button, #J-detail-content button, .detail-content button').forEach(function(el) {
+    if (/^(展开全部|展开详情|查看全部详情|展开商品详情)$/.test(el.textContent.trim())) el.click();
+});
+""")
+    except Exception:
+        pass
     extractor._slow_scroll_to_load()
     details = extractor._extract_detail_images_by_js()
     return map_product(source_url, raw, details)

@@ -3,7 +3,7 @@
 		<view class='pictrue'>
 			<easy-loadimage
 			mode="widthFix"
-			:image-src="item.image"
+			:marketing-style="item.marketing_style" :image-src="item.image"
 			width="100%"
 			height="345rpx"
 			borderRadius="16rpx 16rpx 0 0"></easy-loadimage>

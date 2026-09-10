@@ -428,6 +428,9 @@ export default {
     },
   },
   mutations: {
+    DEFAULTARRAY(state, data) {
+      state.defaultArray = { ...data };
+    },
     FOOTER(state, data) {
       // state.pageFooter.status.title = data.title;
       state.pageFooter.menuList[2] = data.name;

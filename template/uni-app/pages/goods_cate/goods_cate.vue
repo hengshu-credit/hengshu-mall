@@ -1,13 +1,15 @@
 <template>
 	<view :style="colorStyle">
-		<goodsCate1 v-if="category == 1" ref="classOne" :isNew="isNew" :initialCategoryRequest="initialCategoryRequest" :categoryTarget="selectedCategory"></goodsCate1>
-		<goodsCate2 v-if="category == 2" ref="classTwo" :isNew="isNew" :initialCategoryRequest="initialCategoryRequest" :categoryTarget="selectedCategory" @jumpIndex="jumpIndex"></goodsCate2>
-		<goodsCate3 v-if="category == 3" ref="classThree" :isNew="isNew" :initialCategoryRequest="initialCategoryRequest" :categoryTarget="selectedCategory" @jumpIndex="jumpIndex"></goodsCate3>
-		<pageFooter v-if="category == 1" @newDataStatus="newDataStatus" v-show="showBar"></pageFooter>
+        <view class="category-title-shell" :style="{height:titleHeight+'px',background:categoryDecoration.title_background_color,color:categoryDecoration.title_text_color}"><page-title v-if="titleVisible" :dataConfig="categoryDecoration.title_component" /></view>
+		<goodsCate1 v-if="category == 1" ref="classOne" :decoration="categoryDecoration" :navigationHeight="navigationHeight" :titleHeight="titleHeight" :isNew="isNew" :initialCategoryRequest="initialCategoryRequest" :categoryTarget="selectedCategory"></goodsCate1>
+		<goodsCate2 v-if="category == 2" ref="classTwo" :decoration="categoryDecoration" :navigationHeight="navigationHeight" :titleHeight="titleHeight" :isNew="isNew" :initialCategoryRequest="initialCategoryRequest" :categoryTarget="selectedCategory" @jumpIndex="jumpIndex"></goodsCate2>
+		<goodsCate3 v-if="category == 3" ref="classThree" :decoration="categoryDecoration" :navigationHeight="navigationHeight" :titleHeight="titleHeight" :isNew="isNew" :initialCategoryRequest="initialCategoryRequest" :categoryTarget="selectedCategory" @jumpIndex="jumpIndex"></goodsCate3>
+		<pageFooter v-if="category" :mainNavigationOnly="category != 1" :activePath="categoryNavigationPath" @newDataStatus="newDataStatus" @heightChange="navigationHeight = $event"></pageFooter>
 	</view>
 </template>
 
 <script>
+	import { normalizeCategoryPage } from '../../../shared/categoryPageConfig';
 	import colors from "@/mixins/color";
 	import categoryHistoryGesture from '@/mixins/categoryHistoryGesture.js';
 	import { categoryTarget, takeCategoryTarget } from '@/utils/categoryNavigation.js';
@@ -25,9 +27,20 @@
 		getCategoryVersion
 	} from "@/api/public.js";
 	import pageFooter from "@/components/pageFooter/index.vue";
+	import PageTitle from '@/subpackage/diyComponents/pageTitle.vue';
+    import { verticalStyleSpace } from '../../../shared/componentStyle';
 	export default {
-		computed: mapGetters(["isLogin", "uid"]),
+		computed: {
+            ...mapGetters(["isLogin", "uid"]),
+            titleVisible() { return this.categoryDecoration.show_title && !this.categoryDecoration.title_component.isHide; },
+            titleHeight() { return this.statusBarHeight + (this.titleVisible ? 44 + verticalStyleSpace(this.categoryDecoration.title_component) * uni.getWindowInfo().windowWidth / 375 : 0); },
+            categoryNavigationPath() {
+                const query = Object.keys(this.selectedCategory).filter(key => this.selectedCategory[key]).map(key => key + '=' + this.selectedCategory[key]).join('&');
+                return '/pages/goods_cate/goods_cate' + (query ? '?' + query : '');
+            },
+        },
 		components: {
+			PageTitle,
 			goodsCate1,
 			goodsCate2,
 			goodsCate3,
@@ -37,6 +50,8 @@
 		data() {
 			return {
 				category: "",
+                navigationHeight: 0, statusBarHeight: 0,
+				categoryDecoration: normalizeCategoryPage(1),
 				selectedCategory: { cid: 0, sid: 0 },
 				initialCategoryRequest: null,
 				is_diy: uni.getStorageSync("is_diy"),
@@ -47,7 +62,12 @@
 				showBar: false,
 			};
 		},
-		onLoad(options) { this.readCategoryTarget(options); },
+		onLoad(options) {
+            // #ifndef H5
+            this.statusBarHeight = uni.getWindowInfo().statusBarHeight || 0;
+            // #endif
+            this.readCategoryTarget(options);
+        },
 		onReady() {},
 		onShow() {
 			const pending = takeCategoryTarget();
@@ -111,7 +131,18 @@
 				if (previewThemeId) data.theme_id = previewThemeId;
 				return getThemeInfo("category", data).then((res) => {
 					if (this._isDestroyed || refreshId !== this._categoryRefreshId) return;
-					let status = res.data.status;
+					this.categoryDecoration = normalizeCategoryPage(res.data);
+                    const config = this.categoryDecoration;
+                    // The category title is rendered by the page. Native title setters
+                    // can restore titleNView on a cached tab and duplicate that title.
+                    // #ifndef APP-PLUS
+                    if (uni.setNavigationBarTitle) uni.setNavigationBarTitle({ title: config.page_title || this.$t('商品分类') });
+                    if (uni.setNavigationBarColor) uni.setNavigationBarColor({ backgroundColor: config.title_background_color, frontColor: config.title_text_color });
+                    // #endif
+                    // #ifdef APP-PLUS
+                    plus.navigator.setStatusBarStyle(config.title_text_color === '#000000' ? 'dark' : 'light');
+                    // #endif
+                    let status = config.status;
 					this.category = status;
 					uni.setStorageSync("is_diy", 1);
 					this.$nextTick((e) => {
@@ -141,6 +172,8 @@
 	};
 </script>
 <style scoped lang="scss">
+.category-title-shell {position:fixed;top:0;left:0;right:0;z-index:110;display:flex;flex-direction:column;justify-content:flex-end;}
+.category-page-title {height:44px;line-height:44px;text-align:center;font-size:15px;padding:0 80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 	::v-deep.mask {
 		z-index: 99;
 	}

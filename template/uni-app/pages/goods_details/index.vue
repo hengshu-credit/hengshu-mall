@@ -2,7 +2,7 @@
   <view class="product-con" :style="colorStyle">
     <view class="product-con">
       <!-- #ifndef APP-PLUS -->
-      <view class="navbar" :style="{ height: navH + 'rpx', opacity: opacity }">
+      <view v-if="!hasConfiguredHeader" class="navbar" :style="{ height: navH + 'rpx', opacity: opacity }">
         <view class="navbarH" :style="'height:' + navH + 'rpx;'">
           <view
             class="navbarCon acea-row row-center-wrapper"
@@ -19,6 +19,7 @@
       <!-- #ifndef APP-PLUS -->
       <view
         id="home"
+        v-if="!hasConfiguredHeader"
         class="home acea-row row-center-wrapper"
         :class="[opacity > 0.5 ? 'on' : '']"
         :style="{ top: homeTop + 'rpx' }"
@@ -33,6 +34,7 @@
       <!-- #ifdef H5 -->
       <view
         id="home"
+        v-if="!hasConfiguredHeader"
         class="home right acea-row row-center-wrapper"
         :class="[opacity > 0.5 ? 'on' : '']"
         :style="{ top: homeTop + 'rpx' }"
@@ -54,7 +56,8 @@
           <!-- #ifdef APP-PLUS || MP -->
           <view class="" :style="'width:100%;' + 'height:' + sysHeight"></view>
           <!-- #endif -->
-          <PageDesign
+          <PageDesign @navigationHeight="pageNavigationHeight = $event"
+            @pageAction="handlePageAction"
             v-if="detailStatus === 'ready'"
             :diyData="diyData"
             :productData="storeInfo"
@@ -86,10 +89,11 @@
             <button v-if="detailStatus === 'error'" class="detail-retry" @click="getGoodsDetails">{{ $t(`重新加载`) }}</button>
           </view>
         </view>
-        <view class="uni-p-b-98"></view>
+        <view :style="{ height: productActionHeight + 'px' }"></view>
       </view>
 
-      <productBottom
+      <productBottom :navigationHeight="pageNavigationHeight"
+        @heightChange="productActionHeight = $event"
         :commerceActions="true"
         :routineContact="routineContact"
         :diyData="diyData"
@@ -113,6 +117,8 @@
         :attr="attr"
         :isShow="1"
         :iSplus="1"
+        :iScart="1"
+        @goCat="confirmPurchase"
         :limitNum="storeInfo.limit_num"
         :minQty="storeInfo.min_qty"
         :unitName="storeInfo.unit_name"
@@ -250,7 +256,6 @@
       <specs
         ref="specs"
         :specsInfo="storeInfo.params_list"
-        @myevent="mySpecs"
       ></specs>
       <!-- 服务抽屉 -->
       <serviceModal
@@ -298,7 +303,7 @@ import homeList from "@/components/homeList";
 import specs from "./components/specs/index.vue";
 import serviceModal from "./components/serviceModal/index.vue";
 import PageDesign from "@/subpackage/diyComponents/pageDesign.vue";
-import productBottom from "@/subpackage/diyComponents/productBottom.vue";
+import productBottom from "@/components/productActionBar/index.vue";
 export default {
   components: {
     couponListWindow,
@@ -326,9 +331,13 @@ export default {
   data() {
     let that = this;
     return {
+      pageNavigationHeight: 0,
+      productActionHeight: 0,
       diyData: {},
       detailStatus: 'idle',
       detailError: '',
+      cartSubmitting: false,
+      pendingBuy: false,
       showBackToTop: false,
       imgHost: HTTP_REQUEST_URL,
       sysHeight: sysHeight,
@@ -410,6 +419,7 @@ export default {
     };
   },
   computed: {
+    hasConfiguredHeader() { return this.detailStatus === 'ready' && Object.values(this.diyData.value || {}).some(item=>['headerSerch','pageTitleBar'].includes(item.name) && !item.isHide); },
     ...mapGetters(["isLogin", "cartNum"]),
     isShowPaidVip() {
       let s =
@@ -575,6 +585,11 @@ export default {
         // Keep the detail state and default footer usable when the theme cannot load.
         that.diyData = {};
       });
+    },
+    handlePageAction(action) {
+      if (!this.storeInfo.id) return;
+      if (action === 'collect') this.setCollect();
+      if (action === 'share') this.listenerActionSheet();
     },
     jumpUrl(url) {
       uni.switchTab({
@@ -1154,6 +1169,7 @@ export default {
      * 打开属性插件
      */
     selecAttr: function () {
+      this.pendingBuy = false;
       // this.$refs.proSwiper.videoIsPause();
       this.$set(this.attr, "cartAttr", true);
       this.$set(this, "isOpen", true);
@@ -1193,12 +1209,14 @@ export default {
       this.$set(this.attr, "cartAttr", false);
       this.$set(this, "isOpen", false);
       this.isGiftOrder = 0;
+      this.pendingBuy = false;
     },
     /**
      * 打开属性加入购物车
      *
      */
     joinCart: function (e) {
+      if (Number(this.storeInfo.cart_button) !== 1) return;
       //是否登录
       if (this.isLogin === false) {
         toLogin();
@@ -1218,18 +1236,14 @@ export default {
     goCat(news) {
       let that = this,
         productSelect = that.productValue[this.attrValue];
+      if (that.cartSubmitting) return;
+      that.pendingBuy = !!news;
       that.currentPage = false;
-      //打开属性
-      if (that.attrValue) {
-        //默认选中了属性，但是没有打开过属性弹窗还是自动打开让用户查看默认选中的属性
-        that.attr.cartAttr = !that.isOpen ? true : false;
-      } else {
-        if (that.isOpen) that.attr.cartAttr = true;
-        else that.attr.cartAttr = !that.attr.cartAttr;
+      if (!that.isOpen) {
+        that.attr.cartAttr = true;
+        that.isOpen = true;
+        return;
       }
-      //只有关闭属性弹窗时进行加入购物车
-      if (that.attr.cartAttr === true && that.isOpen === false)
-        return (that.isOpen = true);
       //如果有属性,没有选择,提示用户选择
       if (
         that.attr.productAttr.length &&
@@ -1239,6 +1253,7 @@ export default {
         return that.$util.Tips({
           title: that.$t(`产品库存不足，请选择其它属性`),
         });
+      if (that.attr.productSelect.stock <= 0) return that.$util.Tips({ title: that.$t(`产品库存不足，请选择其它属性`) });
       if (that.attr.productSelect.cart_num <= 0) {
         that.attr.productSelect.cart_num = 1;
         that.isOpen = false;
@@ -1249,14 +1264,15 @@ export default {
       let q = {
         productId: that.id,
         cartNum: that.attr.productSelect.cart_num,
-        new: news === undefined ? 0 : 1,
+        new: news ? 1 : 0,
         uniqueId:
           that.attr.productSelect !== undefined
             ? that.attr.productSelect.unique
             : "",
         virtual_type: that.storeInfo.virtual_type,
       };
-      postCartAdd(q)
+      that.cartSubmitting = true;
+      return postCartAdd(q)
         .then((res) => {
           that.isOpen = false;
           that.attr.cartAttr = false;
@@ -1279,11 +1295,18 @@ export default {
           this.isGiftOrder = 0;
         })
         .catch((err) => {
-          that.isOpen = false;
+          that.isOpen = true;
+          that.attr.cartAttr = true;
           return that.$util.Tips({
             title: err,
           });
+        }).finally(() => {
+          that.cartSubmitting = false;
         });
+    },
+    confirmPurchase() {
+      if (!this.isLogin) return toLogin();
+      return this.goCat(this.pendingBuy || Number(this.storeInfo.cart_button) !== 1);
     },
     /**
      * 获取购物车数量

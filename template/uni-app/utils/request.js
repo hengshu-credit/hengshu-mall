@@ -30,7 +30,8 @@ const copyResponse = response => JSON.parse(JSON.stringify(response));
 function baseRequest(url, method, data, {
 	noAuth = false,
 	noVerify = false,
-	dedupe = false
+	dedupe = false,
+	timeout = TIMEOUT
 }) {
 	let Url = HTTP_REQUEST_URL,
 		header = { ...HEADER };
@@ -51,7 +52,7 @@ function baseRequest(url, method, data, {
 	// Only explicitly selected configuration GETs share an in-flight request.
 	// Include auth, locale and verification options; never retain settled data.
 	const key = dedupe && method.toLowerCase() === 'get'
-		? JSON.stringify([Url, url, data || {}, header, noAuth, noVerify]) : null;
+		? JSON.stringify([Url, url, data || {}, header, noAuth, noVerify, timeout]) : null;
 	if (key && pendingReads.has(key)) return pendingReads.get(key).then(copyResponse);
 
 	const promise = new Promise((reslove, reject) => {
@@ -60,7 +61,7 @@ function baseRequest(url, method, data, {
 			method: method || 'GET',
 			header: header,
 			data: data || {},
-			timeout: TIMEOUT,
+			timeout,
 			success: (res) => {
 				if (noVerify)
 					reslove(res.data, res);

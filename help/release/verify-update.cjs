@@ -49,6 +49,12 @@ async function main() {
     assert(fs.existsSync(path.join(app, 'crmeb/public', match[1])), match[1]);
   }
   console.log(`PASS: extracted ${files.length} verified files; existing credentials, installation, uploads and data preserved`);
+  const h5 = fs.readFileSync(path.join(app, 'crmeb/public/index.html'), 'utf8');
+  for (const match of h5.matchAll(/\b(?:src|href)=["']?(\/(?:static|assets)\/[^"' >]+)/g)) {
+    assert(fs.existsSync(path.join(app, 'crmeb/public', match[1])), match[1]);
+  }
+  assert.equal(sha(Buffer.from(h5)), JSON.parse(fs.readFileSync(path.join(app, 'release.json'))).h5EntrySha256);
+  console.log('PASS: mobile H5 build and referenced entry assets are included');
   const config = JSON.parse(compose(['config', '--format', 'json']));
   assert.equal(Object.keys(config.services).length, 8);
   for (const name of ['queue', 'timer', 'workerman']) {
@@ -63,6 +69,25 @@ async function main() {
     input: fs.readFileSync(path.join(__dirname, 'test-start.sh')), stdio: ['pipe', 'inherit', 'inherit'], timeout: 60000,
   });
   console.log('PASS: Compose accepts existing .env without JD setup; all workers enabled; startup/update guards passed');
+  const nginxName = project + '-nginx-probe';
+  try {
+    cp.execFileSync('docker', ['run', '-d', '--name', nginxName, '--add-host', 'phpfpm:127.0.0.1',
+      '-p', '127.0.0.1::80', '-v', path.join(app, 'crmeb') + ':/var/www:ro',
+      '-v', path.join(app, 'deploy/nginx.conf') + ':/etc/nginx/conf.d/default.conf:ro', config.services.nginx.image]);
+    const nginx = JSON.parse(cp.execFileSync('docker', ['inspect', nginxName]))[0];
+    const base = 'http://127.0.0.1:' + nginx.NetworkSettings.Ports['80/tcp'][0].HostPort;
+    let response;
+    for (let attempt = 0; attempt < 15; attempt++) {
+      try { response = await fetch(base + '/pages/goods_cate/goods_cate'); if (response.status === 200) break; } catch (_) {}
+      await delay(300);
+    }
+    assert.equal(await response.text(), h5, 'H5 history route must serve the bundled frontend');
+    const asset = [...h5.matchAll(/\bsrc=["']?(\/static\/[^"' >]+)/g)][0][1];
+    assert.equal((await fetch(base + asset)).status, 200);
+    assert((await fetch(base + '/admin/index.html')).headers.get('cache-control').includes('no-cache'));
+    assert.equal((await fetch(base + '/', { redirect: 'manual' })).headers.get('location'), '/admin/');
+    console.log('PASS: real release Nginx serves H5 history routes and assets, preserves admin entry and cache rules');
+  } finally { cp.execFileSync('docker', ['rm', '-f', nginxName], { stdio: 'ignore' }); }
   const credentials = () => JSON.parse(compose(['exec', '-T', 'jd-crawler', 'python', '-c',
     'import json; print(open("/data/credentials.json").read())']));
   const healthy = async () => {
@@ -86,6 +111,11 @@ async function main() {
       + 'try:\n fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)\nexcept BlockingIOError:\n print("locked")\nelse:\n raise SystemExit(1)';
     assert.equal(compose(['exec', '-T', 'jd-crawler', 'python', '-c', lockProbe]).trim(), 'locked');
     compose(['exec', '-T', 'jd-crawler', 'python', '/app/healthcheck.py']);
+    const crawlerId = compose(['ps', '-q', 'jd-crawler']).trim();
+    cp.execFileSync('docker', ['cp', path.join(root, 'services/jd-crawler/tests/browser_smoke.py'), crawlerId + ':/tmp/browser_smoke.py']);
+    const smoke = compose(['exec', '-T', 'jd-crawler', 'python', '/tmp/browser_smoke.py']);
+    assert(smoke.includes('PASS: real Chromium'), smoke);
+    console.log('PASS: packaged crawler executes native AVIF/WebM gallery and detail DOM extraction in Chromium');
     const show = compose(['exec', '-T', 'jd-crawler', 'python', '-m', 'jd_crawler.bootstrap', 'show']);
     assert(show.includes(initial.JD_VNC_PASSWORD) && show.includes(initial.JD_CRAWLER_TOKEN) && show.includes('ssh -N'));
     const response = await fetch(`http://127.0.0.1:${port}/vnc.html`);

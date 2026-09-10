@@ -10,3 +10,10 @@
 `_slow_scroll_to_load` methods. The upstream `run()` and `_build_sku_list()`
 are intentionally excluded because they synthesize price-adjacent commerce
 data. The service maps only values present on the current item page.
+
+Local fixes broaden description extraction to ordered native `img`/lazy attributes
+and CSS background layers within description containers, and use immediate scroll
+steps so lazy loading is not skipped by overlapping animations. Gallery selection
+prefers observed zoom/original/srcset sources. For JD thumbnail paths, the static
+asset candidate is used only after browser decoding confirms greater dimensions;
+the original URL remains the fallback. No media bytes are resized or transcoded.

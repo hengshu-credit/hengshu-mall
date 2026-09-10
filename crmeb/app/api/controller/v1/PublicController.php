@@ -855,6 +855,11 @@ class PublicController
             ['theme_id', 0],
         ], true);
         $themeInfo = app()->make(ThemeServices::class)->getThemeInfo($theme_id, $type);
+        if ($type === 'category') {
+            foreach (['banner_image', 'background_image'] as $imageKey) {
+                if (!empty($themeInfo[$imageKey])) $themeInfo[$imageKey] = set_file_url($themeInfo[$imageKey]);
+            }
+        }
 
         if (in_array($type, ['home', 'detail', 'user']) && $themeInfo) {
             foreach ($themeInfo['value'] as &$userDataItem) {
@@ -1097,10 +1102,10 @@ class PublicController
      * 调用 ThemeServices 中的 themeNavigation 方法获取导航配置并返回 JSON 响应
      * @return mixed
      */
-    public function themeNavigation()
+    public function themeNavigation(Request $request)
     {
         // 实例化 ThemeServices 并调用 themeNavigation 方法获取导航数据
-        $data = app()->make(ThemeServices::class)->themeNavigation();
+        $data = app()->make(ThemeServices::class)->themeNavigation((string)$request->get('page', 'home'), (int)$request->get('theme_id', 0));
         // 返回成功响应，包含导航数据
         return app('json')->success($data);
     }

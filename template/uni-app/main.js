@@ -10,7 +10,11 @@
 
 import Vue from 'vue'
 import App from './App'
+import themePageEvents from './mixins/themePageEvents';
+Vue.mixin(themePageEvents);
 // #ifdef APP-PLUS
+import appStartup from './mixins/appStartup';
+Vue.mixin(appStartup);
 import { installAppHistory } from './utils/installAppHistory';
 installAppHistory(Vue);
 // #endif
@@ -32,6 +36,8 @@ Vue.config.productionTip = false
 import pageLoading from './components/pageLoading.vue'
 import skeleton from './components/skeleton/index.vue'
 import easyLoadimage from '@/components/easy-loadimage/easy-loadimage.vue'
+import MarketingStyle from '@/components/marketingStyle/index.vue'
+Vue.component('marketing-style', MarketingStyle)
 import BaseMoney from './components/BaseMoney.vue';
 import BaseTag from './components/BaseTag.vue';
 import BaseDrawer from '@/components/tuiDrawer/tui-drawer.vue'

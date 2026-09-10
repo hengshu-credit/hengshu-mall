@@ -53,7 +53,7 @@
               <div class="overflowy">
                 <div class="picture"><img src="@/assets/images/electric.png" /></div>
                 <div
-                  v-if="pageType == 'home'"
+                  v-if="pageType == 'home' && !hasPageTitle"
                   class="page-title"
                   :class="{ on: activeIndex == -100 }"
                   @click="showTitle"
@@ -102,6 +102,7 @@
                           hide: defaultArrays[item.num].isHide,
                         }"
                         v-for="(item, key) in mConfig"
+                        v-if="!isDockComponent(item)"
                         :key="key"
                         @click.stop="bindconfig(item, key)"
                         :style="
@@ -157,23 +158,15 @@
                   </div>
                 </div>
               </div>
-              <div class="overflowy" v-if="pageType == 'home' && !isMicroPage">
-                <div
-                  class="page-foot"
-                  @click="showFoot"
-                  :class="{ on: activeIndex == -101 }"
-                  :style="pageFooterType == 1 ? 'bottom:' + (50 + pageFooterBottom) + 'px' : ''"
-                >
-                  <footPage></footPage>
-                  <div class="delete-box"></div>
-                  <div class="handle"></div>
-                </div>
-              </div>
-              <div class="overflowy" v-if="pageType == 'detail'">
-                <div class="page-foot" @click="showBottomMenu" :class="{ on: activeIndex == -102 }">
-                  <home_bottom_menu :colorStyle="colorStyle"></home_bottom_menu>
-                  <div class="delete-box"></div>
-                  <div class="handle"></div>
+              <div class="editor-bottom-dock">
+                <div v-for="entry in dockedComponents" :key="entry.item.num" class="mConfig-item dock-component"
+                  :class="{on:activeIndex === entry.index,hide:defaultArrays[entry.item.num].isHide}"
+                  @click.stop="bindconfig(entry.item,entry.index)">
+                  <component :is="entry.item.name" :num="entry.item.num" :index="entry.index" :colorStyle="colorStyle" />
+                  <div class="delete-box"><div class="handleType">
+                    <div class="iconfont iconxianshi" @click.stop="bindHide(entry.item)"></div>
+                    <div class="iconfont iconshanchu3" @click.stop="bindDelete(entry.item,entry.index)"></div>
+                  </div></div><div class="handle"></div><div class="delete-name"><span>{{entry.item.cname}}</span></div>
                 </div>
               </div>
               <div class="defaultData" v-if="pageId !== 0">
@@ -251,6 +244,7 @@ import html2canvas from 'html2canvas';
 import theme from '@/mixins/theme';
 import Setting from '@/setting';
 import QRCode from 'qrcodejs2';
+import { navigationComponent } from '../../../../../shared/navigationComponent';
 
 export default {
   inject: ['reload', 'setDirty'],
@@ -271,6 +265,8 @@ export default {
     },
   },
   computed: {
+    hasPageTitle() { return Object.values(this.$store.state.mobildConfig.defaultArray).some(item => item.name === 'pageTitleBar' && !item.isHide); },
+    dockedComponents() { return this.mConfig.map((item,index)=>({item,index})).filter(entry=>this.isDockComponent(entry.item)).sort((a,b)=>(a.item.name==='main_navigation'?1:0)-(b.item.name==='main_navigation'?1:0)); },
     ...mapState({
       titleTxt: (state) => state.mobildConfig.pageTitle || '首页',
       showTxt: (state) => state.mobildConfig.pageShow,
@@ -328,6 +324,7 @@ export default {
       ],
       footActive: false,
       loading: false,
+      loadError: '',
       relLoading: false,
       isSearch: false,
       isTab: false,
@@ -403,6 +400,7 @@ export default {
     },
   },
   methods: {
+    isDockComponent(item) { return ['main_navigation','home_bottom_menu'].includes(item.name); },
     exportView() {
       let that = this;
       this.loading = true;
@@ -747,6 +745,7 @@ export default {
       // 从左向右拖拽排序
       if (evt.added) {
         let data = evt.added.element;
+        if (['main_navigation','home_bottom_menu'].includes(data.name) && this.mConfig.filter(item => item.name === data.name).length > 1) { this.mConfig.splice(evt.added.newIndex, 1); return this.$message.warning('每种底部组件只能添加一次'); }
         let obj = {};
         let timestamp = new Date().getTime() * 1000;
         data.num = timestamp;
@@ -829,6 +828,7 @@ export default {
     },
     // 组件添加
     addDomCon(item, type, index) {
+      if (['main_navigation','home_bottom_menu'].includes(item.name) && this.mConfig.some(component => component.name === item.name)) return this.$message.warning('每种底部组件只能添加一次');
       if (item.name == 'search_box') {
         if (this.isSearch) return this.$message.error('该组件只能添加一次');
         if (this.isComb) return this.$message.error('轮播搜索不能和搜索组件与选项卡组件同时存在');
@@ -902,6 +902,7 @@ export default {
     bindAddDom(item, type, index) {
       // 复制
       if (type == 0) {
+        if (['main_navigation','home_bottom_menu'].includes(item.name)) return this.$message.warning('每种底部组件只能添加一次');
         let defaultArray = this.$store.state.mobildConfig.defaultArray;
         let configData = JSON.parse(JSON.stringify(defaultArray[item.num]));
 
@@ -957,7 +958,7 @@ export default {
     },
     bindHide(item) {
       let obj = this.$store.state.mobildConfig.defaultArray;
-      let num = this.rConfig[0].num;
+      let num = item.num;
       obj[num].isHide = !obj[num].isHide;
       this.$store.commit('mobildConfig/UPDATEARR', { num: num, val: obj[num] });
     },
@@ -1037,7 +1038,7 @@ export default {
         isOpen: true,
       };
       this.lConfig.map((el, index) => {
-        if (el.type == 0) {
+        if (el.type == 0 && (el.name !== 'home_bottom_menu' || this.pageType === 'detail')) {
           basis.list.push(el);
         }
         if (el.type == 1) {
@@ -1081,6 +1082,8 @@ export default {
       if (['home', 'detail', 'user'].includes(this.pageType)) {
         pageData = {
           type: this.pageType,
+          navigation_mode: 'page',
+          actions_mode: 'components',
           value: val,
           title: this.titleTxt,
           name: this.nameTxt || '模板',
@@ -1107,7 +1110,8 @@ export default {
       if (this.$route.query.tid) {
         requestData.tid = this.$route.query.tid;
       }
-      themeSave(title ? 0 : this.pageId, requestData)
+      const snapshot = JSON.stringify(this.$store.state.mobildConfig.defaultArray);
+      return themeSave(title ? 0 : this.pageId, requestData)
         .then((res) => {
           if (this.pageId != res.data.id && !title) {
             let query = { ...this.$route.query, id: res.data.id };
@@ -1130,13 +1134,17 @@ export default {
             this.loading = false;
           }
           if (this.setDirty) {
-            this.setDirty(false);
+            this.setDirty(snapshot !== JSON.stringify(this.$store.state.mobildConfig.defaultArray));
           }
+          this.relLoading = false;
+          this.loading = false;
+          return true;
         })
         .catch((res) => {
           this.relLoading = false;
           this.loading = false;
           this.$message.error(res.msg);
+          return false;
         });
     },
     saveModal() {
@@ -1162,39 +1170,29 @@ export default {
         .catch(() => {});
     },
     // 保存配置
-    saveConfig(num, type, save) {
-      if (this.mConfig.length == 0) {
-        return this.$message.error('暂未添加任何组件，保存失败！');
-      }
+    async saveConfig(num, type, save) {
+      if (this.loading || this.relLoading || this.loadError) return false;
       if (num == 1) {
         this.loading = true;
       } else {
         this.relLoading = true;
       }
-      let val = this.$store.state.mobildConfig.defaultArray;
-      if (!this.footActive && this.pageType == 'home') {
-        let timestamp = new Date().getTime() * 1000;
-        val[timestamp] = this.$store.state.mobildConfig.pageFooter;
-        this.footActive = true;
-      } else if (this.pageType == 'detail') {
-        // 获取最后一个对象的值 判断 val 不是一个空对象
-        let lastObj = val && Object.values(val).pop();
-        if (lastObj.name != 'bottomMenu') {
-          let timestamp = new Date().getTime() * 1000;
-          val[timestamp] = this.$store.state.mobildConfig.bottomMenu;
-        }
-      }
-      this.$nextTick(() => {
-        this.diySaveDate(val, num, type, save);
-      });
+      let val = JSON.parse(JSON.stringify(this.$store.state.mobildConfig.defaultArray));
+      await this.$nextTick();
+      return this.diySaveDate(val, num, type, save);
     },
     // 获取默认配置
     getDefaultConfig() {
+      this.loading = true; this.loadError = '';
+      this.mConfig = []; this.rConfig = [];
+      this.isSearch = this.isTab = this.isComb = this.isService = false;
+      this.$store.commit('mobildConfig/DEFAULTARRAY', {});
       let id = this.pageId;
       if (id == 0 && this.$route.query.tid) {
         id = this.$route.query.tid;
       }
       themeInfo(id, this.pageType).then((res) => {
+        if (this._isDestroyed) return;
         let obj = {};
         let tempARR = [];
         let data = res.data;
@@ -1207,7 +1205,13 @@ export default {
         this.$store.commit('mobildConfig/radioUpdata', data.bg_tab_val || 0);
         this.$store.commit('mobildConfig/picurlUpdata', data.bg_pic || '');
         this.diyStatus = data.status;
-        let newArr = this.objToArr(data.value);
+        let newArr = this.objToArr(data.value || {});
+        if (this.pageType === 'detail' && data.actions_mode !== 'components' && !newArr.some(item=>item.name==='bottomMenu')) {
+          const timestamp = Date.now()*1000+newArr.length+1;
+          newArr.push({...JSON.parse(JSON.stringify(this.$store.state.mobildConfig.bottomMenu)),timestamp,cname:'商品操作栏'});
+        }
+        // Move legacy home footers into the same optional component list as every page.
+        newArr = newArr.map((item, index) => item.name === 'pageFoot' || item.name === 'mainNavigation' ? navigationComponent(item, item.timestamp || Date.now() * 1000 + index) : item);
 
         function sortNumber(a, b) {
           return a.timestamp - b.timestamp;
@@ -1230,10 +1234,7 @@ export default {
             // let storage = window.localStorage;
             // storage.setItem(el.timestamp, el.selectConfig.activeValue);
           }
-          if (el.name == 'bottomMenu') {
-            this.$store.commit('mobildConfig/UPBOTTOMMENU', el);
-            return;
-          }
+          if (el.name === 'bottomMenu') el.cname = '商品操作栏';
           el.id = 'id' + el.timestamp;
           this.lConfig.map((item, j) => {
             if (el.name == item.defaultName) {
@@ -1251,16 +1252,15 @@ export default {
             }
           });
         });
-        let objs = newArr[newArr.length - 1];
-
-        if (this.pageType == 'home' && objs.name == 'pageFoot') {
-          this.$store.commit('mobildConfig/footPageUpdata', objs);
-          this.showTitle();
-        } else if (this.pageType == 'detail' && objs.name != 'bottomMenu') {
-          this.$store.commit('mobildConfig/bottomMenuUpdata', objs);
-          // this.showBottomMenu();
+        // Replace the object so loaded component fields are reactive in Vue 2.
+        this.$store.commit('mobildConfig/DEFAULTARRAY', obj);
+        if (this.$route.query.component === 'main_navigation') {
+          const index = this.mConfig.findIndex(item => item.defaultName === 'mainNavigation');
+          if (index >= 0) this.bindconfig(this.mConfig[index], index);
         }
-      });
+        this.loading = false;
+        this.$nextTick(() => this.setDirty && this.setDirty(false));
+      }).catch(error => { this.loading = false; this.loadError = error.msg || '页面读取失败，请刷新重试'; this.$message.error(this.loadError); });
     },
     categoryList() {
       categoryList((res) => {
@@ -2030,4 +2030,19 @@ export default {
   fill: currentColor;
   overflow: hidden;
 }
+</style>
+
+<style scoped>
+.diy-wrapper .contxt { display:flex;flex-direction:column;height:calc(100vh - 150px);max-height:740px;min-height:400px;overflow:visible; }
+.diy-wrapper .overflowy { flex-shrink:0; }
+.diy-wrapper .scrollCon { flex:1;min-height:0; }
+.editor-bottom-dock{width:375px;margin:0 auto;flex-shrink:0;display:flex;flex-direction:column;position:relative}
+.dock-component{position:relative;cursor:pointer;background:transparent}
+.dock-component.on{outline:2px solid var(--prev-color-primary)}
+.dock-component.hide::before {content:'已隐藏';position:absolute;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;color:#fff;z-index:2;pointer-events:none}
+.dock-component .delete-name{position:absolute;top:8px;left:-100px;width:86px;padding:8px 0;text-align:center;background:#fff;border-radius:3px;color:#666;font-size:13px}
+.dock-component .delete-box{display:none;position:absolute;inset:0;pointer-events:none;z-index:3}
+.dock-component.on .delete-box,.dock-component:hover .delete-box{display:block}
+.dock-component .handleType{position:absolute;left:calc(100% + 8px);top:0;width:32px;border-radius:4px;background:var(--prev-color-primary);pointer-events:auto;text-align:center;color:#fff}
+.dock-component .handleType .iconfont{padding:6px 0;color:#fff}
 </style>

@@ -100,13 +100,13 @@ body,
   }
 
   .layout-aside-width-default {
-    width: 180px !important;
+    width: var(--layout-sidebar-width, 180px) !important;
     transition: width 0.2s ease;
     box-shadow: 1px 1px 4px rgba(0, 21, 41, 0.08);
   }
 
   .layout-aside-width-brand {
-    width: 300px !important;
+    width: var(--layout-sidebar-width, 300px) !important;
     transition: width 0.2s ease;
     box-shadow: 1px 1px 4px rgba(0, 21, 41, 0.08);
   }
@@ -121,6 +121,17 @@ body,
     transition: width 0.2s ease;
   }
 
+  .layout-aside .layout-logo {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .is-sidebar-resizing,
+  .is-sidebar-resizing .layout-aside-width-default,
+  .is-sidebar-resizing .layout-aside-width-brand {
+    transition: none;
+  }
+
   .layout-scrollbar {
     @extend .el-scrollbar;
     padding: 16px;
@@ -132,6 +143,7 @@ body,
 
   .layout-columns-warp {
     flex: 1;
+    min-width: 0;
     display: flex;
     overflow: hidden;
   }

@@ -175,7 +175,7 @@ class StoreOrderCreateServices extends BaseServices
 
         /** @var StoreOrderComputedServices $computedServices */
         $computedServices = app()->make(StoreOrderComputedServices::class);
-        $priceData = $computedServices->computedOrder($uid, $userInfo, $cartGroup, $addressId, $payType, $useIntegral, $couponId, true, $shippingType, $is_gift);
+        $priceData = $computedServices->computedOrder($uid, $userInfo, $cartGroup, $addressId, $payType, $useIntegral, $couponId, false, $shippingType, $is_gift);
         /** @var WechatUserServices $wechatServices */
         $wechatServices = app()->make(WechatUserServices::class);
         /** @var UserAddressServices $addressServices */
@@ -251,6 +251,7 @@ class StoreOrderCreateServices extends BaseServices
             'total_postage' => $shippingType == 1 ? $priceGroup['storePostage'] : 0,
             'coupon_id' => $couponId,
             'coupon_price' => $priceData['coupon_price'],
+            'full_reduction_price' => $priceData['full_reduction_price'],
             'pay_price' => $priceData['pay_price'],
             'pay_postage' => $priceData['pay_postage'],
             'deduction_price' => $priceData['deduction_price'],
@@ -295,7 +296,17 @@ class StoreOrderCreateServices extends BaseServices
         /** @var StoreOrderCartInfoServices $cartServices */
         $cartServices = app()->make(StoreOrderCartInfoServices::class);
         $priceData['coupon_id'] = $couponId;
-        $order = $this->transaction(function () use ($cartIds, $orderInfo, $cartInfo, $key, $userInfo, $useIntegral, $priceData, $combinationId, $seckillId, $bargainId, $cartServices, $uid, $addressId, $advanceId) {
+        if (bccomp((string)$priceData['full_reduction_price'], '0', 2) > 0) {
+            $cartInfo = \app\services\activity\fullreduction\FullReductionCalculator::settle($cartInfo, $priceData);
+        }
+        $order = $this->transaction(function () use ($cartIds, $orderInfo, $cartInfo, $cartGroup, $key, $userInfo, $useIntegral, $priceData, $combinationId, $seckillId, $bargainId, $cartServices, $uid, $addressId, $advanceId, $couponId) {
+            \think\facade\Db::name('store_full_reduction_mutex')->where('id', 1)->lock(true)->find();
+            $currentReduction = app()->make(\app\services\activity\fullreduction\FullReductionQuoteServices::class)->quote($uid, $cartGroup['cartInfo']);
+            if ($currentReduction['lines'] != $priceData['full_reduction_cart']) throw new ApiException('满减活动已变化，请重新确认订单');
+            // Consume the coupon atomically with stock/order writes; a failed order must not burn it.
+            if ($couponId && !\think\facade\Db::name('store_coupon_user')->where('id', $couponId)->where('uid', $uid)->where('status', 0)->where('is_fail', 0)->where('start_time', '<', time())->where('end_time', '>', time())->update(['status' => 1, 'use_time' => time()])) {
+                throw new ApiException('优惠券已使用或已失效，请重新选择');
+            }
             //创建订单
             $order = $this->dao->save($orderInfo);
             if (!$order) {
@@ -519,6 +530,10 @@ class StoreOrderCreateServices extends BaseServices
      */
     public function computeOrderProductTruePrice(array $cartInfo, array $priceData, $addressId, int $uid, $orderInfo)
     {
+        if (bccomp((string)($priceData['full_reduction_price'] ?? 0), '0', 2) > 0) {
+            if (empty($cartInfo[0]['full_reduction_settled'])) $cartInfo = \app\services\activity\fullreduction\FullReductionCalculator::settle($cartInfo, $priceData);
+            return $this->computeOrderProductBrokerage($uid, $cartInfo);
+        }
         //统一放入默认数据
         foreach ($cartInfo as &$cart) {
             $cart['use_integral'] = 0;
@@ -830,7 +845,8 @@ class StoreOrderCreateServices extends BaseServices
                 //计算商品金额
                 if (sys_config('user_brokerage_type') == 1) {
                     //按照实际支付价格返佣
-                    $price = bcadd(bcmul((string)$cart['truePrice'], $cartNum, 4), (string)$cart['postage_price'], 4);
+                    $linePaid = !empty($cart['full_reduction_settled']) ? $cart['sum_true_price'] : bcmul((string)$cart['truePrice'], $cartNum, 4);
+                    $price = bcadd($linePaid, (string)$cart['postage_price'], 4);
                 } else {
                     //按照商品价格返佣
                     if (isset($productInfo['attrInfo'])) {

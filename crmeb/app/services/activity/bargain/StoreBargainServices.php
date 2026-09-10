@@ -398,7 +398,7 @@ class StoreBargainServices extends BaseServices
             $item['price'] = floatval($item['price']);
             $item['product_price'] = floatval($item['product_price']);
         }
-        return $list;
+        return app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts($list, 'product_id');
     }
 
     /**
@@ -449,7 +449,7 @@ class StoreBargainServices extends BaseServices
         foreach ($list as &$item) {
             $item['price'] = floatval($item['price']);
         }
-        $data['list'] = $list;
+        $data['list'] = app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts($list, 'product_id');
         return $data;
     }
 
@@ -537,6 +537,7 @@ class StoreBargainServices extends BaseServices
 
         //浏览记录
         ProductLogJob::dispatch(['visit', ['uid' => $user['uid'], 'product_id' => $bargain['product_id']]]);
+        $data['bargain'] = app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts([$data['bargain']], 'product_id')[0];
         return $data;
     }
 

@@ -13,6 +13,9 @@ namespace app\services\system;
 
 use app\dao\system\SystemMenusDao;
 use app\services\BaseServices;
+use app\services\product\product\ProductBrandInstaller;
+use app\services\activity\fullreduction\FullReductionInstaller;
+use app\services\activity\style\MarketingStyleInstaller;
 use app\services\system\admin\SystemRoleServices;
 use crmeb\exceptions\AdminException;
 use crmeb\services\FormBuilder as Form;
@@ -31,7 +34,6 @@ use crmeb\utils\Arr;
  */
 class SystemMenusServices extends BaseServices
 {
-
     /**
      * 初始化
      * SystemMenusServices constructor.
@@ -72,6 +74,9 @@ class SystemMenusServices extends BaseServices
      */
     public function getMenusList($rouleId, int $level)
     {
+        MarketingStyleInstaller::install();
+        FullReductionInstaller::install();
+        ProductBrandInstaller::install();
         /** @var SystemRoleServices $systemRoleServices */
         $systemRoleServices = app()->make(SystemRoleServices::class);
         $rules = $systemRoleServices->getRoleArray(['status' => 1, 'id' => $rouleId], 'rules');
@@ -91,6 +96,9 @@ class SystemMenusServices extends BaseServices
      */
     public function getList(array $where, array $field = ['*'])
     {
+        MarketingStyleInstaller::install();
+        FullReductionInstaller::install();
+        ProductBrandInstaller::install();
         $menusList = $this->dao->getMenusList($where, $field);
         $menusList = $this->getMenusData($menusList);
         return get_tree_children($menusList);
@@ -245,6 +253,9 @@ class SystemMenusServices extends BaseServices
      */
     public function getMenus($roles, $check = []): array
     {
+        MarketingStyleInstaller::install();
+        FullReductionInstaller::install();
+        ProductBrandInstaller::install();
         $field = ['menu_name', 'pid', 'id'];
         $where = ['is_del' => 0, 'is_show_path' => 1];
         if (!$roles) {

@@ -100,6 +100,7 @@ export default {
     foundBtn: '返回首页',
   },
   layout: {
+    resizeSidebar: '拖拽调整菜单栏宽度',
     configTitle: '布局配置',
     oneTitle: '全局主题',
     menuBag: '菜单背景色',

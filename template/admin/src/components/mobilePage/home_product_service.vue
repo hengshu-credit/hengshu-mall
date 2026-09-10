@@ -7,7 +7,7 @@
         <div class="content">
           <div class="tags">
             <span class="tag" :style="tagStyle"
-              ><span class="mb-iconfont icon-ic_user1"></span>二人拼团<span
+              ><span class="mb-iconfont icon-ic_user1"></span>拼团活动<span
                 class="iconfont iconyou"
                 :style="{ color: activityColor }"
               ></span
@@ -58,6 +58,7 @@
 
 <script>
 import { mapState } from 'vuex';
+import { serviceSelection } from '../../../../shared/productService';
 export default {
   name: 'home_product_service',
   cname: '商品服务',
@@ -66,6 +67,7 @@ export default {
   type: 3, // 0 基础组件 1 营销组件 2工具组件 3 商品组件 4 用户组件
   defaultName: 'productService',
   props: {
+    colorStyle: { type: Object, default: () => ({}) },
     index: {
       type: null,
       default: -1,
@@ -80,7 +82,7 @@ export default {
       return this.configObj ? this.configObj.isHide : true;
     },
     checkList() {
-      return this.configObj && this.configObj.checkBoxConfig ? this.configObj.checkBoxConfig.type : [];
+      return serviceSelection(this.configObj || {});
     },
     titleColor() {
       return this.configObj && this.configObj.titleColor ? this.configObj.titleColor.color[0].item : '#999999';
@@ -100,12 +102,12 @@ export default {
       }
       // Follow theme - assuming standard theme colors or hardcoded for now if theme var not available easily
       return {
-        color: '#E93323',
-        background: '#FDEBE9',
+        color: this.colorStyle.theme || '#E93323',
+        background: this.colorStyle.minorColorT || '#FDEBE9',
       };
     },
     activityColor() {
-      return this.configObj && this.configObj.activityColor ? this.configObj.activityColor.color[0].item : '#E93323';
+      return this.isCustomTone ? this.configObj.activityColor.color[0].item : this.colorStyle.theme || '#E93323';
     },
   },
   watch: {

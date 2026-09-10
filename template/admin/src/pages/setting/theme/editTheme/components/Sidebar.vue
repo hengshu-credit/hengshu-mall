@@ -49,6 +49,7 @@ export default {
         { key: 'home', name: '商城首页', icon: 'iconic_home' },
         { key: 'category', name: '商品分类', icon: 'icona-ic_Picturearrangement' },
         { key: 'detail', name: '商品详情', icon: 'iconic_commodity' },
+        { key: 'cart', name: '购物车', icon: 'iconic_commodity' },
         { key: 'user', name: '个人中心', icon: 'icona-ic_user1' },
         { key: 'theme', name: '商城风格', icon: 'iconic_zhuti' },
       ],
@@ -67,11 +68,10 @@ export default {
           showClose: false,
         })
           .then(() => {
-            this.$emit('save', type);
-            this.$emit('change', key);
+            this.$emit('save', key);
           })
           .catch((action) => {
-            this.$emit('change', key);
+            if (action === 'cancel') this.$emit('change', key);
           });
       } else {
         this.$emit('change', key);
@@ -89,13 +89,10 @@ export default {
         distinguishCancelAndClose: true,
       })
         .then(() => {
-          this.$emit('save', type);
-          this.$nextTick(() => {
-            this.$router.back();
-          });
+          this.$emit('save', 'back');
         })
-        .catch(() => {
-          this.$router.back();
+        .catch((action) => {
+          if (action === 'cancel') this.$router.back();
         });
     },
   },

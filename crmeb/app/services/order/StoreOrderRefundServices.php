@@ -1007,12 +1007,14 @@ class StoreOrderRefundServices extends BaseServices
                 $total_price = $pay_postage = 0;
                 foreach ($cartInfos as $cart) {
                     $_info = is_string($cart['cart_info']) ? json_decode($cart['cart_info'], true) : $cart['cart_info'];
-                    $total_price = bcadd((string)$total_price, bcmul((string)($_info['truePrice'] ?? 0), (string)$cart['cart_num'], 4), 2);
+                    $linePaid = !empty($_info['full_reduction_settled']) ? $_info['sum_true_price'] : bcmul((string)($_info['truePrice'] ?? 0), (string)$cart['cart_num'], 4);
+                    $total_price = bcadd((string)$total_price, $linePaid, 2);
                     $pay_postage = bcadd((string)$pay_postage, (string)($_info['postage_price'] ?? 0), 2);
                 }
                 $refund_pay_price = bcadd((string)$total_price, (string)$pay_postage, 2);
                 //订单实际支付金额
                 $order_pay_price = bcsub((string)bcadd((string)$order['total_price'], (string)$order['pay_postage'], 2), (string)bcadd((string)$order['deduction_price'], (string)$order['coupon_price'], 2), 2);
+                $order_pay_price = bcsub($order_pay_price, (string)($order['full_reduction_price'] ?? 0), 2);
                 if ($order_pay_price != $order['pay_price'] && $refund_pay_price != $order_pay_price) {//有改价
                     $refund_price = bcmul((string)bcdiv((string)$refund_pay_price, (string)$order_pay_price, 4), (string)$order['pay_price'], 2);
                 } else {
@@ -1108,6 +1110,11 @@ class StoreOrderRefundServices extends BaseServices
     {
         $SumPrice = 0;
         foreach ($cartInfo as $cart) {
+            $line = isset($cart['cart_info']) ? $cart['cart_info'] : $cart;
+            if ($is_unit && $key === 'truePrice' && !empty($line['full_reduction_settled'])) {
+                $SumPrice = bcadd($SumPrice, $line['sum_true_price'], 2);
+                continue;
+            }
             if (isset($cart['cart_info'])) $cart = $cart['cart_info'];
             if ($is_unit) {
                 if ($key == 'level' || $key == 'member') {
@@ -1247,8 +1254,10 @@ class StoreOrderRefundServices extends BaseServices
         $orderData['integral_price'] = $this->getOrderSumPrice($orderData['cartInfo'], 'integral_price', false);
         $orderData['coupon_price'] = $this->getOrderSumPrice($orderData['cartInfo'], 'coupon_price', false);
         $orderData['deduction_price'] = $this->getOrderSumPrice($orderData['cartInfo'], 'integral_price', false);
+        $orderData['full_reduction_price'] = $this->getOrderSumPrice($orderData['cartInfo'], 'full_reduction_price', false);
 
         $total_price = bcadd((string)$total_price, (string)bcadd((string)$orderData['deduction_price'], (string)$orderData['coupon_price'], 2), 2);
+        $total_price = bcadd($total_price, $orderData['full_reduction_price'], 2);
         $orderData['vip_true_price'] = $vipTruePrice;
         $orderData['postage_price'] = 0;
         $orderData['pay_postage'] = $this->getOrderSumPrice($orderData['cart_info'], 'origin_postage_price', false);

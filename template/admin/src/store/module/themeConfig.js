@@ -41,6 +41,8 @@ const themeConfigModule = {
        */
       // 是否开启菜单水平折叠效果
       isCollapse: false,
+      // 各布局展开时的侧栏宽度，拖拽结束后保存。
+      sidebarWidths: {},
       // 是否开启菜单手风琴效果
       isUniqueOpened: true,
       // 是否开启固定 Header

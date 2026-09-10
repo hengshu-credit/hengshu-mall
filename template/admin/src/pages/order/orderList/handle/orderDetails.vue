@@ -108,6 +108,10 @@
                   <div class="value">{{ orderDatalist.orderInfo.coupon_price }}</div>
                 </li>
                 <li class="item">
+                  <div>满减优惠：</div>
+                  <div class="value">{{ orderDatalist.orderInfo.full_reduction_price || '0.00' }}</div>
+                </li>
+                <li class="item">
                   <div>积分抵扣：</div>
                   <div class="value">{{ orderDatalist.orderInfo.deduction_price || '0.0' }}</div>
                 </li>

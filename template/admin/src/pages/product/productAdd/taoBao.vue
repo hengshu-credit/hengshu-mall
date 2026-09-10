@@ -6,7 +6,7 @@
         <a href="https://doc.crmeb.com/single/v5/7785" v-if="copyConfig.copy_type == 2" target="_blank"
           >如何配置原采集服务密钥</a
         >
-        <span v-else>
+        <span v-else-if="copyConfig.copy_type == 1">
           您当前剩余{{ copyConfig.copy_num }}条原采集服务次数，
           <span class="add" v-db-click @click="mealPay()">增加采集次数</span>
         </span>
@@ -16,7 +16,7 @@
         商品采集配置读取失败，您仍可提交链接尝试采集。
       </div>
       <div v-else-if="copyConfig.jd_enabled && copyConfig.jd_configured">
-        京东链接由独立京东采集服务处理，不消耗上方原采集服务次数。
+        当前使用本地京东采集服务，支持京东商品详情链接。
       </div>
       <div v-else-if="copyConfig.jd_enabled" class="config-error">京东独立采集已开启，但服务配置不完整。</div>
       <div>

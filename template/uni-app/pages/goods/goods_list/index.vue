@@ -36,6 +36,7 @@
 						v-for="(item,index) in productList" :key="index" @click="godDetail(item)">
 						<view class='pictrue' :class='is_switch==true?"":"on"'>
 							<image :src='item.image' :class='is_switch==true?"":"on"'></image>
+                            <marketing-style :marketing-style="item.marketing_style" />
 							<span class="pictrue_log_class"
 								:class="is_switch === true ? 'pictrue_log_big' : 'pictrue_log'"
 								v-if="item.activity && item.activity.type === '1' && $permission('seckill')">{{$t(`秒杀`)}}</span>
@@ -514,3 +515,5 @@
 		}
 	}
 </style>
+
+<style scoped>.pictrue{position:relative}</style>

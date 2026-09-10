@@ -1,0 +1,24 @@
+const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path');
+const { root, modules, transform, compiler } = require('./theme_component_harness.cjs');
+const Vue = require(path.join(modules, 'vue'));
+const shared = { exports: {} };
+new Function('module', 'exports', transform(fs.readFileSync(path.join(root, 'template/shared/mainNavigation.js'), 'utf8')))(shared, shared.exports);
+const m = { exports: {} }, requests = [], uni = { getStorageSync: () => 42, hideTabBar() {} };
+const source = compiler.parseComponent(fs.readFileSync(path.join(root, 'template/uni-app/components/storeNavigation/index.vue'), 'utf8')).script.content;
+new Function('module', 'exports', 'require', 'uni', 'getApp', transform(source))(m, m.exports, name => name.includes('shared/mainNavigation') ? shared.exports : name.includes('api/public') ? { getNavigation: params => new Promise(resolve => requests.push({ params, resolve })) } : {}, uni, () => ({ $router: { currentRoute: { query: {} } } }));
+const options = m.exports.default;
+const manager = new Vue({ ...options, methods: { ...options.methods, scheduleLayout() {} } });
+const tick = async () => { for (let i = 0; i < 8; i++) await Vue.nextTick(); };
+(async () => {
+  manager.routeChanged({ path: '/pages/index/index' });
+  manager.routeChanged({ path: '/pages/user/index' });
+  assert.equal(requests[0].params.page, 'home'); assert.equal(requests[1].params.page, 'user');
+  requests[1].resolve({ data: [] }); await tick();
+  requests[0].resolve({ data: { name: 'old-home' } }); await tick();
+  assert.equal(manager.navigation.name, undefined, 'late home response cannot restore removed user navigation');
+  manager.routeChanged({ path: '/pages/goods_details/index', fullPath: '/pages/goods_details/index?id=1' });
+  assert.equal(requests[2].params.page, 'detail'); assert.equal(requests[2].params.theme_id, 42);
+  requests[2].resolve({ data: { name: 'detail-navigation' } }); await tick();
+  assert.equal(manager.navigation.name, 'detail-navigation');
+  console.log('PASS rapid routes: stale home response ignored, removed user navigation retained and detail requests preserve preview theme');
+})().catch(e => { console.error(e); process.exitCode = 1; });

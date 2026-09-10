@@ -1,17 +1,12 @@
 <template>
-	<view class="goodCate">
+	<view class="goodCate category-decorated" :style="decorationStyle" :class="decorationClasses">
 		<!-- <view>
 			<scroll-view scroll-y="true" class="scroll-Y"> -->
-		<view class="header acea-row row-center-wrapper">
-			<view class="pageIndex" hover-class="none" @click="jumpIndex">
-				<text class="iconfont icon-shouye3"></text>
-			</view>
-			<navigator url="/pages/goods/goods_search/index" class="search acea-row row-center-wrapper" hover-class="none">
-				<text class="iconfont icon-xiazai5"></text>
-				{{ $t(`搜索商品名称`) }}
-			</navigator>
-		</view>
-		<view class="conter">
+		<view v-if="categoryAppearance.show_search" class="category-search-shell">
+          <header-serch :dataConfig="categoryAppearance.search_component" :special="1" />
+        </view>
+        <view v-show="categoryAppearance.show_category && !categoryAppearance.category_hidden" class="category-module-shell" :style="categoryOuterStyle">
+		<view class="conter" :style="categoryModuleStyle">
 			<view class="aside">
 				<scroll-view scroll-y="true" scroll-with-animation="true" :scroll-into-view="'category-nav-' + navActive" style="height: calc(100% - 100rpx)">
 					<view class="item acea-row row-center-wrapper" :id="'category-nav-' + index" :class="index == navActive ? 'on' : ''" v-for="(item, index) in categoryList" :key="index" @click="tapNav(index, item)">
@@ -20,9 +15,9 @@
 				</scroll-view>
 			</view>
 			<view class="wrapper">
-				<view class="bgcolor" v-if="iSlong">
+				<view class="bgcolor">
 					<view class="longTab acea-row row-middle">
-						<scroll-view scroll-x="true" style="white-space: nowrap; display: flex; height: 44rpx" scroll-with-animation :scroll-left="tabLeft" show-scrollbar="true">
+						<scroll-view scroll-x="true" style="white-space: nowrap; height: 56rpx" scroll-with-animation :scroll-left="tabLeft" :show-scrollbar="false">
 							<view
 								class="longItem"
 								:style="'width:' + isWidth + 'px'"
@@ -35,15 +30,11 @@
 							</view>
 						</scroll-view>
 					</view>
-					<view class="openList" @click="openTap"><text class="iconfont icon-xiala"></text></view>
+					<view class="openList" role="button" :aria-label="iSlong ? '展开二级分类' : '收起二级分类'" :aria-expanded="String(!iSlong)" :class="{expanded:!iSlong}" @click="iSlong = !iSlong"><text class="iconfont icon-xiala"></text></view>
 				</view>
-				<view v-else>
-					<view class="downTab">
-						<view class="title acea-row row-between-wrapper">
-							<view>{{ categoryTitle }}</view>
-							<view class="closeList" @click="closeTap"><text class="iconfont icon-xiala"></text></view>
-						</view>
-						<view class="children">
+				<view v-if="!iSlong">
+					<view class="downTab" aria-label="二级分类">
+            <view class="children">
 							<view class="acea-row row-middle">
 								<view class="item line1" :class="index === tabClick ? 'click' : ''" v-for="(item, index) in categoryErList" :key="index" @click="longClick(index)">
 									{{ $t(item.cate_name) }}
@@ -58,11 +49,12 @@
 					scroll-with-animation="true"
 					:scroll-top="scrollTop"
 					@scroll="scroll"
-					style="height: calc(100vh - 324rpx)"
+					style="height: calc(100vh - var(--cat-search-height) - 96rpx - var(--category-checkout-height, 0px) - var(--cat-module-space, 0rpx) - var(--category-navigation-height, 0px))"
 					:lower-threshold="50"
 					@scrolltolower="productslist"
 				>
-					<goodList
+					<category-banner :config="categoryAppearance" />
+                    <goodList :decoration="categoryAppearance"
 						ref="d_goodClass"
 						:tempArr="tempArr"
 						:isLogin="isLogin"
@@ -78,23 +70,10 @@
 				</scroll-view>
 			</view>
 		</view>
-		<view class="footer acea-row row-between-wrapper">
-			<view class="cartIcon acea-row row-center-wrapper" @click="getCartList(0)" v-if="cartCount">
-				<view class="iconfont icon-gouwuche-yangshi2"></view>
-				<view class="num">{{ cartCount }}</view>
-			</view>
-			<view class="cartIcon acea-row row-center-wrapper noCart" v-else>
-				<view class="iconfont icon-gouwuche-yangshi2"></view>
-			</view>
-			<view class="money acea-row row-middle">
-				<view>
-					{{ $t(`￥`) }}
-					<text class="num">{{ totalPrice }}</text>
-				</view>
-				<view class="bnt" @click="subOrder">{{ $t(`去付款`) }}</view>
-			</view>
-		</view>
-		<cartList :cartData="cartData" @closeList="closeList" @ChangeCartNumDan="ChangeCartList" @ChangeSubDel="ChangeSubDel" @ChangeOneDel="ChangeOneDel"></cartList>
+</view>
+		<category-checkout :config="checkoutConfig" :count="cartCount" :amount="totalPrice" :navigationHeight="navigationHeight"
+      @cart="getCartList(0)" @checkout="subOrder" @heightChange="checkoutHeight = $event" />
+    <cartList :cartData="cartData" @closeList="closeList" @ChangeCartNumDan="ChangeCartList" @ChangeSubDel="ChangeSubDel" @ChangeOneDel="ChangeOneDel"></cartList>
 		<productWindow
 			:attr="attr"
 			:isShow="1"
@@ -116,21 +95,26 @@
 </template>
 
 <script>
+import categoryDecoration from '@/mixins/categoryDecoration.js';
+import headerSerch from '@/subpackage/diyComponents/headerSerch.vue';
+import categoryCheckout from '@/components/categoryCheckout';
+import categoryBanner from '@/components/categoryBanner';
 import categoryData from '@/mixins/categoryData.js';
 import categorySelection from '@/mixins/categorySelection.js';
 import { getProductslist, getAttr, postCartNum } from '@/api/store.js';
 import { vcartList, getCartCounts, cartDel } from '@/api/order.js';
 import productWindow from '@/components/productWindow';
-import goodList from '@/components/catGoodList';
+import goodList from '@/components/categoryProductList';
 import cartList from '@/components/cartList';
 import { mapGetters } from 'vuex';
 import { goShopDetail } from '@/libs/order.js';
 import { toLogin } from '@/libs/login.js';
 export default {
-	mixins: [categoryData, categorySelection],
+	mixins: [categoryDecoration, categoryData, categorySelection],
 	computed: mapGetters(['isLogin', 'uid']),
 	components: {
-		productWindow,
+        headerSerch, categoryCheckout,
+		productWindow, categoryBanner,
 		goodList,
 		cartList
 	},
@@ -150,6 +134,8 @@ export default {
 			iSlong: true,
 			tempArr: [],
 			loading: false,
+			attrLoading: false,
+			cartSubmitting: false,
 			loadend: false,
 			loadTitle: this.$t(`加载更多`),
 			page: 1,
@@ -223,7 +209,7 @@ export default {
 				totalPrice = 0.0;
 			list.forEach((item) => {
 				if (item.attrStatus && item.status) {
-					totalPrice = that.$util.$h.Add(totalPrice, that.$util.$h.Mul(item.cart_num, item.truePrice));
+					totalPrice = that.$util.$h.Add(totalPrice, that.$util.$h.Sub(that.$util.$h.Mul(item.cart_num, item.truePrice), item.full_reduction_price || 0));
 				}
 			});
 			that.$set(that, 'totalPrice', totalPrice);
@@ -284,7 +270,7 @@ export default {
 			let that = this;
 			getCartCounts().then((res) => {
 				that.cartCount = res.data.count;
-				that.$refs.d_goodClass.addIng = false;
+				if (that.$refs.d_goodClass) that.$refs.d_goodClass.addIng = false;
 			});
 		},
 
@@ -425,6 +411,7 @@ export default {
 				});
 		},
 		scroll(e) {
+			this.notifyThemeScroll(e);
 			this.old.scrollTop = e.detail.scrollTop;
 		},
 		goTop(e) {
@@ -468,6 +455,7 @@ export default {
 		},
 		// 购物车加减计算函数
 		ChangeCartNum(changeValue, num, stock, isDuo, id, index, cart) {
+      if (this.cartSubmitting && !isDuo) return;
 			this.$refs.d_goodClass.addIng = false;
 			if (changeValue) {
 				num.cart_num++;
@@ -531,6 +519,7 @@ export default {
 		 */
 		goCat: function (duo, id, type, cart, unique, data) {
 			let that = this;
+			if (that.cartSubmitting || that.attrLoading) return;
 			if (duo) {
 				let productSelect = that.productValue[this.attrValue];
 				//如果有属性,没有选择,提示用户选择
@@ -551,8 +540,9 @@ export default {
 				unique: duo ? that.attr.productSelect.unique : cart ? unique : ''
 			};
 			data && data.cart_num < data.min_qty ? (q.num = data.min_qty) : '';
-			if (!that.cartData.iScart) q.num = duo ? that.attr.productSelect.cart_num : this.storeInfo.min_qty;
-			postCartNum(q)
+			if (duo || !that.cartData.iScart) q.num = duo ? that.attr.productSelect.cart_num : this.storeInfo.min_qty;
+			that.cartSubmitting = true;
+			return postCartNum(q)
 				.then(function (res) {
 					if (duo) {
 						that.attr.cartAttr = false;
@@ -564,7 +554,7 @@ export default {
 						that.tempArr.forEach((item, index) => {
 							if (item.id == that.id) {
 								let arrtStock = that.attr.productSelect.stock;
-								let objNum = parseInt(item.cart_num) + parseInt(that.attr.productSelect.cart_num);
+								let objNum = (parseInt(item.cart_num) || 0) + parseInt(that.attr.productSelect.cart_num);
 								item.cart_num = objNum > arrtStock ? arrtStock : objNum;
 							}
 						});
@@ -579,61 +569,46 @@ export default {
 					return that.$util.Tips({
 						title: err
 					});
-				});
+				}).finally(() => {
+          that.cartSubmitting = false;
+          if (that.$refs.d_goodClass) that.$refs.d_goodClass.addIng = false;
+        });
 		},
 		// 点击默认单属性购物车
-		goCartDan(item, index) {
-			if (!this.isLogin) {
-				this.getIsLogin();
-			} else {
-				if (!item.cart_button) {
-					goShopDetail(item, this.uid).then((res) => {
-						uni.navigateTo({
-							url: `/pages/goods_details/index?id=${item.id}`
-						});
-					});
-					return;
-				}
-				item.cart_num = item.min_qty;
-				this.$set(this, 'tempArr', this.tempArr);
-				this.goCat(0, item.id, 1);
-			}
+		goCartDan(item) {
+		  return this.goCartDuo(item);
 		},
 		goCartDuo(item) {
-			if (!this.isLogin) {
-				this.getIsLogin();
-			} else {
-				if (!item.cart_button) {
-					goShopDetail(item, this.uid).then((res) => {
-						uni.navigateTo({
-							url: `/pages/goods_details/index?id=${item.id}`
-						});
-					});
-					return;
-				}
-				uni.showLoading({
-					title: this.$t(`正在加载中`)
-				});
-				this.storeName = item.store_name;
-				this.getAttrs(item.id);
-				this.$set(this, 'id', item.id);
-				this.$set(this.attr, 'cartAttr', true);
-			}
+		  if (!this.isLogin) return this.getIsLogin();
+		  if (Number(item.cart_button) !== 1) return this.goDetail(item);
+		  if (this.attrLoading || this.cartSubmitting) return;
+		  this.attrLoading = true;
+		  this.attr.cartAttr = false;
+		  this.storeName = item.store_name;
+		  this.id = item.id;
+		  uni.showLoading({ title: this.$t(`正在加载中`) });
+		  return this.getAttrs(item.id);
 		},
 		getIsLogin() {
 			toLogin();
 		},
 		// 商品详情接口；
 		getAttrs(id) {
-			let that = this;
-			getAttr(id, 0).then((res) => {
-				uni.hideLoading();
-				that.$set(that.attr, 'productAttr', res.data.productAttr);
-				that.$set(that, 'productValue', res.data.productValue);
-				that.$set(that, 'is_vip', res.data.storeInfo.is_vip);
-				that.$set(that, 'storeInfo', res.data.storeInfo);
-				that.DefaultSelect();
-			});
+		  return getAttr(id, 0).then(res => {
+		    if (this._isDestroyed) return;
+		    this.$set(this.attr, 'productAttr', res.data.productAttr || []);
+		    this.$set(this, 'productValue', res.data.productValue || {});
+		    this.$set(this, 'is_vip', res.data.storeInfo.is_vip);
+		    this.$set(this, 'storeInfo', res.data.storeInfo);
+		    this.DefaultSelect();
+		    this.attr.cartAttr = true;
+		  }).catch(err => {
+		    this.attr.cartAttr = false;
+		    this.$util.Tips({ title: err.msg || err.message || err });
+		  }).finally(() => {
+		    this.attrLoading = false;
+		    uni.hideLoading();
+		  });
 		},
 		// 去详情页
 		goDetail(item) {
@@ -658,7 +633,8 @@ export default {
 			this.navActive = index;
 			this.categoryTitle = list.cate_name;
 			this.categoryErList = item.children ? item.children : [];
-			this.tabClick = 0;
+			this.iSlong = true;
+      this.tabClick = 0;
 			this.tabLeft = 0;
 			this.cid = list.id;
 			this.sid = 0;
@@ -670,7 +646,7 @@ export default {
 		// 导航栏点击
 		longClick(index) {
 			if (this.categoryErList.length > 3) {
-				this.tabLeft = (index - 1) * (this.isWidth + 6); //设置下划线位置
+				this.tabLeft = Math.max(0, index - 1) * (this.isWidth + 6); //设置下划线位置
 			}
 			this.tabClick = index; //设置导航点击了哪一个
 			this.iSlong = true;
@@ -1045,4 +1021,8 @@ page {
 		}
 	}
 }
+</style>
+
+<style lang="scss">
+@import "./decoration.scss";
 </style>

@@ -401,3 +401,7 @@ export function getInvoiceLink(id) {
 export function orderReceiveGift(orderId, data) {
 	return request.post("order/receive_gift/" + orderId, data);
 }
+
+export function getFullReductionQuote(ids) {
+    return request.post('cart/full_reduction_quote', { ids });
+}

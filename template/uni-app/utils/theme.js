@@ -1,4 +1,6 @@
 import { getThemeInfo } from "@/api/api.js";
+import { paletteVariables } from "../../shared/themePalette";
+import { createPaletteRefresher } from "../../shared/paletteRefresh";
 
 /**
  * 处理颜色
@@ -29,31 +31,17 @@ export function hexToRgba(hex, alpha) {
  * @param {Object} data 主题数据
  */
 export function setThemeColor(data) {
-  let selectedTheme;
-  // 处理自定义主题色数据
-  if (data.theme_color) {
-    let themeColor = data.theme_color;
-    let gradientColor = data.gradient_color;
-    let subColor = data.sub_color;
-    let lightColor = data.light_color;
-    selectedTheme = `
-      --view-theme: ${hexToRgba(themeColor, 1)};
-      --view-theme-16: ${themeColor};
-      --view-priceColor: ${themeColor};
-      --view-minorColor: ${subColor};
-      --view-minorColorT: ${lightColor};
-      --view-bntColor: ${subColor};
-      --view-op-ten: ${hexToRgba(themeColor, 0.1)};
-      --view-main-start: ${gradientColor};
-      --view-main-over: ${themeColor};
-      --view-op-point-four: ${hexToRgba(themeColor, 0.04)};
-      --view-op-point-eight: ${hexToRgba(themeColor, 0.8)};
-      --view-linear: linear-gradient(180deg, ${hexToRgba(
-        themeColor,
-        0.2,
-      )} 0%, rgba(255,255,255,0) 100%);
-      --view-gradient: ${gradientColor};
-    `;
+  if (data && data.theme_color) {
+    const variables = paletteVariables(data);
+    const selectedTheme = Object.keys(variables)
+      .map((key) => key + ": " + variables[key] + ";")
+      .join("\n");
+    // #ifdef H5
+    Object.keys(variables).forEach((key) =>
+      document.documentElement.style.setProperty(key, variables[key])
+    );
+    // #endif
+    if (uni.getStorageSync("viewColor") === selectedTheme) return;
     uni.setStorageSync("viewColor", selectedTheme);
     uni.$emit("ok", selectedTheme);
   }
@@ -63,13 +51,34 @@ export function setThemeColor(data) {
  * 获取并应用主题
  * @param {Number|String} themeId 主题ID
  */
+const refreshPalette = createPaletteRefresher(
+  (themeId) =>
+    getThemeInfo("theme", themeId ? { theme_id: themeId } : {}).then(
+      (res) => res.data
+    ),
+  (data) => {
+    if (uni.getStorageSync("is_diy") !== 1) {
+      uni.setStorageSync("is_diy", 1);
+      uni.$emit("is_diy", 1);
+    }
+    setThemeColor(data);
+  }
+);
 export function applyTheme(themeId) {
-  let data = {};
-  if (themeId) data.theme_id = themeId;
-  return getThemeInfo("theme", data).then((res) => {
-    uni.setStorageSync("is_diy", 1);
-    uni.$emit("is_diy", 1);
-    setThemeColor(res.data);
-    return res.data;
-  });
+  return refreshPalette(themeId, true).catch(() => null);
+}
+export function refreshCurrentTheme() {
+  return refreshPalette(uni.getStorageSync("previewThemeId") || 0).catch(
+    () => null
+  );
+}
+let refreshTimer;
+export function startThemeRefresh() {
+  stopThemeRefresh();
+  refreshCurrentTheme();
+  refreshTimer = setInterval(refreshCurrentTheme, 30000);
+}
+export function stopThemeRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = null;
 }

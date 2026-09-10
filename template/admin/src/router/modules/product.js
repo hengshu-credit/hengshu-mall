@@ -94,6 +94,15 @@ export default {
       component: () => import('@/pages/product/labelList'),
     },
     {
+      path: 'brand/list',
+      name: `${pre}brandList`,
+      meta: {
+        auth: ['admin-product-brand-list'],
+        title: '商品品牌',
+      },
+      component: () => import('@/pages/product/brandList'),
+    },
+    {
       path: 'protection/list',
       name: `${pre}protectionList`,
       meta: {

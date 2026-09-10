@@ -59,7 +59,7 @@
             @tap="goDetails(item)"
           >
             <easy-loadimage
-              :image-src="item.image"
+              :marketing-style="item.marketing_style" :image-src="item.image"
               :border-src="item.activity_image"
               width="240rpx"
               height="240rpx"
@@ -154,7 +154,7 @@
             @tap="goDetails(item)"
           >
             <easy-loadimage
-              :image-src="item.image"
+              :marketing-style="item.marketing_style" :image-src="item.image"
               :border-src="item.activity_image"
               width="100%"
               height="324rpx"
@@ -210,7 +210,7 @@
             @tap="goDetails(item)"
           >
             <easy-loadimage
-              :image-src="item.image"
+              :marketing-style="item.marketing_style" :image-src="item.image"
               :border-src="item.activity_image"
               width="100%"
               height="212rpx"
@@ -269,7 +269,7 @@
             @tap="goDetails(item)"
           >
             <easy-loadimage
-              :image-src="item.image"
+              :marketing-style="item.marketing_style" :image-src="item.image"
               :border-src="item.activity_image"
               width="224rpx"
               height="224rpx"

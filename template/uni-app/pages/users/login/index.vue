@@ -127,6 +127,7 @@ export default {
 			copyRight: '',
 			inAnimation: false,
 			protocol: false,
+			protocolConfirmVisible: false,
 			navList: [this.$t(`快速登录`), this.$t(`账号登录`)],
 			current: 1,
 			account: '',
@@ -177,6 +178,25 @@ export default {
 		this.getLogoImage();
 	},
 	methods: {
+		confirmLoginProtocol(login) {
+			if (this.protocolConfirmVisible) return;
+			this.protocolConfirmVisible = true;
+			uni.showModal({
+				title: this.$t('用户协议与隐私协议'),
+				content: this.$t('是否同意《用户协议》和《隐私协议》并继续登录？'),
+				confirmText: this.$t('同意并登录'),
+				cancelText: this.$t('不同意'),
+				success: (res) => {
+					this.protocolConfirmVisible = false;
+					if (!res.confirm) return;
+					this.protocol = true;
+					login();
+				},
+				fail: () => {
+					this.protocolConfirmVisible = false;
+				}
+			});
+		},
 		ChangeIsDefault(e) {
 			this.$set(this, 'protocol', !this.protocol);
 		},
@@ -194,16 +214,11 @@ export default {
 		},
 		// 苹果登录
 		appleLogin() {
+			if (!this.protocol) return this.confirmLoginProtocol(() => this.appleLogin());
 			let self = this;
 			if (!this.appleRetryBinding) {
 				this.account = '';
 				this.captcha = '';
-			}
-			if (!self.protocol) {
-				this.inAnimation = true;
-				return self.$util.Tips({
-					title: '请先阅读并同意协议'
-				});
 			}
 			uni.showLoading({
 				title: this.$t(`登录中`)
@@ -310,15 +325,10 @@ export default {
 		},
 		// App微信登录
 		wxLogin() {
+			if (!this.protocol) return this.confirmLoginProtocol(() => this.wxLogin());
 			let self = this;
 			this.account = '';
 			this.captcha = '';
-			if (!self.protocol) {
-				this.inAnimation = true;
-				return self.$util.Tips({
-					title: '请先阅读并同意协议'
-				});
-			}
 			uni.showLoading({
 				title: self.$t(`登录中`)
 			});
@@ -443,12 +453,7 @@ export default {
 		},
 		async loginMobile() {
 			let that = this;
-			if (!that.protocol) {
-				this.inAnimation = true;
-				return that.$util.Tips({
-					title: '请先阅读并同意协议'
-				});
-			}
+			if (!that.protocol) return this.confirmLoginProtocol(() => this.loginMobile());
 			if (!that.account)
 				return that.$util.Tips({
 					title: that.$t(`请填写手机号码`)
@@ -602,12 +607,7 @@ export default {
 		},
 		async submit() {
 			let that = this;
-			if (!that.protocol) {
-				this.inAnimation = true;
-				return that.$util.Tips({
-					title: '请先阅读并同意协议'
-				});
-			}
+			if (!that.protocol) return this.confirmLoginProtocol(() => this.submit());
 			if (!that.account)
 				return that.$util.Tips({
 					title: that.$t(`请填写账号`)

@@ -29,6 +29,7 @@
 				</view>
 			</view>
 			<view class="wrapper">
+				<marketing-style :marketing-style="bargainInfo.marketing_style" marketing-kind="atmosphere" />
 				<view class="pictxt acea-row row-between-wrapper" @tap="goProduct">
 					<view class="pictrue">
 						<image :src="bargainInfo.image"></image>

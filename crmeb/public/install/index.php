@@ -302,6 +302,13 @@ switch ($step) {
 
             //读取数据文件
             $sqldata = file_get_contents(SITE_DIR . 'install/' . $sqlFile);
+            // sql_split joins lines without spaces; keep each added statement on one line.
+            $brandSql = preg_replace('/\R/', ' ', file_get_contents(dirname(rtrim(SITE_DIR, '/\\')) . '/upgrade/product_brands.sql'));
+            $sqldata .= "\n" . str_replace(';', ";\n", $brandSql);
+            $fullReductionSql = preg_replace('/\R/', ' ', file_get_contents(dirname(rtrim(SITE_DIR, '/\\')) . '/upgrade/full_reduction.sql'));
+            $sqldata .= "\n" . str_replace(';', ";\n", $fullReductionSql);
+            $marketingStyleSql = preg_replace('/\R/', ' ', file_get_contents(dirname(rtrim(SITE_DIR, '/\\')) . '/upgrade/marketing_styles.sql'));
+            $sqldata .= "\n" . str_replace(';', ";\n", $marketingStyleSql);
             $sqlFormat = sql_split($sqldata, $dbPrefix);
             //创建写入sql数据库文件到库中 结束
 

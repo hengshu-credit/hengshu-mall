@@ -11,6 +11,7 @@
 					<view class="item acea-row row-between-wrapper" @tap="openSubscribe(item)">
 						<view class="pictrue">
 							<image :src="item.image"></image>
+					<marketing-style :marketing-style="item.marketing_style" />
 						</view>
 						<view class="text acea-row row-column-around">
 							<view class="name line1">{{ item.title || '' }}</view>
@@ -266,6 +267,7 @@ export default {
 }
 
 .bargain-list .list .item .pictrue {
+  position: relative;
 	width: 160rpx;
 	height: 160rpx;
 }

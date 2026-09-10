@@ -26,6 +26,9 @@ return [
     'user' => null,
     // 指令定义
     'commands' => [
+        'marketing-style:install' => \crmeb\command\MarketingStyleInstall::class,
+        'full-reduction:install' => \crmeb\command\FullReductionInstall::class,
+        'product-brand:install' => \crmeb\command\ProductBrandInstall::class,
         'workerman' => \crmeb\command\Workerman::class,
         'timer' => \crmeb\command\Timer::class,
         'util' => \crmeb\command\Util::class,

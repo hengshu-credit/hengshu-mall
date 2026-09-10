@@ -1,7 +1,7 @@
 <template>
   <view class="product-info-diy" v-if="productData">
     <common-wrapper :config="configData">
-      <view class="product-info-box" :class="'style-' + specStyle">
+      <view class="product-info-box" :class="['style-' + specStyle, {'has-marketing-atmosphere':atmosphereVisible}]">
         <!-- 图片区域 -->
         <view class="image-wrap">
           <swiper
@@ -143,6 +143,8 @@
             </scroll-view>
           </view>
         </view>
+
+        <marketing-style :marketing-style="productData.marketing_style" marketing-kind="atmosphere" @visibility="atmosphereVisible=$event" />
 
         <!-- 信息区域 -->
         <view class="info-box">
@@ -416,6 +418,7 @@ export default {
   },
   data() {
     return {
+      atmosphereVisible: false,
       currentSwiper: 0,
       selectedIndex: 0,
       videoControls: true,
@@ -1201,3 +1204,5 @@ export default {
   white-space: nowrap;
 }
 </style>
+
+<style scoped>.product-info-box.has-marketing-atmosphere .info-box{margin-top:0!important}</style>

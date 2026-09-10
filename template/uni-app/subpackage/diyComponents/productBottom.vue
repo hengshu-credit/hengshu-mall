@@ -1,11 +1,12 @@
 <template>
   <commonWrapper
+    v-if="visibleBar"
     :config="wrapperConfig"
     class="footer"
     :class="{ eject: commerceActions || storeInfo.id, 'commerce-actions': commerceActions }"
     :style="bagStyle"
   >
-    <view class="acea-row row-between-wrapper px-20 py-14" style="height: 100%">
+    <view class="product-actions-content acea-row row-between-wrapper px-20 py-14">
       <div class="acea-row">
         <block v-if="!isCustomEntry">
           <block v-for="(item_id, index) in showIcons" :key="index">
@@ -16,7 +17,7 @@
               @click="goShop"
             >
               <view class="iconfont icon-shouye6"></view>
-              <view class="p_center">{{ commerceActions ? $t(`店铺`) : $t(`首页`) }}</view>
+              <view class="p_center">{{ $t(`首页`) }}</view>
             </view>
             <view v-if="item_id === 1" @click="setCollect" class="item" :class="{ 'item-disabled': !storeInfo.id }" :aria-disabled="!storeInfo.id">
               <view
@@ -118,10 +119,10 @@
           </view>
         </block>
       </div>
-      <view v-if="noGoods" class="unavailable-action">
+      <view v-if="noGoods && (showCartButton || showBuyButton)" class="unavailable-action">
         <button disabled class="unavailable-button">{{ unavailableText || $t(`暂无产品`) }}</button>
       </view>
-      <view class="btn-box" v-else>
+      <view class="btn-box" v-else-if="!noGoods">
         <view v-if="!storeInfo.presale">
           <view
             class="bnt acea-row"
@@ -142,7 +143,7 @@
                 {{ $t(`加入购物车`) }}
               </button>
             </form>
-            <form class="buy bnts bg-color-hui">
+            <form v-if="showBuyButton" class="buy bnts bg-color-hui">
               <button
                 class="buy bnts bg-color-hui"
                 form-type="submit"
@@ -167,6 +168,7 @@
               </button>
             </form>
             <form
+              v-if="showBuyButton"
               @submit="goBuy"
               class="buy bnts"
               :class="!isCartButtonVisible ? 'virbnt' : ''"
@@ -182,7 +184,7 @@
             </form>
           </view>
         </view>
-        <view class="presale" v-else>
+        <view class="presale" v-else-if="showBuyButton">
           <view
             class="acea-row"
             v-if="presale_pay_status === 1 || presale_pay_status === 3"
@@ -222,12 +224,14 @@
 <script>
 import commonWrapper from "./commonWrapper.vue";
 import { getCustomer } from "@/utils/index.js";
+import { HTTP_REQUEST_URL } from '@/config/app';
 export default {
   name: "productBottom",
   components: {
     commonWrapper,
   },
   props: {
+    navigationHeight: { type: Number, default: 0 },
     commerceActions: { type: Boolean, default: false },
     diyData: {
       type: Object,
@@ -270,6 +274,8 @@ export default {
     },
   },
   computed: {
+    visibleBar() { return this.bottomConfig ? !this.bottomConfig.isHide : this.diyData.actions_mode !== 'components'; },
+    showBuyButton() { return !this.bottomConfig || !this.bottomConfig.buyButton || Number(this.bottomConfig.buyButton.tabVal) === 0; },
     bottomConfig() {
       if (!this.diyData || !this.diyData.value) return null;
       const values = Object.values(this.diyData.value);
@@ -286,15 +292,19 @@ export default {
       return this.bottomConfig.toneConfig.tabVal;
     },
     bagStyle() {
+      let offset = '';
+      // #ifndef H5
+      offset = `bottom: ${this.navigationHeight}px;`;
+      // #endif
       if (this.bottomConfig?.componentBgConfig?.colorConfig?.color?.length) {
         //   const color = this.bottomConfig.bottomBgColor.color[0].item || this.bottomConfig.bottomBgColor.default[0].item;
         //   return `background-color: ${color}`;
         const color = this.bottomConfig.componentBgConfig.colorConfig.color;
         const c1 = color[0].item;
         const c2 = color[1]?.item || c1;
-        return `background: linear-gradient(90deg, ${c1} 0%, ${c2} 100%);`;
+        return `background: linear-gradient(90deg, ${c1} 0%, ${c2} 100%);` + offset;
       }
-      return 'background: #fff;';
+      return 'background: #fff;' + offset;
     },
     cartBtnStyle() {
       if (this.toneConfig && this.bottomConfig.cartColor) {
@@ -312,19 +322,18 @@ export default {
         const c2 = color[1].item;
         return `background: linear-gradient(90deg, ${c1} 0%, ${c2} 100%);`;
       }
-      return ""; // Fallback to CSS default
+      return 'background: linear-gradient(90deg, var(--view-theme) 0%, var(--view-gradient, var(--view-theme)) 100%);';
     },
     showIcons() {
-      if (this.commerceActions) return [0, 3, 1, 2];
-      if (!this.bottomConfig) return [3, 1, 2, 0, 4, 5];
-      return this.bottomConfig.showContent.type;
+      if (!this.bottomConfig) return [3, 1, 2];
+      return this.bottomConfig.showContent && this.bottomConfig.showContent.type || [3,1,2];
     },
     showCartButton() {
-      if (!this.bottomConfig) return true;
-      return this.bottomConfig.cartButton.tabVal === 0;
+      if (!this.bottomConfig || !this.bottomConfig.cartButton) return true;
+      return Number(this.bottomConfig.cartButton.tabVal) === 0;
     },
     isCartButtonVisible() {
-      return !!this.storeInfo.cart_button && this.showCartButton;
+      return Number(this.storeInfo.cart_button) === 1 && this.showCartButton;
     },
     entryConfig() {
       return this.bottomConfig && this.bottomConfig.entryConfig;
@@ -333,7 +342,6 @@ export default {
       return this.bottomConfig && this.bottomConfig.menuConfig;
     },
     isCustomEntry() {
-      if (this.commerceActions) return false;
       return this.entryConfig && this.entryConfig.tabVal === 1;
     },
     isCustomImage() {
@@ -350,11 +358,11 @@ export default {
           name: item.info[0].value,
           url: item.info[1].value,
           icon: item.icon,
-          img: item.img,
+          img: item.img && item.img.startsWith('/') && !item.img.startsWith('/static/') ? HTTP_REQUEST_URL + item.img : item.img,
         }));
     },
     customImageStyle() {
-      const fillet = this.bottomConfig?.fillet;
+      const fillet = this.bottomConfig?.menuPcFillet;
       if (!fillet) return { width: "40rpx", height: "40rpx" };
       let radius;
       if (fillet.type) {
@@ -388,7 +396,36 @@ export default {
       };
     },
   },
+  watch: {
+    bottomConfig: { deep: true, handler() { this.$nextTick(this.measureHeight); } },
+    visibleBar() { this.$nextTick(this.measureHeight); },
+    navigationHeight() { this.$nextTick(this.measureHeight); },
+    noGoods() { this.$nextTick(this.measureHeight); },
+  },
+  mounted() {
+    this.$nextTick(this.measureHeight);
+    // #ifdef H5
+    if (typeof ResizeObserver !== 'undefined') {
+      this._heightObserver = new ResizeObserver(this.measureHeight);
+      if (this.$el.nodeType === 1) this._heightObserver.observe(this.$el);
+    }
+    // #endif
+  },
+  beforeDestroy() {
+    if (this._heightObserver) this._heightObserver.disconnect();
+    this.$emit('heightChange', 0);
+  },
   methods: {
+    measureHeight() {
+      if (!this.visibleBar) return this.$emit('heightChange', 0);
+      // #ifdef H5
+      if (this._heightObserver && this.$el.nodeType === 1) this._heightObserver.observe(this.$el);
+      // #endif
+      uni.createSelectorQuery().in(this).select('.footer').boundingClientRect(rect => {
+        if (!this._isDestroyed) this.$emit('heightChange', rect ? Math.ceil(rect.height) : 0);
+      }).exec();
+    },
+    goShare() { if (!this.storeInfo.id || this.noGoods) return; this.$emit('share'); },
     goShop() {
       // #ifdef H5
       return getApp().$router.push({ type: 'switchTab', path: '/pages/index/index' });
@@ -436,10 +473,10 @@ export default {
 
 <style scoped lang="scss">
 .footer.commerce-actions {
-  .item { width: 60rpx; margin-right: 10rpx; flex-shrink: 0; font-size: 20rpx; }
+  .item { width: 60rpx; margin-right: 8rpx; flex-shrink: 0; font-size: 20rpx; }
+  .p_center { white-space: nowrap; }
   .btn-box { min-width: 0; }
   .bnt .bnts { font-size: 24rpx; white-space: nowrap; }
-  .bnt .joinCart { margin-right: 8rpx; }
 }
 .item-disabled { opacity: 0.4; }
 .unavailable-action { flex: 1; min-width: 0; margin-left: 16rpx; }
@@ -450,16 +487,16 @@ export default {
   width: 100%;
   box-sizing: border-box;
   z-index: 277;
-  border-top: 1rpx solid #f0f0f0; // 保留默认边框作为兜底
-  height: 100rpx;
-  height: calc(100rpx + constant(safe-area-inset-bottom)); ///兼容 IOS<11.2/
-  height: calc(100rpx + env(safe-area-inset-bottom)); ///兼容 IOS>11.2/
+  height: auto;
+  padding-bottom: env(safe-area-inset-bottom);
   transform: translate3d(0, 100%, 0);
-  transition: all 0.3s cubic-bezier(0.25, 0.5, 0.5, 0.9);
+  transition: transform 0.3s cubic-bezier(0.25, 0.5, 0.5, 0.9), bottom 180ms ease;
 
   &.eject {
     transform: translate3d(0, 0, 0);
   }
+
+  .product-actions-content { min-height: 100rpx; box-sizing: border-box; gap: 12rpx; }
 
   .gift-icon {
     width: 40rpx;
@@ -505,23 +542,25 @@ export default {
   }
   .bnt {
     flex: 1;
-    height: 76rpx;
+    height: 72rpx;
     display: flex;
     justify-content: center;
     align-items: center;
     flex-wrap: nowrap;
+    gap: 20rpx;
+    > .bnts { flex: 1; min-width: 0; }
     .bnts {
       width: 100%;
       text-align: center;
-      line-height: 76rpx;
+      line-height: 72rpx;
       color: #fff;
       font-size: 28rpx;
-      border-radius: 50rpx;
+      border-radius: 36rpx;
     }
 
     .joinCart {
       background-color: var(--view-bntColor);
-      margin-right: 20rpx;
+      margin-right: 0;
     }
 
     .buy {
@@ -532,8 +571,8 @@ export default {
 
 .virbnt {
   // width: 444rpx !important;
-  height: 76rpx !important;
-  border-radius: 50rpx !important;
+  height: 72rpx !important;
+  border-radius: 36rpx !important;
   overflow: hidden;
 }
 
@@ -559,4 +598,9 @@ export default {
   color: #fff;
   font-size: 28rpx;
 }
+</style>
+<style scoped>
+/* #ifdef H5 */
+.footer.commerce-actions { bottom: var(--store-nav-offset, 0px) !important; }
+/* #endif */
 </style>

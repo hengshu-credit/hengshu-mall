@@ -1,0 +1,29 @@
+// Shared geometry: the editor uses .5px for each storefront rpx.
+@mixin category-product-layout($unit) {
+  .category-products {
+    padding: 16 * $unit;
+    background: var(--cat-product-background-color);
+    &.grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16 * $unit; }
+    &.large .category-product { margin-bottom:30 * $unit; }
+    &.large .product-image { padding-top:50%; }
+    &.list .category-product { display:flex;gap:18 * $unit;margin-bottom:24 * $unit;
+      .product-image { flex:0 0 150 * $unit;height:150 * $unit;padding-top:0; }
+    }
+    .category-product{min-width:0}
+    .product-image{position:relative;padding-top:100%;background:#f8f9fb;overflow:hidden;
+      image,img{position:absolute;top:0;left:0;width:100%;height:100%;display:block}
+    }
+    .product-info{flex:1;min-width:0}
+    .product-title{margin:12 * $unit 0;font-size:24 * $unit;line-height:1.5;color:var(--cat-product-title-color);display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}
+    .product-bottom{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8 * $unit;margin-top:12 * $unit}
+    .product-price{font-size:26 * $unit;color:var(--cat-price-color);font-weight:700}
+    .category-buy{padding:6 * $unit;color:var(--cat-buy-button-color);font-size:22 * $unit;
+      .iconfont,i{font-size:30 * $unit}
+      &.style-2,&.style-4,&.style-6,&.style-8{color:#fff;background:var(--cat-buy-button-color);border-radius:30 * $unit;padding:8 * $unit 12 * $unit}
+      &.style-3,&.style-5,&.style-7{border:1px solid var(--cat-buy-button-color);border-radius:6 * $unit}
+    }
+    .quantity{display:flex;gap:12 * $unit;align-items:center;font-size:24 * $unit;.iconfont{padding:8 * $unit;color:var(--cat-buy-button-color)}}
+    .sold-out{font-size:22 * $unit;color:#999}
+    .activity-label{position:absolute;left:0;bottom:0;padding:4 * $unit 12 * $unit;color:#fff;background:var(--cat-active-color);font-size:22 * $unit}
+  }
+}

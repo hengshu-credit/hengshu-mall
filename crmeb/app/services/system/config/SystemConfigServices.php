@@ -1329,6 +1329,10 @@ class SystemConfigServices extends BaseServices
      */
     public function getConfigForm($url, int $tabId)
     {
+        $jdConfig = new JdCrawlerConfig();
+        if ($tabId === JdCrawlerConfig::TAB_ID) {
+            return create_form('本地京东采集', $jdConfig->rules($this->builder), $this->url('/setting/config/save_basics'), 'POST');
+        }
         /** @var SystemConfigTabServices $service */
         $service = app()->make(SystemConfigTabServices::class);
         $title = $service->value(['id' => $tabId], 'title');
@@ -1336,11 +1340,11 @@ class SystemConfigServices extends BaseServices
         $isCollection = in_array('system_product_copy_type', array_column($list, 'menu_name'), true);
         if ($isCollection) {
             $list = array_values(array_filter($list, function ($item) {
-                return !in_array($item['menu_name'], JdCrawlerConfig::KEYS, true);
+                return !in_array($item['menu_name'], array_merge(JdCrawlerConfig::KEYS, ['system_product_copy_type']), true);
             }));
         }
         $formbuider = $this->createForm($list);
-        if ($isCollection) $formbuider = array_merge($formbuider, (new JdCrawlerConfig())->rules($this->builder));
+        if ($isCollection) array_unshift($formbuider, $jdConfig->providerRule($this->builder));
         $name = 'setting';
         if ($url) {
             $name = explode('/', $url)[2] ?? $name;

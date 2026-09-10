@@ -54,7 +54,7 @@ export default {
       if (!nVal) {
         value = JSON.parse(JSON.stringify(this.$store.state.mobildConfig.bottomMenu));
       }
-      this.configObj = value;
+      this.configObj = this.patchConfig(value);
       this.setUp = value.setUp.tabVal;
       this.updateRCom();
     },
@@ -109,6 +109,9 @@ export default {
   },
   methods: {
     patchConfig(config) {
+      config.cname = '商品操作栏';
+      if (config.showContent) config.showContent.maxList = 5;
+      if (!config.buyButton) config.buyButton = {title:'购买按钮',tabVal:0,tabList:[{name:'显示'},{name:'隐藏'}]};
       if (!config.paddingConfig) {
         config.paddingConfig = {
           isAll: false,
@@ -191,6 +194,7 @@ export default {
             },
           ]);
         }
+        contentArr.push({components:toolCom.c_radio,configNme:'buyButton'});
         this.rCom = arr.concat(contentArr);
       } else {
         // Style Config

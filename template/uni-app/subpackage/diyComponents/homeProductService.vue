@@ -1,11 +1,11 @@
 <template>
-  <view class="product-service" v-if="!isHide">
+  <view class="product-service" v-if="!isHide && hasRows">
     <commonWrapper :config="dataConfig">
       <view class="service-list">
         <!-- Activity -->
         <view
           class="item"
-          v-if="checkList.includes(0) && (couponList.length || activity.length)"
+          v-if="checkList.includes(0) && (couponList.length || activities.length)"
         >
           <view class="label" :style="{ color: titleColor }">{{
             $t("活动")
@@ -27,15 +27,15 @@
                 ></text>
               </view>
               <!-- Activity -->
-              <block v-for="(item, index) in activity" :key="index">
+              <block v-for="(item, index) in activities" :key="index">
                 <view
                   class="tag-item"
-                  v-if="item.type === '1'"
+                  v-if="Number(item.type) === 1"
                   :style="tagStyle"
                   @click.stop="goActivity(item)"
                 >
                   <text class="iconfont icon-miaosha1"></text>
-                  {{ $t("秒杀")
+                  {{ $t("限时秒杀")
                   }}<text
                     class="iconfont icon-you2"
                     :style="{ color: activityColor }"
@@ -43,12 +43,12 @@
                 </view>
                 <view
                   class="tag-item"
-                  v-if="item.type === '2'"
+                  v-if="Number(item.type) === 2"
                   :style="tagStyle"
                   @click.stop="goActivity(item)"
                 >
                   <text class="iconfont icon-yaoqinghaoyou1"></text>
-                  {{ $t("砍价")
+                  {{ $t("参与砍价")
                   }}<text
                     class="iconfont icon-you2"
                     :style="{ color: activityColor }"
@@ -56,12 +56,12 @@
                 </view>
                 <view
                   class="tag-item"
-                  v-if="item.type === '3'"
+                  v-if="Number(item.type) === 3"
                   :style="tagStyle"
                   @click.stop="goActivity(item)"
                 >
                   <text class="iconfont icon-wodetuandui"></text>
-                  {{ $t("拼团")
+                  {{ $t("拼团活动")
                   }}<text
                     class="iconfont icon-you2"
                     :style="{ color: activityColor }"
@@ -89,7 +89,7 @@
           }}</view>
           <view class="content">
             <view class="text line1" :style="{ color: contentColor }">
-              {{ attrTxt }}：{{ attrValue }}
+              {{ attrValue || attrTxt || $t('请选择规格') }}
             </view>
             <text
               class="iconfont icon-jiantou"
@@ -113,12 +113,7 @@
           }}</view>
           <view class="content">
             <view class="text line1" :style="{ color: contentColor }">
-              <text
-                v-for="(item, index) in productData.params_list"
-                :key="index"
-              >
-                {{ item.name }} ·
-              </text>
+              {{ parameterText }}
             </view>
             <text
               class="iconfont icon-jiantou"
@@ -142,12 +137,7 @@
           }}</view>
           <view class="content">
             <view class="text line1" :style="{ color: contentColor }">
-              <text
-                v-for="(item, index) in productData.protection_list"
-                :key="index"
-              >
-                {{ item.title }} ·
-              </text>
+              {{ protectionText }}
             </view>
             <text
               class="iconfont icon-jiantou"
@@ -162,6 +152,7 @@
 
 <script>
 import commonWrapper from "./commonWrapper.vue";
+import { serviceSelection, serviceSummary, serviceActivities } from '../../../shared/productService';
 
 export default {
   name: "homeProductService",
@@ -199,13 +190,19 @@ export default {
     },
   },
   computed: {
+    activities() { return this.activity.filter(item => item && serviceActivities[Number(item.type)]); },
+    parameterText() { return serviceSummary(this.productData.params_list, 'name'); },
+    protectionText() { return serviceSummary(this.productData.protection_list, 'title'); },
+    hasRows() {
+      return this.checkList.includes(0) && (this.couponList.length || this.activities.length) ||
+        this.checkList.includes(1) && (this.attr.productAttr || []).length ||
+        this.checkList.includes(2) && !!this.parameterText || this.checkList.includes(3) && !!this.protectionText;
+    },
     isHide() {
       return this.dataConfig.isHide;
     },
     checkList() {
-      return this.dataConfig.checkBoxConfig
-        ? this.dataConfig.checkBoxConfig.type
-        : [];
+      return serviceSelection(this.dataConfig);
     },
     titleColor() {
       return this.dataConfig.titleColor
@@ -253,11 +250,12 @@ export default {
     activityTap() {
       if (this.couponList.length) {
         this.$emit("showCoupon");
-      } else if (this.activity.length) {
+      } else if (this.activities.length) {
+        this.goActivity(this.activities[0]);
       }
     },
     goActivity(item) {
-      this.$emit("goActivity", item);
+      this.$emit("goActivity", { ...item, type: String(item.type) });
     },
     showSpecModal() {
       this.$emit("showSpecModal");
@@ -275,24 +273,30 @@ export default {
     .item {
       display: flex;
       align-items: center;
-      padding: 28rpx 0rpx;
+      padding: 24rpx 0rpx;
       position: relative;
 
       .label {
         width: 80rpx;
         font-size: 28rpx;
         margin-right: 20rpx;
+        flex-shrink: 0;
+        line-height: 40rpx;
       }
 
       .content {
         flex: 1;
+        min-width: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
         overflow: hidden;
 
         .text {
+          flex: 1;
+          min-width: 0;
           font-size: 28rpx;
+          line-height: 40rpx;
           color: #333;
         }
 
@@ -301,9 +305,9 @@ export default {
           flex-wrap: wrap;
 
           .tag-item {
-            font-size: 24rpx;
-            padding: 3rpx 10rpx;
-            border-radius: 30rpx;
+            font-size: 20rpx;
+            padding: 4rpx 10rpx;
+            border-radius: 20rpx;
             margin-right: 10rpx;
             display: flex;
             align-items: center;
@@ -320,6 +324,7 @@ export default {
 
         .iconfont {
           font-size: 24rpx;
+          flex-shrink: 0;
         }
       }
     }

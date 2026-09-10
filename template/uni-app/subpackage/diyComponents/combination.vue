@@ -62,7 +62,7 @@
               @tap="goDetail(item)"
             >
               <easy-loadimage
-                :image-src="item.image"
+                :marketing-style="item.marketing_style" :image-src="item.image"
                 width="240rpx"
                 height="240rpx"
                 :borderRadius="imgStyle"
@@ -131,7 +131,7 @@
               @tap="goDetail(item)"
             >
               <easy-loadimage
-                :image-src="item.image"
+                :marketing-style="item.marketing_style" :image-src="item.image"
                 width="100%"
                 height="324rpx"
                 :borderRadius="imgStyle"
@@ -208,7 +208,7 @@
                 >
               </view>
               <easy-loadimage
-                :image-src="item.image"
+                :marketing-style="item.marketing_style" :image-src="item.image"
                 width="100%"
                 height="212rpx"
                 :borderRadius="imgStyle"
@@ -265,7 +265,7 @@
                 >
               </view>
               <easy-loadimage
-                :image-src="item.image"
+                :marketing-style="item.marketing_style" :image-src="item.image"
                 width="224rpx"
                 height="224rpx"
                 :borderRadius="imgStyle"

@@ -151,12 +151,18 @@ class ThemeServices extends BaseServices
         $info = $info->toArray();
         if ($type == 'home') {
             return json_decode($info['home_data'], true) ?? [];
+        } elseif ($type == 'navigation') {
+            return MainNavigationConfig::read(json_decode($info['home_data'], true) ?: []);
         } elseif ($type == 'category') {
-            return ['status' => $info['category_data'] ?? 1];
+            $category = json_decode($info['category_data'] ?? '1', true);
+            if (is_array($category) && !empty($category['navigation'])) $category['navigation_mode'] = 'page';
+            return CategoryPageConfig::read($category ?? 1);
         } elseif ($type == 'detail') {
             return json_decode($info['detail_data'], true) ?? [];
         } elseif ($type == 'user') {
             return json_decode($info['user_data'], true) ?? [];
+        } elseif ($type == 'cart') {
+            return (json_decode($info['theme_data'] ?? '', true) ?: [])['cart_page'] ?? [];
         } elseif ($type == 'theme') {
             if ($info['theme_data'] == '' || $info['theme_data'] == null || $info['theme_data'] == 'null') {
                 $info['theme_data'] = '{"theme_color":"#E93323","gradient_color":"#FF7931","sub_color":"#FE960F","light_color":"rgba(233, 51, 35, 0.1)"}';
@@ -202,6 +208,12 @@ class ThemeServices extends BaseServices
      */
     public function saveTheme($id, $data)
     {
+        if ($data['type'] === 'theme') $data['value'] = ThemePaletteConfig::validate($data['value']);
+        if ($data['type'] === 'navigation') return $this->saveNavigation((int)$id, $data['value']);
+        if ($data['type'] === 'category') $data['value'] = CategoryPageConfig::validate($data['value']);
+        if ($data['type'] === 'cart') $data['value'] = CartPageConfig::validate($data['value']);
+        if (in_array($data['type'], ['home', 'detail', 'user'], true) && ($data['value']['navigation_mode'] ?? '') === 'page') $data['value'] = MainNavigationConfig::validatePage($data['value']);
+        if (in_array($data['type'], ['home', 'detail', 'user'], true)) $data['value'] = PageActionsConfig::validatePage($data['value'], $data['type']);
         // 初始化待写入数组
         $saveData = [];
 
@@ -226,9 +238,11 @@ class ThemeServices extends BaseServices
 
         if ($id == 0) {
             $type = 0;
-            $saveData['category_data'] = 1;
-            $saveData['category_data_update_time'] = time();
-            $saveData['category_image'] = '/statics/images/cate1.png';
+            if (!$data['tid']) {
+                $saveData['category_data'] = 1;
+                $saveData['category_data_update_time'] = time();
+                $saveData['category_image'] = '/statics/images/cate1.png';
+            }
         } else {
             $type = $this->dao->value(['id' => $id], 'type');
         }
@@ -252,11 +266,13 @@ class ThemeServices extends BaseServices
                 // 分类页
                 $saveData['category_data'] = $value;
                 $saveData['category_data_update_time'] = time();
-                // 根据 value 生成对应预览图路径
-                $saveData['category_image'] = '/statics/images/cate' . $value . '.png';
+                // 已生成的页面封面保留；旧布局占位图继续随布局切换。
+                $categoryImage = $saveData['category_image'] ?? ($id ? $this->dao->value(['id' => $id], 'category_image') : '');
+                $saveData['category_image'] = $categoryImage && !preg_match('#^/statics/images/cate[1-3]\.png$#D', $categoryImage)
+                    ? $categoryImage : '/statics/images/cate' . $data['value']['status'] . '.png';
                 if ($type == 0) {
                     $saveData['category_default_data'] = $value;
-                    $saveData['category_default_image'] = '/statics/images/cate' . $value . '.png';
+                    $saveData['category_default_image'] = $saveData['category_image'];
                 }
                 break;
 
@@ -278,8 +294,18 @@ class ThemeServices extends BaseServices
                 }
                 break;
 
+            case 'cart':
+                $palette = json_decode($saveData['theme_data'] ?? ($id ? $this->dao->value(['id'=>$id], 'theme_data') : ''), true) ?: [];
+                $palette['cart_page'] = $data['value'];
+                $saveData['theme_data'] = json_encode($palette);
+                $saveData['theme_data_update_time'] = time();
+                if ($type == 0) $saveData['theme_default_data'] = $saveData['theme_data'];
+                break;
+
             case 'theme':
                 // 主题自身数据
+                $existing = json_decode($saveData['theme_data'] ?? ($id ? $this->dao->value(['id'=>$id], 'theme_data') : ''), true) ?: [];
+                $value = json_encode(array_replace($existing, $data['value']));
                 $saveData['theme_data'] = $value;
                 $saveData['theme_data_update_time'] = time();
                 if ($type == 0) {
@@ -356,12 +382,12 @@ class ThemeServices extends BaseServices
      * 保存主题图片信息
      *
      * 功能概述:
-     * 更新主题各模块（首页、详情页、用户中心）的预览图片。
+     * 更新主题各模块（首页、分类、购物车、详情页、用户中心）的预览图片。
      * 如果是默认主题（type=0），会同步更新默认图片配置。
      * 自动更新版本号和最后修改时间。
      *
      * @param int $id 主题ID
-     * @param array $data 包含 type (home/detail/user) 和 image 的数据数组
+     * @param array $data 包含 type (home/category/cart/detail/user) 和 image 的数据数组
      * @return int|mixed|string 主题ID
      * @author wuhaotian
      * @email 442384644@qq.com
@@ -374,6 +400,20 @@ class ThemeServices extends BaseServices
             case 'home':
                 $saveData['home_image'] = $data['image'];
                 if ($type == 0) $saveData['home_default_image'] = $data['image'];
+                break;
+            case 'category':
+                $saveData['category_image'] = $data['image'];
+                if ($type == 0) $saveData['category_default_image'] = $data['image'];
+                break;
+            case 'cart':
+                $palette = json_decode($id ? $this->dao->value(['id' => $id], 'theme_data') : '', true) ?: [];
+                $palette['cart_image'] = $data['image'];
+                $saveData['theme_data'] = json_encode($palette);
+                if ($type == 0) {
+                    $default = json_decode($id ? $this->dao->value(['id' => $id], 'theme_default_data') : '', true) ?: $palette;
+                    $default['cart_image'] = $data['image'];
+                    $saveData['theme_default_data'] = json_encode($default);
+                }
                 break;
             case 'detail':
                 $saveData['detail_image'] = $data['image'];
@@ -412,6 +452,26 @@ class ThemeServices extends BaseServices
      */
     public function importThemeData($config)
     {
+        // Theme packages may contain JSON strings or decoded page objects.
+        $decode = static function ($value) {
+            if ($value === '' || $value === null) return [];
+            for ($i = 0; $i < 3 && is_string($value); $i++) {
+                $next = json_decode($value, true);
+                if (json_last_error() !== JSON_ERROR_NONE || $next === $value) break;
+                $value = $next;
+            }
+            return $value;
+        };
+        $category = CategoryPageConfig::validate($decode($config['category_data'] ?? 1));
+        $config['category_data'] = json_encode($category, JSON_UNESCAPED_UNICODE);
+        foreach (['home_data', 'detail_data', 'user_data'] as $page) {
+            $decoded = $decode($config[$page] ?? []);
+            if (!is_array($decoded)) throw new AdminException('导入主题页面配置格式不正确');
+            $config[$page] = json_encode($decoded, JSON_UNESCAPED_UNICODE);
+        }
+        $config['theme_data'] = $decode($config['theme_data'] ?? []);
+        if (!is_array($config['theme_data'])) throw new AdminException('导入主题配色配置格式不正确');
+        if (isset($config['theme_data']['cart_page'])) $config['theme_data']['cart_page'] = CartPageConfig::validate($decode($config['theme_data']['cart_page']));
         $data = [];
         $data['version'] = uniqid(); // 版本号
         $data['title'] = $config['title']; // 标题
@@ -636,33 +696,42 @@ class ThemeServices extends BaseServices
      * @email 442384644@qq.com
      * @date 2026/02/03
      */
-    public function themeNavigation()
+    public function themeNavigation(string $page = 'home', int $themeId = 0)
     {
-        // 查询当前正在使用的主题的首页数据（JSON 字符串）
-        $value = $this->dao->value(['is_use' => 1], 'home_data');
-        if (!$value) {
-            throw new ApiException('数据不存在');
-        }
-
-        // 初始化导航数据为空数组
-        $navigation = [];
-
-        // 若首页数据存在，则进行解析与遍历
-        if ($value) {
-            // 将 JSON 字符串解码为数组
-            $value = json_decode($value, true);
-            // 遍历首页组件，查找名称为 pagefoot 的底部导航组件
-            foreach ($value['value'] as $item) {
-                if (isset($item['name']) && strtolower($item['name']) === 'pagefoot') {
-                    // 找到后赋值并终止循环
-                    $navigation = $item;
-                    break;
-                }
+        if (!in_array($page, ['home', 'category', 'detail', 'user', 'cart', 'other'], true)) $page = 'other';
+        if (in_array($page, ['home', 'category', 'detail', 'user', 'cart'], true)) {
+            $data = $this->getThemeInfo($themeId, $page);
+            $navigation = in_array($page, ['category','cart'], true) ? ($data['navigation'] ?? []) : MainNavigationConfig::component($data);
+            if (($data['navigation_mode'] ?? '') === 'page' || ($navigation['name'] ?? '') === 'mainNavigation' || ($navigation && in_array($page, ['category', 'cart'], true))) {
+                if ($navigation) $navigation['mainNavigation']['pageScoped'] = true;
+                return $navigation;
             }
+            if ($navigation) return $navigation;
         }
+        $home = MainNavigationConfig::component($this->getThemeInfo($themeId, 'home'));
+        if ($home && in_array($page, ['category', 'cart'], true)) {
+            $home['mainNavigation']['pageScoped'] = true;
+            return $home;
+        }
+        return ($home['name'] ?? '') === 'mainNavigation' && $page !== 'cart' ? [] : $home;
+    }
 
-        // 返回导航配置（可能为空数组）
-        return $navigation;
+    private function saveNavigation(int $id, $config): int
+    {
+        $config = MainNavigationConfig::validate($config);
+        $record = $this->dao->get($id ? ['id' => $id, 'is_del' => 0] : ['is_use' => 1, 'is_del' => 0]);
+        if (!$record) throw new AdminException('请先创建并启用商城主题');
+        $info = $record->toArray();
+        if (($info['page_type'] ?? 'theme') === 'micro') throw new AdminException('请在商城主题中配置主导航栏');
+        $home = json_decode($info['home_data'], true) ?: [];
+        $updated = MainNavigationConfig::apply($home, $config);
+        $save = ['home_data' => json_encode($updated, JSON_UNESCAPED_UNICODE), 'home_data_update_time' => time(), 'up_time' => time(), 'version' => uniqid()];
+        if ((int)$info['type'] === 0) {
+            $default = json_decode($info['home_default_data'] ?? '', true) ?: $home;
+            $save['home_default_data'] = json_encode(MainNavigationConfig::apply($default, $config), JSON_UNESCAPED_UNICODE);
+        }
+        $this->dao->update($info['id'], $save);
+        return (int)$info['id'];
     }
 
     /**

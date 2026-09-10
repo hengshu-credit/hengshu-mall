@@ -45,6 +45,7 @@
           加入购物车
         </div>
         <div
+          v-if="!configObj.buyButton || configObj.buyButton.tabVal === 0"
           class="btn buy-btn"
           :style="{
             background: toneConfig ? buyBtnColor : themeColor,
@@ -62,10 +63,10 @@ import { mapState } from 'vuex';
 
 export default {
   name: 'home_bottom_menu',
-  cname: '底部菜单',
+  cname: '商品操作栏',
   configName: 'c_bottom_menu',
   icon: '#iconzujian-dibucaidan', // Placeholder icon
-  type: -1, // 0 基础组件 1 营销组件 2工具组件 3 商品组件 4 个人中心组件
+  type: 0,
   defaultName: 'bottomMenu',
   props: {
     index: {
@@ -167,6 +168,7 @@ export default {
     colorStyle: {
       handler(nVal, oVal) {
         this.themeColor = `linear-gradient(90deg,${nVal.theme} 0%,${nVal.gradient} 100%)`;
+        this.themeColor2 = nVal.bntColor || '#FAAD14';
       },
       deep: true,
     },
@@ -174,7 +176,7 @@ export default {
   data() {
     return {
       defaultConfig: {
-        cname: '底部菜单',
+        cname: '商品操作栏',
         name: 'bottomMenu',
         timestamp: this.num,
         isHide: false,
@@ -213,6 +215,7 @@ export default {
         },
         contentConfigTitle: '内容设置',
         showContent: {
+          maxList: 5,
           title: '显示内容',
           name: 'showContent',
           type: [3, 1, 2], // Default: Service, Collect, Cart
@@ -229,6 +232,7 @@ export default {
           tabVal: 0,
           tabList: [{ name: '显示' }, { name: '隐藏' }],
         },
+        buyButton: { title:'购买按钮', tabVal:0, tabList:[{name:'显示'},{name:'隐藏'}] },
 
         menuConfig: {
           title: '最多可添加1张图片，建议宽度90 * 90px',
@@ -519,7 +523,7 @@ export default {
       }
       this.configObj = data;
       this.themeColor = `linear-gradient(90deg,${this.colorStyle.theme} 0%,${this.colorStyle.gradient} 100%)`;
-      this.themeColor2 = 'linear-gradient(90deg, #FAAD14 0%, #FAAD14 100%)';
+      this.themeColor2 = this.colorStyle.bntColor || '#FAAD14';
     },
   },
 };

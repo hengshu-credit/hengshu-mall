@@ -18,10 +18,10 @@
     </image>
     <image
       class="border-img"
-      :key="'border-' + borderSrc"
-      :src="borderSrc"
-      mode="aspectFill"
-      v-if="loadImg && !isLoadError && borderSrc && borderLoaded !== 2"
+      :key="'border-' + displayedBorder"
+      :src="displayedBorder"
+      :mode="marketingImage ? 'scaleToFill' : 'aspectFill'"
+      v-if="loadImg && !isLoadError && displayedBorder && borderLoaded !== 2"
       v-show="showImg && borderLoaded === 1"
       :style="[imgStyle]"
       :class="{
@@ -41,6 +41,7 @@
   </view>
 </template>
 <script>
+import marketingStyle from '@/mixins/marketingStyle';
 import { Throttle } from "@/utils/validate.js";
 // #ifdef H5
 import { observeImageVisibility } from "@/utils/imageVisibility.js";
@@ -55,6 +56,7 @@ function generateUUID() {
   });
 }
 export default {
+  mixins: [marketingStyle],
   props: {
     imageSrc: {
       type: String,
@@ -123,6 +125,7 @@ export default {
     };
   },
   computed: {
+    displayedBorder() { return this.marketingImage || this.borderSrc; },
     boxStyle() {
       return {
         width: this.width,
@@ -148,7 +151,7 @@ export default {
         this.$nextTick(this.startVisibility);
       }
     },
-    borderSrc() {
+    displayedBorder() {
       this.borderLoaded = 0;
     },
   },

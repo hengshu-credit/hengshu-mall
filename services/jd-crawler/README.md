@@ -75,3 +75,11 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 ```
 
 源码归属、版本与校验见随附 `UPSTREAM.md` 及许可证。
+
+## 构建加速
+
+默认通过清华 HTTPS 镜像下载 Debian 与 Python 依赖，使用 BuildKit 缓存 APT/pip 下载，源码与依赖分别缓存。需要 BuildKit；旧 Docker 环境可设置 `DOCKER_BUILDKIT=1`。不传 `--no-cache`，也不清理构建缓存，后续源码更新即可复用依赖层。
+
+`.env.example` 提供 `JD_DEBIAN_MIRROR`、`JD_DEBIAN_SECURITY_MIRROR`、`JD_PIP_INDEX_URL` 和 `JD_PYTHON_IMAGE`。这些都是可选构建配置，已有 `.env` 不用重建。`JD_PYTHON_IMAGE` 只接受与 Python 3.12 slim-bookworm 相同的基础环境，可指向自己的镜像仓库；软件包镜像配置不影响 Docker Hub 基础镜像拉取。
+
+单包部署的排查命令与官方源配置见 `help/release/README-update.md` 的构建加速部分。

@@ -322,7 +322,7 @@ class StoreCombinationServices extends BaseServices
             $item['price'] = floatval($item['price']);
             $item['product_price'] = floatval($item['product_price']);
         }
-        return $list;
+        return app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts($list, 'product_id');
     }
 
     /**
@@ -347,7 +347,7 @@ class StoreCombinationServices extends BaseServices
             $item['price'] = floatval($item['price']);
             $item['product_price'] = floatval($item['product_price']);
         }
-        $data['list'] = $list;
+        $data['list'] = app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts($list, 'product_id');
         return $data;
     }
 
@@ -454,6 +454,7 @@ class StoreCombinationServices extends BaseServices
         event('UserVisitListener', [$uid, $id, 'combination', $storeInfo['product_id'], 'view']);
         //浏览记录
         ProductLogJob::dispatch(['visit', ['uid' => $uid, 'product_id' => $storeInfo['product_id']]]);
+        $data['storeInfo'] = app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts([$data['storeInfo']], 'product_id')[0];
         return $data;
     }
 

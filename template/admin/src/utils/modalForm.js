@@ -1,14 +1,14 @@
 import request from '@/libs/request';
 import Vue from 'vue';
 
-let fApi;
 let unique = 1;
 import formCreate from '@form-create/element-ui';
 
 const uniqueId = () => ++unique;
 export default function modalForm(formRequestPromise, config = {}) {
   const h = this.$createElement;
-  return new Promise((resolve, reject) => {
+  let fApi;
+  return new Promise((resolve) => {
     formRequestPromise
       .then(({ data }) => {
         if (!data.config) data.config = {};
@@ -96,6 +96,10 @@ export default function modalForm(formRequestPromise, config = {}) {
               done();
             }
           },
+        }).catch((action) => {
+          // Keep success callbacks exclusive to submission, handling dialog dismissal here.
+          if (action === 'cancel' || action === 'close') return;
+          this.$message.error((action && (action.msg || action.message)) || '表单弹窗异常');
         });
       })
       .catch((e) => {

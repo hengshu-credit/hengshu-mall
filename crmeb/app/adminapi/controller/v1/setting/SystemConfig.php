@@ -567,6 +567,8 @@ class SystemConfig extends AuthController
         } else {
             $config_tab = $services->getConfigTab($pid);
             if (empty($config_tab)) $config_tab[] = $services->get($pid, ['id', 'id as value', 'title as label', 'pid', 'icon', 'type']);
+            $collection = $this->services->getOne(['menu_name' => 'system_product_copy_type']);
+            $config_tab = (new \app\services\system\config\JdCrawlerConfig())->tabs($config_tab, (int)($collection['config_tab_id'] ?? 0));
         }
         return app('json')->success(compact('config_tab'));
     }

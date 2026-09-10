@@ -320,6 +320,9 @@ class StoreProductServices extends BaseServices
         $productInfo['recommend_list'] = $recommend_list;
         $productInfo['coupons'] = $storeCouponIssueServices->productCouponList([['id', 'in', $couponIds]], 'title,id');
         $productInfo['cate_id'] = explode(',', $productInfo['cate_id']);
+        $brandServices = app()->make(StoreProductBrandServices::class);
+        $productInfo['brand_ids'] = $brandServices->productBrandIds((int)$id);
+        $productInfo['brand_list'] = $brandServices->productBrands((int)$id);
         $label_id = explode(',', $productInfo['label_id']);
         $productInfo['label_id'] = $userLabelServices->getLabelList(['ids' => $label_id], ['id', 'label_name']);
         $productInfo['give_integral'] = floatval($productInfo['give_integral']);
@@ -602,6 +605,8 @@ class StoreProductServices extends BaseServices
      */
     public function save(int $id, array $data)
     {
+        $brandIds = array_key_exists('brand_ids', $data) ? ProductBrandScope::ids($data['brand_ids']) : null;
+        unset($data['brand_ids'], $data['brand_list']);
         if (count($data['cate_id']) < 1) throw new AdminException('请选择商品分类');
         if (!$data['store_name']) throw new AdminException('请输入商品名称');
         if (count($data['slider_image']) < 1) throw new AdminException('请选择商品轮播图');
@@ -736,7 +741,9 @@ class StoreProductServices extends BaseServices
                 $videoToImport = '';
             }
         }
-        $this->transaction(function () use ($id, $is_copy, $data, $descriptionImages, $description, $cate_id, $storeDescriptionServices, $storeProductCateServices, $storeProductAttrServices, $storeProductCouponServices, $storeCategoryServices, $detail, $attr, $coupon_ids, $type, $slider_image, $videoToImport, &$collectedVideoJob) {
+        // Initialize missing brand tables before MySQL opens the product transaction.
+        $brandServices = $brandIds !== null ? app()->make(StoreProductBrandServices::class) : null;
+        $this->transaction(function () use ($id, $brandIds, $brandServices, $is_copy, $data, $descriptionImages, $description, $cate_id, $storeDescriptionServices, $storeProductCateServices, $storeProductAttrServices, $storeProductCouponServices, $storeCategoryServices, $detail, $attr, $coupon_ids, $type, $slider_image, $videoToImport, &$collectedVideoJob) {
             if ($data['spec_type'] == 0) {
                 $attr = [
                     [
@@ -765,6 +772,7 @@ class StoreProductServices extends BaseServices
                 }
                 unset($data['sales']);
                 $this->dao->update($id, $data);
+                if ($brandServices) $brandServices->syncProductBrands($id, $brandIds, $cate_id);
                 $storeDescriptionServices->saveDescription($id, $description);
                 $cateData = [];
                 $time = time();
@@ -788,6 +796,7 @@ class StoreProductServices extends BaseServices
                 $data['code_path'] = '';
                 $data['spu'] = $this->createSpu();
                 $res = $this->dao->save($data);
+                if ($brandServices) $brandServices->syncProductBrands((int)$res->id, $brandIds, $cate_id);
                 $storeDescriptionServices->saveDescription($res->id, $description);
                 $cateData = [];
                 $time = time();
@@ -1388,7 +1397,7 @@ class StoreProductServices extends BaseServices
             $item['checkCoupon'] = $couponIssueServices->checkProductCoupon($item['id']);
         }
         if ($status) {
-            return $list;
+            return app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts($list);
         } else {
             return $list[0]['activity'];
         }
@@ -1673,6 +1682,7 @@ class StoreProductServices extends BaseServices
             'visit_time' => date('Y-m-d H:i:s'),
         ]]);
 
+        $data['storeInfo'] = app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts([$data['storeInfo']])[0];
         return $data;
     }
 
@@ -2836,6 +2846,7 @@ class StoreProductServices extends BaseServices
             $item['cate_name'] = $item['cateName'][0]['cate_name'];
             unset($item['cateName']);
         }
+        $list = app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts($list);
         if ($where['ids'] == '') return $list;
         // 将$list转换为以id为键的数组
         $list = array_column($list, null, 'id');

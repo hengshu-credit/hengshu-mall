@@ -805,6 +805,12 @@ export default {
       component: () => import('@/pages/setting/theme/myTheme/index'),
     },
     {
+      path: 'main_navigation',
+      name: `${pre}mainNavigation`,
+      meta: { title: '主导航栏' },
+      component: () => import('@/pages/setting/theme/mainNavigation/index'),
+    },
+    {
       path: 'mall_theme',
       name: `${pre}mallTheme`,
       meta: {

@@ -7,7 +7,8 @@
 // +----------------------------------------------------------------------
 // | Author: CRMEB Team <admin@crmeb.com>
 // +----------------------------------------------------------------------
-import { getColorChange } from '@/api/diy';
+import { getColorChange, themeInfo } from '@/api/diy';
+import { editorPalette } from '../../../shared/themePalette';
 export default {
   data() {
     return {
@@ -20,6 +21,11 @@ export default {
   },
   methods: {
     getInfo() {
+      if (this.$route && /\/setting\/edit_theme$/.test(this.$route.path || '')) {
+        const id=this.$route.query.id || 0;
+        this.colorStyle=editorPalette({});
+        return themeInfo(id,'theme').then(res=>{this.colorStyle=editorPalette(res.data);}).catch(err=>this.$message.error(err.msg || '主题配色加载失败'));
+      }
       getColorChange('color_change')
         .then((res) => {
           this.current = res.data.status ? res.data.status : 3;

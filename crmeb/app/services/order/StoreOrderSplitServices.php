@@ -88,6 +88,7 @@ class StoreOrderSplitServices extends BaseServices
             $statusData = $statusService->selectList([['oid', '=', $id], ['change_type', '<>', OrderPaymentDispatchServices::PENDING]])->toArray();
             //订单实际支付金额
             $order_pay_price = bcsub((string)bcadd((string)$orderInfo['total_price'], (string)$orderInfo['pay_postage'], 2), (string)bcadd((string)$orderInfo['deduction_price'], (string)$orderInfo['coupon_price'], 2), 2);
+            $order_pay_price = bcsub($order_pay_price, (string)($orderInfo['full_reduction_price'] ?? 0), 2);
             //有改价
             $change_price = $order_pay_price != $orderInfo['pay_price'];
             foreach ($cart_ids_arr as $key => $cart_ids) {
@@ -286,8 +287,10 @@ class StoreOrderSplitServices extends BaseServices
         $order_update['cart_id'] = array_column($cart_info_data, 'cart_id');
         $order_update['total_num'] = array_sum(array_column($cart_info_data, 'cart_num'));
         $total_price = $coupon_price = $deduction_price = $use_integral = $pay_postage = $gainIntegral = $one_brokerage = $two_brokerage = $staffBrokerage = $agentBrokerage = $divisionBrokerage = 0;
+        $fullReductionPrice = '0.00';
         foreach ($cart_info_data as $cart) {
             $_info = json_decode($cart['cart_info'], true);
+            $fullReductionPrice = bcadd($fullReductionPrice, (string)($_info['full_reduction_price'] ?? 0), 2);
             $total_price = bcadd((string)$total_price, (string)$_info['sum_true_price'], 2);
             $deduction_price = bcadd((string)$deduction_price, (string)$_info['integral_price'], 2);
             $coupon_price = bcadd((string)$coupon_price, (string)$_info['coupon_price'], 2);
@@ -314,6 +317,8 @@ class StoreOrderSplitServices extends BaseServices
         }
 
         $order_update['total_price'] = bcadd((string)$total_price, (string)bcadd((string)$deduction_price, (string)$coupon_price, 2), 2);
+        $order_update['total_price'] = bcadd($order_update['total_price'], $fullReductionPrice, 2);
+        $order_update['full_reduction_price'] = $fullReductionPrice;
         $order_update['deduction_price'] = $deduction_price;
         $order_update['coupon_price'] = $coupon_price;
         $order_update['use_integral'] = $use_integral;
@@ -344,6 +349,7 @@ class StoreOrderSplitServices extends BaseServices
         $new_cart_info = $cart_info;
         $new_cart_info['cart_num'] = $cart_num;
         $compute_arr = ['coupon_price', 'integral_price', 'postage_price', 'use_integral', 'one_brokerage', 'two_brokerage', 'staff_brokerage', 'agent_brokerage', 'division_brokerage', 'sum_true_price'];
+        $compute_arr[] = 'full_reduction_price';
         foreach ($compute_arr as $field) {
             if (!isset($cart_info[$field]) || !$cart_info[$field]) {
                 $new_cart_info[$field] = 0;

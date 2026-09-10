@@ -9,6 +9,43 @@ use crmeb\exceptions\AdminException;
 class JdCrawlerConfig
 {
     const KEYS = ['jd_crawler_enabled', 'jd_crawler_url', 'jd_crawler_token'];
+    // Virtual tab uses the existing settings endpoints and permissions without a SQL migration.
+    const TAB_ID = -9101;
+
+    public static function enabled(): bool
+    {
+        return (int)sys_config('system_product_copy_type', 1) === 3 || (bool)sys_config('jd_crawler_enabled', 0);
+    }
+
+    public function provider(): int
+    {
+        return self::enabled() ? 3 : (int)sys_config('system_product_copy_type', 1);
+    }
+
+    public function tabs(array $tabs, int $basicId): array
+    {
+        if ($basicId <= 0) return $tabs;
+        $result = [];
+        foreach ($tabs as $tab) {
+            if (isset($tab['children'])) $tab['children'] = $this->tabs($tab['children'], $basicId);
+            $result[] = $tab;
+            if ((int)($tab['id'] ?? 0) === $basicId) {
+                $result[] = ['id' => self::TAB_ID, 'value' => self::TAB_ID, 'label' => '本地京东采集',
+                    'pid' => $tab['pid'] ?? 0, 'icon' => '', 'type' => $tab['type'] ?? 3];
+            }
+        }
+        return $result;
+    }
+
+    public function providerRule($builder)
+    {
+        return $builder->radio('system_product_copy_type', '接口选择', $this->provider())->options([
+            ['value' => 1, 'label' => '一号通'], ['value' => 2, 'label' => '99API'],
+            ['value' => 3, 'label' => '本地京东采集服务'],
+        ])->appendRule('suffix', ['type' => 'div', 'class' => 'tips-info', 'domProps' => [
+            'innerHTML' => '本地京东采集支持京东商品详情链接，请先在“本地京东采集”标签页保存服务地址和访问密钥。',
+        ]]);
+    }
 
     public static function serviceUrl(string $url): string
     {
@@ -26,9 +63,6 @@ class JdCrawlerConfig
     public function rules($builder): array
     {
         return [
-            $builder->radio('jd_crawler_enabled', '京东独立采集', (int)sys_config('jd_crawler_enabled', 0))->options([
-                ['value' => 0, 'label' => '关闭'], ['value' => 1, 'label' => '开启'],
-            ])->appendRule('suffix', ['type' => 'div', 'class' => 'tips-info', 'domProps' => ['innerHTML' => '开启后京东详情链接使用独立采集服务，其他平台继续使用原采集接口。']]),
             $builder->input('jd_crawler_url', '京东采集服务地址', (string)sys_config('jd_crawler_url', 'http://jd-crawler:8091'))
                 ->placeholder('http://jd-crawler:8091')->col(18),
             $builder->input('jd_crawler_token', '京东采集访问密钥', '')->type('password')->col(18)
@@ -39,6 +73,11 @@ class JdCrawlerConfig
 
     public function validate(array $post): array
     {
+        if (array_key_exists('system_product_copy_type', $post)) {
+            if (!in_array($post['system_product_copy_type'], [1, 2, 3, '1', '2', '3'], true)) throw new AdminException('商品采集接口选择无效');
+            $post['system_product_copy_type'] = (int)$post['system_product_copy_type'];
+            $post['jd_crawler_enabled'] = $post['system_product_copy_type'] === 3 ? 1 : 0;
+        }
         foreach (self::KEYS as $key) {
             if (array_key_exists($key, $post) && !is_scalar($post[$key])) throw new AdminException('京东采集配置格式不正确');
         }
@@ -54,7 +93,7 @@ class JdCrawlerConfig
                 throw new AdminException('京东采集访问密钥需为32至256位且不含空白字符');
             }
         }
-        if (($post['jd_crawler_enabled'] ?? sys_config('jd_crawler_enabled', 0)) == 1) {
+        if (($post['jd_crawler_enabled'] ?? self::enabled()) == 1) {
             self::serviceUrl((string)($post['jd_crawler_url'] ?? sys_config('jd_crawler_url', '')));
             if (strlen((string)($post['jd_crawler_token'] ?? sys_config('jd_crawler_token', ''))) < 32) throw new AdminException('启用京东采集前请先配置访问密钥');
         }
@@ -63,7 +102,7 @@ class JdCrawlerConfig
 
     public function prepareSave(array $post, SystemConfigServices $configs): array
     {
-        if (!array_intersect(self::KEYS, array_keys($post))) return $post;
+        if (!array_intersect(array_merge(self::KEYS, ['system_product_copy_type']), array_keys($post))) return $post;
         $post = $this->validate($post);
         $parent = $configs->getOne(['menu_name' => 'system_product_copy_type']);
         if (!$parent) throw new AdminException('未找到商品采集配置分类');

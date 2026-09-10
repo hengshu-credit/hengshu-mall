@@ -32,6 +32,7 @@
         <home-editor ref="homeEditor" v-else-if="activeMenu === 'home'"></home-editor>
         <category-editor ref="categoryEditor" v-else-if="activeMenu === 'category'"></category-editor>
         <detail-editor ref="detailEditor" v-else-if="activeMenu === 'detail'"></detail-editor>
+        <cart-editor ref="cartEditor" v-else-if="activeMenu === 'cart'"></cart-editor>
         <user-editor ref="userEditor" v-else-if="activeMenu === 'user'"></user-editor>
       </div>
     </div>
@@ -46,6 +47,7 @@ import HomeEditor from './components/HomeEditor.vue';
 import CategoryEditor from './components/CategoryEditor.vue';
 import DetailEditor from './components/DetailEditor.vue';
 import UserEditor from './components/UserEditor.vue';
+import CartEditor from './components/CartEditor.vue';
 import { saveThemeTitle, themeInfo } from '@/api/diy';
 
 export default {
@@ -58,6 +60,7 @@ export default {
     CategoryEditor,
     DetailEditor,
     UserEditor,
+    CartEditor,
   },
   data() {
     return {
@@ -109,17 +112,21 @@ export default {
           this.$message.error(err.msg);
         });
     },
-    handleMenuChange(menuKey) {
+    async handleMenuChange(menuKey) {
       if (this.isDirty) {
         this.isDirty = false;
       }
-      this.activeMenu = menuKey;
       if (this.$route.query.type !== menuKey) {
-        this.$router.replace({ query: { ...this.$route.query, type: menuKey } });
+        await this.$router.replace({ query: { ...this.$route.query, type: menuKey } });
       }
+      this.activeMenu = menuKey;
     },
-    handleSidebarSave(key) {
-      this.onSave();
+    async handleSidebarSave(key) {
+      if (await this.onSave()) {
+        if (this.isDirty) return;
+        if (key === 'back') this.$router.back();
+        else this.handleMenuChange(key);
+      }
     },
     handleUpdateInfo(data) {
       this.themeName = data.title;
@@ -157,6 +164,8 @@ export default {
           return 'detailEditor';
         case 'user':
           return 'userEditor';
+        case 'cart':
+          return 'cartEditor';
         default:
           return '';
       }
@@ -170,7 +179,7 @@ export default {
     onSave() {
       const refName = this.getRefName();
       if (refName && this.$refs[refName] && this.$refs[refName].saveOnly) {
-        this.$refs[refName].saveOnly();
+        return this.$refs[refName].saveOnly();
       }
     },
     onSaveClose() {

@@ -23,7 +23,7 @@ const uni = {
     let selector;
     return { in() { return this; }, selectAll(value) { selector = value; return this; }, boundingClientRect() { return this; },
       exec(callback) {
-        if (selector === '.listw') { categoryGeometryReads++; callback([[{ top: 50 }, { top: 150 }, { top: 450 }]]); }
+        if (selector === '.category-scroll-origin, .listw') { categoryGeometryReads++; callback([[{ top: 50 }, { top: 50 }, { top: 150 }, { top: 450 }]]); }
         else callback([[{ height: 44 }, { height: 50 }, { height: 56 }]]);
       },
     };
@@ -45,7 +45,7 @@ function load(file, platform = { H5: true }, named = false) {
   vm.runInNewContext(code, { module, exports: module.exports, uni,
     getApp: () => ({ globalData: {} }), getCurrentPages: () => [{ route: 'pages/goods_cate/goods_cate' }],
     setTimeout: () => 1, clearTimeout() {},
-    require: id => id in imports ? imports[id]
+    require: id => id.includes('shared/') || (id.startsWith('.') && (file.includes('shared/') || file.startsWith('mixins/'))) ? load(path.posix.normalize(path.posix.join(path.posix.dirname(file), id)), platform, true) : id in imports ? imports[id]
       : id === '@/utils/categoryNavigation.js' ? load(id.slice(2), platform, true)
         : (id.startsWith('@/mixins/') ? load(id.slice(2), platform) : {}),
   });
@@ -94,7 +94,28 @@ function instance(options, overrides = {}) {
     layoutOne.scroll({ detail: { scrollTop } });
     assert.equal(layoutOne.navActive, expected, `Category scroll selection at ${scrollTop}`);
   }
+  layoutOne.decoration = { show_recommend: 1 };
+  layoutOne.hightArr = [200, 300, 600];
+  for (const [scrollTop, expected] of [[0, -1], [199, -1], [200, 0], [299, 0], [300, 1]]) {
+    layoutOne.lock = false;
+    layoutOne.scroll({ detail: { scrollTop } });
+    assert.equal(layoutOne.navActive, expected, 'Recommendation/banner height must count towards section selection');
+  }
   layoutOne.$destroy();
+  const products = instance(load('components/categoryProductList/index.vue'));
+  const cartEvents = [];
+  for (const event of ['detail', 'gocartdan', 'gocartduo', 'ChangeCartNumDan']) products.$on(event, (...args) => cartEvents.push([event, ...args]));
+  const single = { id: 1, stock: 10, cart_button: 1, spec_type: 0 };
+  products.buy(single, 2);
+  products.buy({ ...single, spec_type: 1 }, 3);
+  products.buy({ ...single, stock: 0 }, 4);
+  products.buy({ ...single, activity: { type: '1' } }, 5);
+  products.changeQuantity(true, 2, single);
+  products.changeQuantity(true, 2, single);
+  assert.deepEqual(cartEvents.map(event => event[0]), ['gocartduo', 'gocartduo', 'detail', 'ChangeCartNumDan']);
+  assert.equal(cartEvents[0][1].id, 1, 'Single-spec products open the same confirmation flow');
+  assert.equal(cartEvents[3][1], true, 'Quantity events preserve the existing parent contract');
+  products.$destroy();
   requests.length = 0;
   const initialData = { data: [{ id: 1, children: [] }] };
   const shared = instance(load('mixins/categoryData.js'), { propsData: { initialCategoryRequest: Promise.resolve(initialData) } });

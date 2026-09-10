@@ -508,6 +508,8 @@ export default {
         custom_form: [], //自定义留言
         store_name: '',
         cate_id: [],
+        brand_ids: [],
+        brand_list: [],
         label_id: [],
         keyword: '',
         unit_name: '',
@@ -735,7 +737,11 @@ export default {
               this.couponName = data.coupons;
             }
 
-            this.formValidate = data;
+            this.formValidate = {
+              ...data,
+              brand_ids: Array.isArray(data.brand_ids) ? data.brand_ids.map(Number) : [],
+              brand_list: Array.isArray(data.brand_list) ? data.brand_list : [],
+            };
             this.dataLabel = data.label_id;
             this.formValidate.coupon_ids = ids;
             this.updateIds = ids;
@@ -1018,6 +1024,8 @@ export default {
         ...this.formValidate,
         ...productData,
         cate_id,
+        brand_ids: Array.isArray(data.brand_ids) ? data.brand_ids.map(Number) : [],
+        brand_list: Array.isArray(data.brand_list) ? data.brand_list : [],
         label_id,
         coupons,
         is_show: isShow,

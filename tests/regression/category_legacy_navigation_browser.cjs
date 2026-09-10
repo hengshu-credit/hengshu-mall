@@ -1,0 +1,32 @@
+const assert=require('node:assert/strict');
+const {chromium}=require('playwright');
+const {bundle,install}=require('./theme_component_harness.cjs');
+(async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});try{
+ const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
+ page.on('pageerror',error=>errors.push(error.message));
+ await install(page,bundle('template/admin/src/pages/setting/theme/editTheme/components/CategoryEditor.vue'));
+ await page.waitForFunction(()=>!editor.loading);
+ await page.evaluate(()=>{
+   themeData.category=1;
+   themeData.home={value:{legacy:{name:'pageFoot',isHide:true,menuList:[{name:'旧首页',link:'/pages/index/index',imgList:[]}]}}};
+   mountEditor();
+ });
+ await page.waitForFunction(()=>!editor.loading);
+ assert.equal(await page.evaluate(()=>editor.hasNavigation),true,'legacy pageFoot without visiblePages inherits in category editor');
+ assert.equal(await page.evaluate(()=>editor.config.navigation.isHide),true,'inherited hidden state is preserved');
+ assert.equal(await page.locator('.editor-module-frame.hidden .module-name').innerText(),'导航栏');
+ await page.getByRole('button',{name:'保存分类页',exact:true}).click();
+ await page.waitForFunction(()=>saved.length===1);
+ assert.equal(await page.evaluate(()=>saved[0].value.navigation_mode),'page');
+ assert.equal(await page.evaluate(()=>saved[0].value.navigation.menuList[0].name),'旧首页');
+ assert.equal(await page.evaluate(()=>saved[0].value.navigation.isHide),true);
+ await page.evaluate(()=>mountEditor());await page.waitForFunction(()=>!editor.loading);
+ assert.equal(await page.evaluate(()=>editor.config.navigation.menuList[0].name),'旧首页');
+ await page.locator('.module-grid button').filter({hasText:'导航栏'}).click();
+ await page.getByRole('button',{name:'删除导航栏',exact:true}).click();
+ await page.getByRole('button',{name:'保存分类页',exact:true}).click();await page.waitForFunction(()=>saved.length===2);
+ await page.evaluate(()=>mountEditor());await page.waitForFunction(()=>!editor.loading);
+ assert.equal(await page.evaluate(()=>editor.hasNavigation),false,'explicit page-scoped deletion never inherits legacy home again');
+ assert.deepEqual(errors,[]);
+ console.log('PASS category legacy navigation: no metadata inheritance, hidden state, save reload and explicit deletion');
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

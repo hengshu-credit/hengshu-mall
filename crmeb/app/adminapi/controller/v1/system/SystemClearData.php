@@ -132,6 +132,9 @@ class SystemClearData extends AuthController
         $productCate = app()->make(StoreProductCateServices::class);
         $productCate->delete([['product_id', 'in', $ids]]);
 
+        // 品牌定义保留，彻底删除商品时移除其品牌关系。
+        if ($ids) \think\facade\Db::name('store_product_brand_relation')->whereIn('product_id', $ids)->delete();
+
         //删除商品关联优惠券数据
         /** @var StoreProductCouponServices $productCoupon */
         $productCoupon = app()->make(StoreProductCouponServices::class);
@@ -284,6 +287,7 @@ class SystemClearData extends AuthController
             'store_product_attr_result',
             'store_product_attr_value',
             'store_product_cate',
+            'store_product_brand_relation',
             'store_product_coupon',
             'store_product_description',
             'store_product_log',

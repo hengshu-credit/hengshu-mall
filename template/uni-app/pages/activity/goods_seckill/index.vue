@@ -32,6 +32,7 @@
 					<view class="item acea-row row-between-wrapper" @tap="goDetails(item)">
 						<view class="pictrue">
 							<image :src="item.image"></image>
+					<marketing-style :marketing-style="item.marketing_style" />
 						</view>
 						<view class="text acea-row row-column-around">
 							<view class="name line2">{{ item.title }}</view>
@@ -299,6 +300,7 @@ page {
 }
 
 .flash-sale .list .item .pictrue {
+  position: relative;
 	width: 180rpx;
 	height: 180rpx;
 	border-radius: 10rpx;

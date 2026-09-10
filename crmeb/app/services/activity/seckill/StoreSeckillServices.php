@@ -435,7 +435,7 @@ class StoreSeckillServices extends BaseServices
                 $item['ot_price'] = floatval($item['ot_price']);
             }
         }
-        return $seckillInfo;
+        return app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts($seckillInfo, 'product_id');
     }
 
     /**
@@ -549,6 +549,7 @@ class StoreSeckillServices extends BaseServices
         event('UserVisitListener', [$uid, $id, 'seckill', $storeInfo['product_id'], 'view']);
         //浏览记录
         ProductLogJob::dispatch(['visit', ['uid' => $uid, 'product_id' => $storeInfo['product_id']]]);
+        $data['storeInfo'] = app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts([$data['storeInfo']], 'product_id')[0];
         return $data;
     }
 

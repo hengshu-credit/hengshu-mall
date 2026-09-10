@@ -1,0 +1,28 @@
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const {root,transform}=require('./theme_component_harness.cjs');
+function shared(name){const m={exports:{}};new Function('module','exports','require',transform(fs.readFileSync(path.join(root,'template/shared',name+'.js'),'utf8')))(m,m.exports,id=>shared(id.replace('./','')));return m.exports;}
+const {normalizeCategoryPage}=shared('categoryPageConfig'),{normalizeCartPage}=shared('cartPageConfig');
+const old={status:3,page_title:'原分类标题',title_hidden:1,search_hidden:1,search_placeholder:'原搜索内容',title_actions:{left:[{type:'link',label:'首页',link:'/pages/index/index'}]},search_actions:{right:[{type:'search'}]}};
+const category=normalizeCategoryPage(old);
+assert.equal(category.title_component.name,'pageTitleBar');
+assert.equal(category.title_component.title,'原分类标题');
+assert.equal(category.title_component.isHide,true);
+assert.equal(category.search_component.name,'headerSerch');
+assert.equal(category.search_component.tipConfig.value,'原搜索内容');
+assert.equal(category.search_component.isHide,true);
+category.title_component.title='统一标题';category.title_component.textColor='#2468AB';category.title_component.isHide=false;
+category.search_component.tipConfig.value='统一搜索内容';category.search_component.isHide=false;
+const saved=normalizeCategoryPage(category);
+assert.equal(saved.page_title,'统一标题');assert.equal(saved.title_hidden,0);assert.equal(saved.search_placeholder,'统一搜索内容');assert.equal(saved.search_hidden,0);
+assert.equal(old.page_title,'原分类标题');
+assert.deepEqual(normalizeCategoryPage(saved),saved,'component migration and save must be stable');
+const cart=normalizeCartPage({page_title:'原购物车',title_actions:{right:[]}});
+assert.equal(cart.title_component.title,'原购物车');assert.equal(cart.title_component.headerActions.right.length,0);
+cart.title_component.title='统一购物车';cart.title_component.textColor='#2468AB';
+assert.equal(normalizeCartPage(cart).page_title,'统一购物车');
+const service=shared('productService');
+assert.deepEqual(service.serviceSelection({checkBoxConfig:{type:['0','3']}}),[0,3]);
+assert.equal(service.serviceSummary([{title:'正品保障'},{title:'七天退换'},{title:''}],'title'),'正品保障 · 七天退换');
+fs.mkdirSync(path.join(root,'.build'),{recursive:true});
+fs.writeFileSync(path.join(root,'.build/component-reuse-fixtures.json'),JSON.stringify({category:saved,cart:normalizeCartPage(cart)}));
+console.log('PASS shared components: legacy migration, common schemas, hidden states, stable saves and service summaries');

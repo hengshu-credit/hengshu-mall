@@ -31,12 +31,11 @@
 		{
 			"path": "pages/order_addcart/order_addcart",
 			"style": {
+				"navigationStyle": "custom",
 				"navigationBarTitleText": "购物车",
 				"app-plus": {
 					// #ifdef APP-PLUS
-					"titleNView": {
-						"type": "default"
-					}
+					"titleNView": false
 					// #endif
 				}
 
@@ -64,12 +63,11 @@
 		{
 			"path": "pages/goods_cate/goods_cate",
 			"style": {
+				"navigationStyle": "custom",
 				"navigationBarTitleText": "商品分类",
 				"app-plus": {
 					// #ifdef APP-PLUS
-					"titleNView": {
-						"type": "default"
-					}
+					"titleNView": false
 					// #endif
 				}
 
@@ -1706,7 +1704,10 @@
 					}
 				}
 			]
-		},
+		}
+		// #ifndef APP-PLUS
+		,
+		// App 首页直接依赖装修组件，需随主包加载；小程序保留原分包。
 		{
 			"root": "subpackage/diyComponents",
 			"name": "diyComponents",
@@ -1716,7 +1717,8 @@
 					"navigationBarTitleText": ""
 				}
 			}]
-		}	
+		}
+		// #endif
 
 	],
 	"tabBar": { // 底部菜单

@@ -1,5 +1,5 @@
 <template>
-	<view>
+	<view class="category-cart-layer" :class="{ 'is-open': cartData.iScart }">
 		<view class="cartList" :class="cartData.iScart?'on':''">
 			<view class="title acea-row row-between-wrapper">
 				<view class="name">{{$t(`已选商品`)}}</view>
@@ -37,7 +37,7 @@
 				</view>
 			</view>
 		</view>
-		<view class="mask" v-if="cartData.iScart" @click="closeList"></view>
+		<view class="mask category-cart-mask" v-if="cartData.iScart" @click="closeList"></view>
 	</view>
 </template>
 
@@ -74,9 +74,16 @@
 </script>
 
 <style lang="scss">
-	.mask {
-		z-index: 99;
+	.category-cart-layer.is-open {
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		z-index: 1100;
 	}
+	.category-cart-layer.is-open > .cartList { z-index: 2 !important; }
+	.category-cart-layer.is-open > .category-cart-mask { z-index: 1 !important; }
 
 	.cartList {
 		position: fixed;

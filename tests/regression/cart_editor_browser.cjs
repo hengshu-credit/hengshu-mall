@@ -1,0 +1,48 @@
+const assert=require('node:assert/strict'),path=require('node:path'),fs=require('node:fs');
+const {chromium}=require('playwright');
+const {bundle,install,root}=require('./theme_component_harness.cjs');
+(async()=>{
+  const browser=await chromium.launch({channel:'chrome',headless:true});
+  try{
+    const page=await browser.newPage({viewport:{width:1500,height:960}}),errors=[];
+    page.on('pageerror',error=>errors.push(error.message));
+    await install(page,bundle('template/admin/src/pages/setting/theme/editTheme/components/CartEditor.vue'));
+    await page.waitForFunction(()=>!editor.loading);
+    assert.equal(await page.locator('.cart-library button').count(),5);
+    await page.locator('.cart-form .el-form-item').filter({hasText:'页面标题'}).locator('input').fill('我的购物袋');
+    await page.locator('.cart-library button').filter({hasText:'服务保障'}).click();
+    await page.locator('.cart-form .el-form-item').filter({hasText:'服务文案1'}).locator('input').fill('品质保障');
+    await page.locator('.cart-library button').filter({hasText:'购物车商品'}).click();
+    await page.getByRole('tab',{name:'样式设置',exact:true}).click();
+    const radius=page.locator('.margin-style-config').filter({hasText:'背景圆角'}).locator('input').first();
+    await radius.fill('18');await radius.press('Enter');
+    assert.equal(await page.locator('.cart-product').first().evaluate(el=>getComputedStyle(el).borderRadius),'18px');
+    await page.locator('.cart-library button').filter({hasText:'购物车结算栏'}).click();
+    await page.locator('.cart-form .el-form-item').filter({hasText:'结算按钮文字'}).locator('input').fill('去结算');
+    await page.locator('.cart-library button').filter({hasText:'导航栏'}).click();
+    assert.match(await page.locator('.navigation-preview-menu button').nth(2).locator('img').getAttribute('src'),/3-002/);
+    await page.getByRole('button',{name:'保存购物车页',exact:true}).click();
+    await page.waitForFunction(()=>saved.length===1);
+    assert.equal(await page.evaluate(()=>saved[0].type),'cart');
+    await page.evaluate(()=>mountEditor());await page.waitForFunction(()=>!editor.loading);
+    assert.equal(await page.locator('.cart-title .page-title-text').innerText(),'我的购物袋');
+    assert.equal(await page.locator('.cart-checkout button').innerText(),'去结算');
+    await page.getByText('空购物车',{exact:true}).click();
+    assert.equal(await page.locator('.cart-checkout').count(),0);
+    await page.locator('.cart-library button').filter({hasText:'导航栏'}).click();
+    await page.getByRole('button',{name:'删除导航栏',exact:true}).click();
+    await page.getByRole('button',{name:'保存购物车页',exact:true}).click();
+    await page.waitForFunction(()=>saved.length===2);await page.evaluate(()=>mountEditor());await page.waitForFunction(()=>!editor.loading);
+    assert.equal(await page.locator('.navigation-preview-menu').count(),0);
+    await page.locator('.cart-library button').filter({hasText:'购物车商品'}).click();
+    assert.equal(await page.locator('.editor-module-frame.selected .module-name').innerText(),'购物车商品');
+    assert.equal(await page.locator('.cart-preview-scroll').evaluate(el=>getComputedStyle(el).scrollbarWidth),'none');
+    await page.locator('.cart-library button').filter({hasText:'购物车结算栏'}).click();
+    await page.getByRole('button',{name:'隐藏购物车结算栏',exact:true}).click();
+    assert.equal(await page.locator('.editor-module-frame.selected.hidden').count(),1);
+    fs.mkdirSync(path.join(root,'.build/theme-consistency/screenshots'),{recursive:true});
+    await page.screenshot({path:path.join(root,'.build/theme-consistency/screenshots/cart-editor.png')});
+    assert.deepEqual(errors,[]);
+    console.log('PASS cart editor: page settings, service labels, product corners, checkout, active navigation, persistence and deletion');
+  }finally{await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

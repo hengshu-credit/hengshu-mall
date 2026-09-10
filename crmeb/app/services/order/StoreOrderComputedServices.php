@@ -91,9 +91,15 @@ class StoreOrderComputedServices extends BaseServices
             }
         }
         $cartInfo = $cartGroup['cartInfo'];
+        // Server-side activity state and member restrictions are re-read on every calculation.
+        $fullReduction = app()->make(\app\services\activity\fullreduction\FullReductionQuoteServices::class)->quote($uid, $cartInfo);
+        foreach ($cartInfo as &$cart) {
+            $cart['full_reduction_price'] = $fullReduction['lines'][(string)$cart['id']]['full_reduction_price'] ?? '0.00';
+        }
+        unset($cart);
         $priceGroup = $cartGroup['priceGroup'];
         $other = $cartGroup['other'];
-        $payPrice = (float)$priceGroup['totalPrice'];
+        $payPrice = bcsub((string)$priceGroup['totalPrice'], $fullReduction['full_reduction_price'], 2);
         $addr = $cartGroup['addr'] ?? [];
         $postage = $priceGroup;
         if (!$addr || $addr['id'] != $addressId) {
@@ -109,16 +115,18 @@ class StoreOrderComputedServices extends BaseServices
         $combinationId = $this->paramData['combinationId'] ?? 0;
         $seckillId = $this->paramData['seckill_id'] ?? 0;
         $bargainId = $this->paramData['bargainId'] ?? 0;
-        $isActivity = $combinationId || $seckillId || $bargainId;
+        // Activity eligibility comes from the server-owned cart, not request-supplied flags.
+        $isActivity = false;
+        foreach ($cartInfo as $cart) if (!empty($cart['combination_id']) || !empty($cart['seckill_id']) || !empty($cart['bargain_id'])) $isActivity = true;
         if (!$isActivity) {
             //使用优惠劵
-            [$payPrice, $couponPrice] = $this->useCouponId($couponId, $uid, $cartInfo, $payPrice, $isCreate);
+            [$payPrice, $couponPrice, $couponCart] = $this->useCouponId($couponId, $uid, $cartInfo, $payPrice, $isCreate);
             //使用积分
             [$payPrice, $deductionPrice, $usedIntegral, $SurplusIntegral] = $this->useIntegral($useIntegral, $userInfo, $payPrice, $other);
         }
 
         //计算邮费
-        [$payPrice, $payPostage, $storePostageDiscount, $storeFreePostage, $isStoreFreePostage] = $this->computedPayPostage($shippingType, $payType, $cartInfo, $addr, $payPrice, $postage, $other, $userInfo, $is_gift);
+        [$payPrice, $payPostage, $storePostageDiscount, $storeFreePostage, $isStoreFreePostage, $postageCart] = $this->computedPayPostage($shippingType, $payType, $cartInfo, $addr, $payPrice, $postage, $other, $userInfo, $is_gift);
 
         //赠送商品计算
         $payPrice = bcadd($payPrice, $priceGroup['giftPrice'], 2);
@@ -129,6 +137,11 @@ class StoreOrderComputedServices extends BaseServices
             'pay_price' => $payPrice > 0 ? $payPrice : 0,
             'pay_postage' => $payPostage,
             'coupon_price' => $couponPrice ?? 0,
+            'full_reduction_price' => $fullReduction['full_reduction_price'],
+            'full_reduction_cart' => $fullReduction['lines'],
+            'full_reduction_activities' => $fullReduction['activities'],
+            'coupon_cart' => $couponCart ?? [],
+            'postage_cart' => $postageCart,
             'deduction_price' => $deductionPrice ?? 0,
             'usedIntegral' => $usedIntegral ?? 0,
             'SurplusIntegral' => $SurplusIntegral ?? 0,
@@ -152,6 +165,7 @@ class StoreOrderComputedServices extends BaseServices
     {
         //使用优惠劵
         $res1 = true;
+        $couponWeights = [];
         if ($couponId) {
             /** @var StoreCouponUserServices $couponServices */
             $couponServices = app()->make(StoreCouponUserServices::class);
@@ -167,7 +181,9 @@ class StoreOrderComputedServices extends BaseServices
                 case 0:
                 case 3:
                     foreach ($cartInfo as $cart) {
-                        $price = bcadd($price, bcmul((string)$cart['truePrice'], (string)$cart['cart_num'], 2), 2);
+                        $amount = \app\services\activity\fullreduction\FullReductionCalculator::lineSubtotal($cart);
+                        $price = bcadd($price, $amount, 2);
+                        $couponWeights[(string)$cart['id']] = \app\services\activity\fullreduction\FullReductionCalculator::cents($amount);
                         $count++;
                     }
                     break;
@@ -180,7 +196,9 @@ class StoreOrderComputedServices extends BaseServices
                         $cateIds = array_column($category_ids, 'id');
                         foreach ($cartInfo as $cart) {
                             if (isset($cart['productInfo']['cate_id']) && array_intersect(explode(',', $cart['productInfo']['cate_id']), $cateIds)) {
-                                $price = bcadd($price, bcmul((string)$cart['truePrice'], (string)$cart['cart_num'], 2), 2);
+                                $amount = \app\services\activity\fullreduction\FullReductionCalculator::lineSubtotal($cart);
+                                $price = bcadd($price, $amount, 2);
+                                $couponWeights[(string)$cart['id']] = \app\services\activity\fullreduction\FullReductionCalculator::cents($amount);
                                 $count++;
                             }
                         }
@@ -189,7 +207,9 @@ class StoreOrderComputedServices extends BaseServices
                 case 2:
                     foreach ($cartInfo as $cart) {
                         if (isset($cart['product_id']) && in_array($cart['product_id'], explode(',', $couponInfo['product_id']))) {
-                            $price = bcadd($price, bcmul((string)$cart['truePrice'], (string)$cart['cart_num'], 2), 2);
+                            $amount = \app\services\activity\fullreduction\FullReductionCalculator::lineSubtotal($cart);
+                            $price = bcadd($price, $amount, 2);
+                            $couponWeights[(string)$cart['id']] = \app\services\activity\fullreduction\FullReductionCalculator::cents($amount);
                             $count++;
                         }
                     }
@@ -212,7 +232,9 @@ class StoreOrderComputedServices extends BaseServices
         if (!$res1) {
             throw new ApiException('使用优惠劵失败');
         }
-        return [$payPrice, $couponPrice];
+        $couponCart = array_map([\app\services\activity\fullreduction\FullReductionCalculator::class, 'money'],
+            \app\services\activity\fullreduction\FullReductionCalculator::allocate(\app\services\activity\fullreduction\FullReductionCalculator::cents($couponPrice), $couponWeights));
+        return [$payPrice, $couponPrice, $couponCart];
     }
 
     /**
@@ -303,7 +325,7 @@ class StoreOrderComputedServices extends BaseServices
                 $payPrice = (float)bcadd((string)$payPrice, (string)$payPostage, 2);
             }
         }
-        return [$payPrice, $payPostage, $storePostageDiscount, $storeFreePostage, $isStoreFreePostage];
+        return [$payPrice, $payPostage, $storePostageDiscount, $storeFreePostage, $isStoreFreePostage, array_column($postage['cartInfo'] ?? $cartInfo, 'postage_price', 'id')];
     }
 
     /**
@@ -546,6 +568,10 @@ class StoreOrderComputedServices extends BaseServices
         $SumPrice = 0;
         foreach ($cartInfo as $cart) {
             if (isset($cart['cart_info'])) $cart = $cart['cart_info'];
+            if ($is_unit && $key === 'truePrice' && !empty($cart['full_reduction_settled'])) {
+                $SumPrice = bcadd($SumPrice, $cart['sum_true_price'], 2);
+                continue;
+            }
             if ($is_unit) {
                 if ($key == 'level' || $key == 'member') {
                     if ($cart['price_type'] == $key) {

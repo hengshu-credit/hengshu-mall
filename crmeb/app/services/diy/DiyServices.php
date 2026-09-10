@@ -309,6 +309,7 @@ class DiyServices extends BaseServices
         foreach ($data['list'] as &$item) {
             $item['image'] = set_file_url($item['image'], sys_config('site_url'));
         }
+        if (in_array((int)$type, [2,3,8], true)) $data['list'] = app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts($data['list'], 'product_id');
         return $data;
     }
 

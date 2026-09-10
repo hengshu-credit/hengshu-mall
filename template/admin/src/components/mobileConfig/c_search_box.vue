@@ -12,7 +12,8 @@
           :num="item.num"
         ></component>
       </div>
-      <rightBtn :activeIndex="activeIndex" :configObj="configObj"></rightBtn>
+      <header-actions-settings v-if="configObj.headerActions && setUp === 0" :config="configObj.headerActions" />
+      <rightBtn v-if="!dataConfig" :activeIndex="activeIndex" :configObj="configObj"></rightBtn>
     </Form>
   </div>
 </template>
@@ -20,12 +21,15 @@
 <script>
 import toolCom from '@/components/mobileConfigRight/index.js';
 import rightBtn from '@/components/rightBtn/index.vue';
+import HeaderActionsSettings from '@/components/themeActions/HeaderActionsSettings';
+import { headerActions } from '../../../../shared/pageActions';
 import { mapMutations } from 'vuex';
 export default {
   name: 'c_search_box',
   componentsName: 'search_box',
   cname: '搜索框',
   props: {
+    dataConfig: { type: Object, default: null },
     activeIndex: {
       type: null,
     },
@@ -39,6 +43,7 @@ export default {
   components: {
     ...toolCom,
     rightBtn,
+    HeaderActionsSettings,
   },
   data() {
     return {
@@ -160,13 +165,16 @@ export default {
     };
   },
   watch: {
+    dataConfig: { immediate: true, handler(value) { if (value) this.useConfig(value); } },
     num(nVal) {
+      if (this.dataConfig) return;
       // debugger;
       let value = JSON.parse(JSON.stringify(this.$store.state.mobildConfig.defaultArray[nVal]));
-      this.configObj = value;
+      this.configObj = this.patchConfig(value);
     },
     configObj: {
       handler(nVal, oVal) {
+        if (this.dataConfig) return;
         this.$store.commit('mobildConfig/UPDATEARR', { num: this.num, val: nVal });
       },
       deep: true,
@@ -210,12 +218,23 @@ export default {
   },
   mounted() {
     this.$nextTick(() => {
+      if (this.dataConfig) { this.useConfig(this.dataConfig); return; }
       let value = JSON.parse(JSON.stringify(this.$store.state.mobildConfig.defaultArray[this.num]));
       this.configObj = this.patchConfig(value);
     });
   },
   methods: {
+    useConfig(config) {
+      this.configObj = config;
+      this.setUp = config.setUp.tabVal;
+      this.type = config.styleConfig.tabVal;
+      this.type2 = config.styleTypeConfig.tabVal;
+      const tabs = [this.rCom[0]];
+      if (this.setUp === 0) this.getRComContent(tabs);
+      else this.getRComStyle(tabs);
+    },
     patchConfig(config) {
+      config.headerActions = headerActions(config.headerActions);
       if (!config.paddingConfig) {
         config.paddingConfig = {
           title: '内边距',

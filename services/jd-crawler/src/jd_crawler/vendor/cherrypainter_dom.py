@@ -754,86 +754,47 @@ return JSON.stringify(result);
         return {}
 
     def _extract_detail_images_by_js(self):
-        """
-        通过JS提取详情区域图片
-
-        关键发现：
-        - 详情图URL格式：//img30.360buyimg.com/sku/jfs/t1/.../xxx.jpg.avif
-        - 展示方式：background-image CSS属性（不是<img>标签）
-        - 容器：div.ssd-module 类
-        - 特点：没有尺寸标识，原始URL即为高清图
-        """
+        """Collect ordered native images and CSS layers in the product description."""
         js_script = r"""
-// 清理URL中的反引号
-function cleanUrl(url) {
-    if (!url) return '';
-    return url.replace(/`/g, '').trim();
+var urls = [], seen = {};
+function add(value) {
+    if (typeof value !== 'string') return;
+    value = value.trim();
+    if (!value || !/^(https?:)?\/\//.test(value) || seen[value]) return;
+    seen[value] = true;
+    urls.push({type: 'image', url: value});
 }
-
-var urls = [];
-var seen = {};
-
-// 策略1：查找背景图片（详情图是background-image形式）
-var allEls = document.querySelectorAll('*');
-for (var i = 0; i < allEls.length; i++) {
-    var el = allEls[i];
-    var style = window.getComputedStyle(el);
-    var bg = style.backgroundImage || el.style.backgroundImage || '';
-
-    if (bg && bg.indexOf('360buyimg') > -1 && bg.indexOf('url(') > -1) {
-        // 提取URL
-        var match = bg.match(/url\(["']?([^"')]+)["']?\)/);
-        if (match) {
-            var url = cleanUrl(match[1]);
-            // 只取 /sku/jfs/ 路径的详情图
-            if (url.indexOf('/sku/jfs/') === -1) continue;
-            // 排除已存在的
-            if (seen[url]) continue;
-            seen[url] = true;
-            urls.push({"type": "image", "url": url});
+function scan(doc) {
+    var roots = doc.querySelectorAll('#J-detail-content, #detail, #product-detail, .detail-content, .ssd-module-wrap, .ssd-module');
+    var visited = new Set();
+    function visit(el) {
+        if (visited.has(el)) return;
+        visited.add(el);
+        if (el.tagName === 'IMG') {
+            add(el.getAttribute('data-origin') || el.getAttribute('data-original') ||
+                el.getAttribute('data-lazyload') || el.getAttribute('data-src') ||
+                el.getAttribute('data-lazy') || el.getAttribute('lazy-img') ||
+                el.currentSrc || el.getAttribute('src'));
         }
-    }
-}
-
-// 策略2：兜底 - 从页面下半部分查找所有 /sku/jfs/ 图片
-if (urls.length === 0) {
-    var pageHeight = document.body.scrollHeight;
-    for (var i = 0; i < allEls.length; i++) {
-        var el = allEls[i];
-        var rect = el.getBoundingClientRect();
-        // 详情图在页面30%以下
-        if (rect.top < pageHeight * 0.3) continue;
-
-        var style = window.getComputedStyle(el);
-        var bg = style.backgroundImage || el.style.backgroundImage || '';
-
-        if (bg && bg.indexOf('360buyimg') > -1 && bg.indexOf('url(') > -1) {
-            var match = bg.match(/url\(["']?([^"')]+)["']?\)/);
-            if (match) {
-                var url = cleanUrl(match[1]);
-                if (url.indexOf('/sku/jfs/') === -1) continue;
-                if (seen[url]) continue;
-                seen[url] = true;
-                urls.push({"type": "image", "url": url});
-            }
+        add(el.getAttribute('data-background'));
+        var bg = doc.defaultView.getComputedStyle(el).backgroundImage || '';
+        var match, pattern = /url\(["']?([^"')]+)["']?\)/g;
+        while ((match = pattern.exec(bg))) add(match[1]);
+        if (el.tagName === 'IFRAME') {
+            try { if (el.contentDocument) scan(el.contentDocument); } catch (e) {}
         }
+        for (var i = 0; i < el.children.length; i++) visit(el.children[i]);
     }
+    for (var i = 0; i < roots.length; i++) visit(roots[i]);
 }
-
+scan(document);
 return JSON.stringify(urls);
         """
-
         try:
             raw = self.page.run_js(js_script)
-            if raw:
-                import json as _json
-                urls = _json.loads(raw)
-                print(f"[提取] 详情图: {len(urls)} 张")
-                return urls  # 现在返回的是多尺寸数组
-        except Exception as e:
-            print(f"[提取] 详情图提取失败: {e}")
-
-        return []
+            return json.loads(raw) if raw else []
+        except Exception:
+            return []
 
     def _slow_scroll_to_load(self, pause=None, step_ratio=0.75, max_steps=60):
         """慢速平滑滚动到页面底部，逐屏停留触发懒加载。
@@ -871,7 +832,7 @@ return JSON.stringify(urls);
 
                 target = int(y + vh * step_ratio)
                 # 平滑滚动（配合停顿让 smooth 动画走完，也给懒加载留时间）
-                self.page.run_js("window.scrollTo({top: %d, behavior: 'smooth'});" % target)
+                self.page.run_js("window.scrollTo({top: %d, behavior: 'instant'});" % target)
                 time.sleep(pause)
 
                 # 到底判定：目标已越过文档底部

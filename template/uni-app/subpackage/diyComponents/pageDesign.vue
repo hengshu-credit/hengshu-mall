@@ -32,6 +32,7 @@
       <headerSerch
         v-if="isHeaderSerch"
         :dataConfig="headerSerchCombData"
+        :product="productData || {}" @action="$emit('pageAction', $event)"
         :belongIndex="belongIndex"
         @storeTap="storeTap"
       ></headerSerch>
@@ -48,6 +49,7 @@
         <!-- 自定义样式 -->
         <block v-for="(item, index) in styleConfig" :key="index">
           <view :id="item.id">
+            <page-title v-if="item.name === 'pageTitleBar'" :dataConfig="item" :product="productData || {}" @action="$emit('pageAction', $event)" />
             <userInfor
               v-if="item.name == 'userInfor'"
               :dataConfig="item"
@@ -240,7 +242,7 @@
         <pageFooter
           v-if="footerConfigData"
           :configData="footerConfigData"
-          @newDataStatus="newDataStatus"
+          @newDataStatus="newDataStatus" @heightChange="$emit('navigationHeight', $event)"
         ></pageFooter>
       </view>
     </view>
@@ -257,6 +259,7 @@
 
 <script>
 import pageFooter from "@/components/pageFooter/index.vue";
+import pageTitle from "./pageTitle.vue";
 import { HTTP_REQUEST_URL } from "@/config/app";
 import colors from "@/mixins/color";
 // diyComponents - 同目录使用相对路径
@@ -300,6 +303,7 @@ import customComponent from "./customComponent.vue";
 export default {
   name: "PageDesign",
   components: {
+    pageTitle,
     pageFooter,
     homeComb,
     headerSerch,
@@ -563,7 +567,7 @@ export default {
       if (data.value) {
         let lastArr = this.objToArr(data.value);
         lastArr.forEach((item) => {
-          if (item.name == "pageFoot" && !this.microPage) {
+          if (["pageFoot", "mainNavigation"].includes(item.name)) {
             this.footerConfigData = item;
           }
           if (item.name === "homeComb" && !item.isHide) {

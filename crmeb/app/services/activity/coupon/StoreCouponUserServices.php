@@ -132,6 +132,9 @@ class StoreCouponUserServices extends BaseServices
         $result = [];
         if ($userCoupons) {
             $cartInfo = $cartGroup['valid'];
+            $fullReduction = app()->make(\app\services\activity\fullreduction\FullReductionQuoteServices::class)->quote($uid, $cartInfo);
+            foreach ($cartInfo as &$cart) $cart['full_reduction_price'] = $fullReduction['lines'][(string)$cart['id']]['full_reduction_price'] ?? '0.00';
+            unset($cart);
             foreach ($userCoupons as $coupon) {
                 $price = 0;
                 $count = 0;
@@ -139,7 +142,7 @@ class StoreCouponUserServices extends BaseServices
                     case 0:
                     case 3:
                         foreach ($cartInfo as $cart) {
-                            $price += bcmul((string)$cart['truePrice'], (string)$cart['cart_num'], 2);
+                            $price = bcadd((string)$price, \app\services\activity\fullreduction\FullReductionCalculator::lineSubtotal($cart), 2);
                             $count++;
                         }
                         break;
@@ -152,7 +155,7 @@ class StoreCouponUserServices extends BaseServices
                             $cateIds = array_column($category_ids, 'id');
                             foreach ($cartInfo as $cart) {
                                 if (isset($cart['productInfo']['cate_id']) && array_intersect(explode(',', $cart['productInfo']['cate_id']), $cateIds)) {
-                                    $price += bcmul((string)$cart['truePrice'], (string)$cart['cart_num'], 2);
+                                    $price = bcadd((string)$price, \app\services\activity\fullreduction\FullReductionCalculator::lineSubtotal($cart), 2);
                                     $count++;
                                 }
                             }
@@ -161,7 +164,7 @@ class StoreCouponUserServices extends BaseServices
                     case 2:
                         foreach ($cartInfo as $cart) {
                             if (isset($cart['product_id']) && in_array($cart['product_id'], explode(',', $coupon['product_id']))) {
-                                $price += bcmul((string)$cart['truePrice'], (string)$cart['cart_num'], 2);
+                                $price = bcadd((string)$price, \app\services\activity\fullreduction\FullReductionCalculator::lineSubtotal($cart), 2);
                                 $count++;
                             }
                         }

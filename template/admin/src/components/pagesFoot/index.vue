@@ -1,7 +1,7 @@
 <template>
   <div
     class="page-footer"
-    :style="{ background: bgColor, paddingTop: topConfig + 'px', paddingBottom: bottomConfig + 'px' }"
+    :style="{ background: bgColor, paddingTop: topConfig + 'px', paddingBottom: bottomConfig + 'px', borderRadius: configuredRadius }"
     v-if="navConfig == 0"
   >
     <div class="foot-item" :class="navStyleConfig == 1 ? 'on' : ''" v-for="(item, index) in menuList" :key="index">
@@ -80,6 +80,7 @@ export default {
       prConfig: 0,
       mTop: 0,
       bgRadius: 0,
+      configuredRadius: '',
       noPic: require('../../assets/images/noPictrue.png'),
     };
   },
@@ -117,6 +118,11 @@ export default {
       this.bgRadius = fillet
         ? valList[0].val + 'px ' + valList[1].val + 'px ' + valList[3].val + 'px ' + valList[2].val + 'px'
         : filletVal + 'px';
+      this.configuredRadius = data.mainNavigation ? data.mainNavigation.corner + 'px' : '';
+      if (data.mainNavigation) {
+        this.bgRadius = this.configuredRadius;
+        if (data.mainNavigation.backgroundMode === 'system') this.bgColor = this.bgColor2 = '#FFFFFF';
+      }
       this.$store.commit('mobildConfig/footType', this.navConfig);
       this.$store.commit('mobildConfig/footBottom', this.mTop);
       this.menuList = [];
@@ -156,6 +162,7 @@ export default {
     img {
       width: 24px;
       height: 24px;
+      object-fit: contain;
     }
     p {
       font-size: 12px;

@@ -1,6 +1,6 @@
 # 恒数商城：后端与管理后台发布包
 
-本包用于全新安装，包含当前 PHP 后端、vendor 依赖、管理后台生产构建和 Docker Compose 配置。不包含移动端 H5、安卓 APK、本地数据库、安装锁、本地账号配置、日志、备份或安卓 AppKey/证书。
+本包用于全新安装，包含当前 PHP 后端、vendor 依赖、管理后台、移动端 H5 生产构建和 Docker Compose 配置。不包含安卓 APK、本地数据库、安装锁、本地账号配置、日志、备份或安卓 AppKey/证书。
 
 更新现有商城时，在源码执行 `./package.ps1 -Update`，使用单文件 `dist/hengshu-mall-update.tar.gz` 和包内的更新说明。更新包排除安装程序、安装 SQL 和预置上传文件，保留服务器现有配置及数据。商城和独立京东采集由同一份 Compose 管理，队列等进程默认启动，无需额外启用 profile。
 

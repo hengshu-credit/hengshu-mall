@@ -14,6 +14,7 @@ use app\adminapi\controller\AuthController;
 use app\services\product\product\CopyTaobaoServices;
 use app\services\product\product\JdCrawlerServices;
 use app\services\serve\ServeServices;
+use app\services\system\config\JdCrawlerConfig;
 use think\facade\App;
 
 
@@ -41,10 +42,10 @@ class CopyTaobao extends AuthController
     public function getConfig()
     {
         $data = [];
-        $copy = sys_config('system_product_copy_type', 1);
+        $copy = (new JdCrawlerConfig())->provider();
         $data['copy_type'] = $copy;
         $data['copy_num'] = 0;
-        $data['jd_enabled'] = (bool)sys_config('jd_crawler_enabled', 0);
+        $data['jd_enabled'] = JdCrawlerConfig::enabled();
         $data['jd_configured'] = (bool)(sys_config('jd_crawler_url', '') && sys_config('jd_crawler_token', ''));
         if ($copy == 1) {//一号通
             /** @var ServeServices $serverServices */
@@ -82,9 +83,11 @@ class CopyTaobao extends AuthController
             return app('json')->success(isset($result['product'])
                 ? $this->services->productForm($jd->mapProduct($result['product'])) : $result);
         }
-        if (sys_config('jd_crawler_enabled', 0) && $jd->isJdUrl($url)) {
+        // JD configuration errors must not fall through to a paid provider's token flow.
+        if ($jd->isJdUrl($url)) {
             return app('json')->success($jd->start($url, (int)$this->adminId));
         }
+        if ((new JdCrawlerConfig())->provider() === 3) return app('json')->fail('本地京东采集服务仅支持京东商品详情链接');
         $res = $this->services->copyProduct($type, $id, $shopid, $url);
         return app('json')->success($res);
     }

@@ -39,7 +39,7 @@
       @closeEdit="closeEdit"
       @editSuccess="editSuccess"
     ></editUserModal>
-    <pageFooter :style="colorStyle"></pageFooter>
+    <pageFooter v-if="!hasPageNavigation" :style="colorStyle"></pageFooter>
   </view>
 </template>
 <script>
@@ -84,6 +84,9 @@ export default {
   },
   // computed: mapGetters(['isLogin','cartNum']),
   computed: {
+    hasPageNavigation() {
+      return Object.values((this.currentDiyData || {}).value || {}).some(item => item && ['pageFoot', 'mainNavigation'].includes(item.name));
+    },
     pdHeights() {
       return { height: "100rpx" };
     },

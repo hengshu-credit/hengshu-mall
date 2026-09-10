@@ -12,6 +12,7 @@
  * 布局菜单配置
  * */
 import { menusApi } from '@/api/account';
+import { formatFlatteningRoutes } from '@/libs/system';
 function getMenusName() {
   let storage = window.localStorage;
   let menuList = JSON.parse(storage.getItem('menuList'));
@@ -50,17 +51,16 @@ export default {
     },
   },
   actions: {
-    getMenusNavList({ commit }) {
-      return new Promise((resolve, reject) => {
-        menusApi()
-          .then(async (res) => {
-            resolve(res);
-            commit('getmenusNav', res.data.menus);
-          })
-          .catch((res) => {
-            reject(res);
-          });
-      });
+    async getMenusNavList({ commit }) {
+      const res = await menusApi();
+      const { menus, unique } = res.data;
+      // 同步持久化菜单、侧栏和权限，避免刷新后继续使用登录时的旧数据。
+      commit('getmenusNav', menus);
+      commit('setOneLvRoute', formatFlatteningRoutes(menus) || []);
+      commit('routesList/getRoutesList', menus, { root: true });
+      commit('userInfo/uniqueAuth', unique, { root: true });
+      commit('userInfo/access', unique, { root: true });
+      return res;
     },
   },
 };

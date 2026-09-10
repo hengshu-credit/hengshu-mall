@@ -99,6 +99,7 @@ export default {
     foundBtn: 'Back to home page',
   },
   layout: {
+    resizeSidebar: 'Drag to resize the sidebar',
     configTitle: 'Layout configuration',
     oneTitle: 'Global Themes',
     menuBag: 'Menu BG Color',

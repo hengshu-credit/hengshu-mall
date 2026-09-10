@@ -1,5 +1,10 @@
 <template>
-  <el-aside class="layout-aside" :class="setCollapseWidth" v-if="clientWidth > 1000">
+  <el-aside
+    class="layout-aside"
+    :class="[setCollapseWidth, { 'is-sidebar-resizing': sidebarResizing }]"
+    :style="sidebarWidthStyle"
+    v-if="clientWidth > 1000"
+  >
     <Logo v-if="setShowLogo && menuList.length && getThemeConfig.layout !== 'columns'" />
     <div v-if="menuList.length && getThemeConfig.layout == 'columns'" class="cat-name">
       {{ adminTitle || catName }}
@@ -7,6 +12,15 @@
     <el-scrollbar class="flex-auto" ref="layoutAsideRef">
       <Vertical :menuList="menuList" :class="setCollapseWidth" />
     </el-scrollbar>
+    <SidebarResizer
+      v-if="!getThemeConfig.isCollapse && ['defaults', 'classic', 'columns'].includes(getThemeConfig.layout)"
+      :width="sidebarExpandedWidth"
+      :min="sidebarWidthLimits.min"
+      :max="sidebarWidthLimits.max"
+      @resize="onSidebarResize"
+      @resize-end="onSidebarResizeEnd"
+      @resizing="onSidebarResizing"
+    />
   </el-aside>
   <el-drawer :visible.sync="getThemeConfig.isCollapse" :with-header="false" direction="ltr" size="180px" v-else>
     <el-aside class="layout-aside w100 h100">
@@ -21,9 +35,12 @@
 <script>
 import Vertical from '@/layout/navMenu/vertical.vue';
 import Logo from '@/layout/logo/index.vue';
+import SidebarResizer from '@/layout/component/sidebarResizer.vue';
+import sidebarResize from '@/layout/component/sidebarResize.js';
 export default {
   name: 'layoutAside',
-  components: { Vertical, Logo },
+  components: { Vertical, Logo, SidebarResizer },
+  mixins: [sidebarResize],
   data() {
     return {
       // menuList: [],
@@ -32,6 +49,9 @@ export default {
     };
   },
   computed: {
+    sidebarResizeKey() {
+      return this.getThemeConfig.layout;
+    },
     adminTitle() {
       return this.$store.state.app.adminTitle || '';
     },
@@ -59,7 +79,11 @@ export default {
         if (isCollapse) {
           return ['layout-aside-width64', asideBrColor];
         } else {
-          return [layout === 'defaults' ? 'layout-aside-width-brand' : 'layout-aside-width-default', asideBrColor, layout === 'classic' ? 'pt8' : ''];
+          return [
+            layout === 'defaults' ? 'layout-aside-width-brand' : 'layout-aside-width-default',
+            asideBrColor,
+            layout === 'classic' ? 'pt8' : '',
+          ];
         }
       }
     },
@@ -142,5 +166,8 @@ export default {
   border-bottom: 1px solid var(--prev-border-color-lighter);
   font-weight: 500;
   font-size: 15px;
+  flex-shrink: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 </style>

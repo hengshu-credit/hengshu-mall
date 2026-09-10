@@ -110,6 +110,15 @@
       </el-form-item>
     </el-col>
     <el-col :span="24">
+      <el-form-item label="商品品牌：" prop="brand_ids">
+        <product-brand-select
+          v-model="formValidate.brand_ids"
+          :cate-ids="formValidate.cate_id"
+          :selected-brands="formValidate.brand_list"
+        />
+      </el-form-item>
+    </el-col>
+    <el-col :span="24">
       <el-form-item label="商品标签：">
         <div class="flex">
           <useLabel
@@ -134,11 +143,13 @@
 
 <script>
 import useLabel from '@/components/goodsLabel/useLabel';
+import ProductBrandSelect from '@/components/productBrandSelect';
 
 export default {
   name: 'BasicInfo',
   components: {
     useLabel,
+    ProductBrandSelect,
   },
   props: {
     formValidate: {

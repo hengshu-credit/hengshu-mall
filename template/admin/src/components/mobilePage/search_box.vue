@@ -2,6 +2,7 @@
   <common_wrapper :config="configObj">
     <div class="search-box" :style="[searchBoxStyle]">
       <div class="search acea-row row-middle" :style="[txtPosition]">
+        <action-buttons-preview :buttons="actions.left" :config="actions" />
         <img :src="logoUrl" alt="" v-if="logoUrl && styleConfig == 0 && styleTypeConfig == 1" />
         <div
           class="title"
@@ -33,6 +34,7 @@
             >{{ tipConfig }}</span
           >
         </div>
+        <action-buttons-preview :buttons="actions.right" :config="actions" />
       </div>
     </div>
   </common_wrapper>
@@ -40,6 +42,9 @@
 
 <script>
 import { mapState } from 'vuex';
+import { searchBoxComponent } from '../../../../shared/searchBoxComponent';
+import { headerActions } from '../../../../shared/pageActions';
+import ActionButtonsPreview from '@/components/themeActions/ActionButtonsPreview';
 // import theme from "@/mixins/theme";
 export default {
   name: 'search_box',
@@ -48,7 +53,9 @@ export default {
   configName: 'c_search_box',
   type: 0, // 0 基础组件 1 营销组件 2工具组件
   defaultName: 'headerSerch', // 外面匹配名称
+  components: { ActionButtonsPreview },
   props: {
+    dataConfig: { type: Object, default: null },
     index: {
       type: null,
     },
@@ -60,6 +67,7 @@ export default {
     },
   },
   computed: {
+    actions() { return headerActions(this.configObj && this.configObj.headerActions); },
     ...mapState('mobildConfig', ['defaultArray']),
     txtStyle() {
       let num = 0;
@@ -99,6 +107,7 @@ export default {
     },
   },
   watch: {
+    dataConfig: { deep: true, immediate: true, handler(value) { if(value) this.setConfig(value); } },
     pageData: {
       handler(nVal, oVal) {
         this.setConfig(nVal);
@@ -107,6 +116,7 @@ export default {
     },
     num: {
       handler(nVal, oVal) {
+        if (this.dataConfig) return;
         let data = this.$store.state.mobildConfig.defaultArray[nVal];
         this.setConfig(data);
       },
@@ -114,6 +124,7 @@ export default {
     },
     defaultArray: {
       handler(nVal, oVal) {
+        if (this.dataConfig) return;
         let data = this.$store.state.mobildConfig.defaultArray[this.num];
         this.setConfig(data);
       },
@@ -124,324 +135,7 @@ export default {
   data() {
     return {
       // 默认初始化数据禁止修改
-      defaultConfig: {
-        cname: '搜索框',
-        name: 'headerSerch',
-        timestamp: this.num,
-        isHide: false,
-        setUp: {
-          tabVal: 0,
-        },
-        titleLeft: '展示设置',
-        titleSearch: '搜索内容',
-        titleHotWords: '搜索热词',
-        titleRight: '搜索框',
-        titleCurrency: '通用样式',
-        titleTxt: '文字设置',
-        zIndexConfig: {
-          title: '组件上浮',
-          val: 0,
-          min: 0,
-        },
-        styleConfig: {
-          title: '选择风格',
-          tabVal: 0,
-          tabList: [
-            {
-              name: '搜索',
-            },
-            {
-              name: '标题',
-            },
-          ],
-        },
-        styleTypeConfig: {
-          title: '样式类型',
-          tabVal: 1,
-          tabList: [
-            {
-              name: '标题',
-            },
-            {
-              name: 'logo',
-            },
-          ],
-        },
-        logoConfig: {
-          info: '建议：144px * 44px',
-          url: '',
-          type: 'code',
-          delType: 1,
-          name: 'logo图',
-        },
-        titleConfig: {
-          title: '标题',
-          value: '标题',
-          place: '请输入标题',
-          max: 6,
-        },
-        linkConfig: {
-          title: '链接',
-          value: '',
-          place: '请选择链接',
-          max: 100,
-          type: 'link',
-        },
-        tipConfig: {
-          title: '提示文字',
-          value: '搜索商品',
-          place: '填写内容',
-          max: 20,
-        },
-        hotWords: {
-          list: [
-            {
-              val: '',
-            },
-          ],
-        },
-        numConfig: {
-          placeholder: '设置搜索热词显示时间',
-          title: '显示时间',
-          val: 3,
-          type: 'words',
-        },
-        txtFixConfig: {
-          title: '文字位置',
-          tabVal: 0,
-          tabList: [
-            {
-              name: '左对齐',
-            },
-            {
-              name: '居中对齐',
-            },
-            {
-              name: '右对齐',
-            },
-          ],
-        },
-        txtStyleConfig: {
-          title: '文字样式',
-          tabVal: 0,
-          tabList: [
-            {
-              name: '正常',
-              style: 'normal',
-            },
-            {
-              name: '倾斜',
-              style: 'italic',
-            },
-            {
-              name: '加粗',
-              style: 'bold',
-            },
-          ],
-        },
-        txtColor: {
-          title: '文字颜色',
-          default: [
-            {
-              item: '#333333',
-            },
-          ],
-          color: [
-            {
-              item: '#333333',
-            },
-          ],
-        },
-        txtSize: {
-          title: '文字大小',
-          val: 15,
-          min: 0,
-        },
-        searchBoxColor: {
-          title: '搜索框',
-          default: [
-            {
-              item: '#F5F5F5',
-            },
-          ],
-          color: [
-            {
-              item: '#F5F5F5',
-            },
-          ],
-        },
-        tipColor: {
-          title: '提示文字',
-          default: [
-            {
-              item: '#CCCCCC',
-            },
-          ],
-          color: [
-            {
-              item: '#CCCCCC',
-            },
-          ],
-        },
-        hotWordsColor: {
-          title: '热词文字',
-          default: [
-            {
-              item: '#888',
-            },
-          ],
-          color: [
-            {
-              item: '#888',
-            },
-          ],
-        },
-        moduleColor: {
-          title: '组件背景',
-          default: [
-            {
-              item: '#fff',
-            },
-            {
-              item: '#fff',
-            },
-          ],
-          color: [
-            {
-              item: '#fff',
-            },
-            {
-              item: '#fff',
-            },
-          ],
-        },
-        bottomBgColor: {
-          title: '底部背景',
-          default: [
-            {
-              item: '#fff',
-            },
-          ],
-          color: [
-            {
-              item: '#fff',
-            },
-          ],
-        },
-        fillet: {
-          title: '背景圆角',
-          type: 0,
-          list: [
-            {
-              val: '全部',
-              icon: 'iconcaozuo-zhengti',
-            },
-            {
-              val: '单个',
-              icon: 'iconcaozuo-bianjiao',
-            },
-          ],
-          valName: '圆角值',
-          val: 0,
-          min: 0,
-          valList: [{ val: 0 }, { val: 0 }, { val: 0 }, { val: 0 }],
-        },
-        paddingConfig: {
-          title: '内边距',
-          val: 0,
-          min: 0,
-          max: 100,
-          isAll: false,
-          valList: [{ val: 0 }, { val: 0 }, { val: 0 }, { val: 0 }],
-        },
-        marginConfig: {
-          title: '外边距',
-          val: 0,
-          min: 0,
-          max: 100,
-          isAll: false,
-          valList: [{ val: 0 }, { val: 0 }, { val: 0 }, { val: 0 }],
-        },
-        componentBgConfig: {
-          title: '背景设置',
-          tabVal: 0,
-          tabList: [{ name: '颜色' }, { name: '图片' }],
-          colorConfig: {
-            title: '背景颜色',
-            default: [{ item: '#F5F5F5' }, { item: '#F5F5F5' }],
-            color: [{ item: '#F5F5F5' }, { item: '#F5F5F5' }],
-          },
-          colorDirection: {
-            title: '渐变方向',
-            tabVal: 0,
-            tabList: [{ name: '横向' }, { name: '纵向' }, { name: '左斜' }, { name: '右斜' }],
-          },
-          imageConfig: {
-            header: '背景图片',
-            title: '',
-            name: '上传图片',
-            type: 'code',
-            url: '',
-            info: '建议尺寸：750px * 400px',
-          },
-        },
-        borderConfig: {
-          title: '边框设置',
-          tabVal: 0,
-          tabList: [{ name: '隐藏' }, { name: '显示' }],
-          val: 0, // 0: Hide, 1: Show
-          styleConfig: {
-            title: '边框样式',
-            tabVal: 0,
-            tabList: [
-              { name: '实线', style: 'solid' },
-              { name: '虚线', style: 'dashed' },
-              { name: '点状', style: 'dotted' },
-            ],
-          },
-          widthConfig: {
-            title: '边框粗细',
-            val: 1,
-            min: 1,
-          },
-          colorConfig: {
-            title: '边框颜色',
-            default: [{ item: '#e5e5e5' }],
-            color: [{ item: '#e5e5e5' }],
-          },
-        },
-        shadowConfig: {
-          title: '阴影设置',
-          tabVal: 0,
-          tabList: [{ name: '隐藏' }, { name: '显示' }],
-          val: 0,
-          colorConfig: {
-            title: '阴影颜色',
-            default: [{ item: 'rgba(0,0,0,0.1)' }],
-            color: [{ item: 'rgba(0,0,0,0.1)' }],
-          },
-          xConfig: {
-            title: 'X轴偏移',
-            val: 0,
-            min: -50,
-          },
-          yConfig: {
-            title: 'Y轴偏移',
-            val: 0,
-            min: -50,
-          },
-          blurConfig: {
-            title: '模糊半径',
-            val: 10,
-            min: 0,
-          },
-          spreadConfig: {
-            title: '扩展半径',
-            val: 0,
-            min: -50,
-          },
-        },
-      },
+      defaultConfig: searchBoxComponent({}, this.num),
       pageData: {},
       logoUrl: '',
       styleConfig: 0,
@@ -467,7 +161,7 @@ export default {
   },
   mounted() {
     this.$nextTick(() => {
-      this.pageData = this.$store.state.mobildConfig.defaultArray[this.num];
+      this.pageData = this.dataConfig || this.$store.state.mobildConfig.defaultArray[this.num];
       this.setConfig(this.pageData);
     });
   },
@@ -573,3 +267,5 @@ export default {
   }
 }
 </style>
+
+<style scoped>.search-box .search{gap:6px}.search-box .box{flex:1;min-width:40px}.serch-wrapper{gap:12rpx}.serch-wrapper .input{flex:1;min-width:80rpx}.serch-wrapper .input .search{width:100%;min-width:0}</style>

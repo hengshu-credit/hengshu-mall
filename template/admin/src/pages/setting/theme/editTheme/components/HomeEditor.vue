@@ -16,10 +16,10 @@ export default {
       this.$refs.diy && this.$refs.diy.preview && this.$refs.diy.preview();
     },
     saveOnly() {
-      this.$refs.diy && this.$refs.diy.saveConfig && this.$refs.diy.saveConfig(1);
+      return this.$refs.diy && this.$refs.diy.saveConfig && this.$refs.diy.saveConfig(1);
     },
     saveAndClose() {
-      this.$refs.diy && this.$refs.diy.saveConfig && this.$refs.diy.saveConfig(2);
+      return this.$refs.diy && this.$refs.diy.saveConfig && this.$refs.diy.saveConfig(2);
     },
     saveTemplate() {
       this.$refs.diy && (this.$refs.diy.nameModal = true);

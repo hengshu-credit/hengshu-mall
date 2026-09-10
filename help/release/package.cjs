@@ -1,4 +1,4 @@
-// Called by the root package.ps1 after compiling the admin frontend.
+// Called by the root package.ps1 after compiling the admin and H5 frontends.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -10,6 +10,10 @@ if (!stageParent.startsWith(path.join(root, '.build') + path.sep)) throw Error('
 const output = path.join(root, 'dist');
 const stage = path.join(stageParent, 'crmeb-mall');
 const update = process.argv.includes('--update');
+const h5Arg = process.argv.indexOf('--h5');
+if (h5Arg < 0 || !process.argv[h5Arg + 1]) throw Error('Pass the freshly compiled H5 directory with --h5');
+const h5Root = path.resolve(process.argv[h5Arg + 1]);
+if (!h5Root.startsWith(path.join(root, '.build') + path.sep)) throw Error('H5 output must be inside .build');
 const releaseId = new Date().toISOString();
 fs.mkdirSync(output, {recursive:true});
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
@@ -17,10 +21,12 @@ const git = (...args) => cp.execFileSync('git', args, { cwd: root, maxBuffer: 30
 const tracked = [...new Set(git('ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', 'crmeb').toString().split('\0').filter(Boolean))];
 const index = path.join(root, 'template/admin/dist/index.html');
 if (!fs.existsSync(index)) throw Error('Build template/admin first');
-const latestSource = git('ls-files', '-z', '--', 'template/admin').toString().split('\0')
+function latestSource(...dirs) { return git('ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', ...dirs).toString().split('\0')
   .filter(Boolean).filter(p => fs.existsSync(path.join(root, p)))
-  .reduce((n, p) => Math.max(n, fs.statSync(path.join(root, p)).mtimeMs), 0);
-if (fs.statSync(index).mtimeMs < latestSource) throw Error('Admin build is older than its sources');
+  .reduce((n, p) => Math.max(n, fs.statSync(path.join(root, p)).mtimeMs), 0); }
+if (fs.statSync(index).mtimeMs < latestSource('template/admin', 'template/shared')) throw Error('Admin build is older than its sources');
+const h5Index = path.join(h5Root, 'index.html');
+if (!fs.existsSync(h5Index) || fs.statSync(h5Index).mtimeMs < latestSource('template/uni-app', 'template/shared')) throw Error('H5 build is missing or older than its sources');
 fs.mkdirSync(stage, { recursive: true });
 const seed = fs.readFileSync(path.join(root, 'crmeb/public/install/crmeb.sql'), 'utf8').replace(/\\\//g, '/');
 const seedUploads = new Set((seed.match(/\/uploads\/[a-zA-Z0-9_./%-]+/g) || []).map(p => 'crmeb/public' + p));
@@ -46,6 +52,10 @@ for (const rel of tracked) {
   if (isUpload) seedCopied++;
 }
 fs.cpSync(path.join(root, 'template/admin/dist'), path.join(stage, 'crmeb/public/admin'), { recursive: true });
+for (const entry of fs.readdirSync(h5Root)) {
+  if (!['index.html', 'static', 'pages', 'assets'].includes(entry)) throw Error('Unexpected H5 output: ' + entry);
+  fs.cpSync(path.join(h5Root, entry), path.join(stage, 'crmeb/public', entry), { recursive: true });
+}
 if (!update) for (const dir of ['runtime', 'backup', 'public/uploads', 'public/theme']) fs.mkdirSync(path.join(stage, 'crmeb', dir), { recursive: true });
 for (const file of ['compose.yml', 'README.md', 'start.sh']) {
   const source = file === 'README.md' && update ? 'README-update.md' : file;
@@ -77,9 +87,9 @@ if (!update) fs.writeFileSync(template, fs.readFileSync(template, 'utf8').replac
 const info = { createdAt: new Date().toISOString(), commit: git('rev-parse', 'HEAD').toString().trim(),
   domain: 'mall.hengshucredit.com', mode: update ? 'existing-installation-update' : 'fresh-install', php: '7.4',
   backendFiles: copied, seedUploadReferences: seedUploads.size, bundledSeedUploads: seedCopied,
-  missingSeedUploads: seedUploads.size - seedCopied, adminEntrySha256: sha(fs.readFileSync(index)),
-  includes: ['PHP backend and vendor', 'admin production build', ...(update ? [] : ['installer seed SQL']), 'deployment configuration', 'independent JD crawler and browser'],
-  excludes: ['local database', 'local credentials', 'runtime logs', 'Android signing and AppKey', 'mobile H5/APK'] };
+  missingSeedUploads: seedUploads.size - seedCopied, adminEntrySha256: sha(fs.readFileSync(index)), h5EntrySha256: sha(fs.readFileSync(h5Index)),
+  includes: ['PHP backend and vendor', 'admin production build', 'mobile H5 production build', ...(update ? [] : ['installer seed SQL']), 'deployment configuration', 'independent JD crawler and browser'],
+  excludes: ['local database', 'local credentials', 'runtime logs', 'Android signing and AppKey', 'native APK and mini-program builds'] };
 fs.writeFileSync(path.join(stage, 'release.json'), JSON.stringify(info, null, 2) + '\n');
 function files(p) { return fs.readdirSync(p, { withFileTypes: true }).flatMap(e => e.isDirectory() ? files(path.join(p, e.name)) : [path.join(p, e.name)]); }
 const manifest = files(stage).sort().map(p => sha(fs.readFileSync(p)) + '  ' + path.relative(stage, p).replace(/\\/g, '/')).join('\n') + '\n';

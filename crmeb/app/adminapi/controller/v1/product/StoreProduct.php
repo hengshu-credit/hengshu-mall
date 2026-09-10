@@ -75,6 +75,7 @@ class StoreProduct extends AuthController
     {
         $data = $this->request->postMore([
             ['cate_id', []],
+            ['brand_ids', []],
             ['store_name', ''],
             ['store_info', ''],
             ['keyword', ''],
@@ -223,6 +224,7 @@ class StoreProduct extends AuthController
         $data = $this->request->postMore([
             ['virtual_type', 0],// 商品类型
             ['cate_id', []],//分类id
+            ['brand_ids', null],//旧客户端未传时保留品牌关系
             ['store_name', ''],//商品名称
             ['keyword', ''],//关键字
             ['unit_name', '件'],//单位
@@ -271,6 +273,7 @@ class StoreProduct extends AuthController
             ['is_gift', 0],//是否礼品
             ['gift_price', 0],//礼品附加费
         ]);
+        if ($data['brand_ids'] === null) unset($data['brand_ids']);
         if ($data['soure_link'] === null) {
             unset($data['soure_link']);
         } elseif (!is_string($data['soure_link']) || strlen($data['soure_link']) > 255 ||

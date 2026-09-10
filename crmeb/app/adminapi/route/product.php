@@ -12,6 +12,15 @@ use think\facade\Route;
 
 Route::group('product', function () {
 
+    Route::group(function () {
+        Route::get('brand/list', 'v1.product.StoreProductBrand/index')->option(['real_name' => '商品品牌列表']);
+        Route::get('brand/options', 'v1.product.StoreProductBrand/options')->option(['real_name' => '商品可选品牌']);
+        Route::get('brand/info/:id', 'v1.product.StoreProductBrand/info')->option(['real_name' => '商品品牌详情']);
+        Route::post('brand/save/:id', 'v1.product.StoreProductBrand/save')->option(['real_name' => '保存商品品牌']);
+        Route::put('brand/status/:id/:status', 'v1.product.StoreProductBrand/status')->option(['real_name' => '修改商品品牌状态']);
+        Route::delete('brand/del/:id', 'v1.product.StoreProductBrand/delete')->option(['real_name' => '删除商品品牌']);
+    })->option(['parent' => 'product', 'cate_name' => '商品品牌']);
+
     /** 商品分类 */
     Route::group(function () {
         Route::get('category', 'v1.product.StoreCategory/index')->option(['real_name' => '商品分类列表']);

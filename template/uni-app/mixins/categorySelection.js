@@ -17,7 +17,7 @@ export default {
         if (!cached) uni.setStorageSync(cacheKey, res.data);
         this.categoryList = (res.data || []).map(category => ({
           ...category,
-          children: [{ id: 0, cate_name: this.$t('全部') }, ...(category.children || []).filter(child => Number(child.id) !== 0)],
+          children: [{ id: 0, cate_name: this.$t('全部商品') }, ...(category.children || []).filter(child => Number(child.id) !== 0)],
         }));
         this.selectCategoryTarget(this.cid ? { cid: this.cid, sid: this.sid } : this.categoryTarget);
       });

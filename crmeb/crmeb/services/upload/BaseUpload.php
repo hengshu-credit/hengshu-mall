@@ -128,7 +128,17 @@ abstract class BaseUpload extends BaseStorage
     protected function initialize(array $config)
     {
         $this->fileInfo = $this->downFileInfo = new \StdClass();
+        $thumbDefaults = $this->thumbConfig;
         $this->thumbConfig = array_merge($this->thumbConfig, $config['thumb'] ?? []);
+        // Older installations can enable thumbnails while storing empty dimensions.
+        foreach ($this->thumb as $size) {
+            foreach (['width', 'height'] as $dimension) {
+                $key = 'thumb_' . $size . '_' . $dimension;
+                $value = $this->thumbConfig[$key];
+                $this->thumbConfig[$key] = is_numeric($value) && (int)$value > 0
+                    ? (int)$value : $thumbDefaults[$key];
+            }
+        }
         if ($this->thumbConfig['image_thumb_status']) {
             $this->authThumb = true;
         }

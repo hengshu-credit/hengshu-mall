@@ -1,5 +1,5 @@
 <template>
-  <div class="layout-columns-aside">
+  <div class="layout-columns-aside" :class="{ 'is-sidebar-resizing': sidebarResizing }" :style="sidebarWidthStyle">
     <el-scrollbar>
       <Logo />
       <ul>
@@ -15,22 +15,14 @@
           <div :class="setColumnsAsidelayout" v-if="!v.isLink || (v.isLink && v.isIframe)">
             <i :class="'el-icon-' + v.icon"></i>
             <div class="font12">
-              {{
-                $t(v.title) && $t(v.title).length >= 4
-                  ? $t(v.title).substr(0, setColumnsAsidelayout === 'columns-vertical' ? 4 : 3)
-                  : $t(v.title)
-              }}
+              {{ $t(v.title) }}
             </div>
           </div>
           <div :class="setColumnsAsidelayout" v-else>
             <a :href="v.isLink" target="_blank">
               <i :class="'el-icon-' + v.icon"></i>
               <div class="font12">
-                {{
-                  $t(v.title) && $t(v.title).length >= 4
-                    ? $t(v.title).substr(0, setColumnsAsidelayout === 'columns-vertical' ? 4 : 3)
-                    : $t(v.title)
-                }}
+                {{ $t(v.title) }}
               </div>
             </a>
           </div>
@@ -38,6 +30,15 @@
         <div ref="columnsAsideActiveRef" :class="setColumnsAsideStyle"></div>
       </ul>
     </el-scrollbar>
+    <SidebarResizer
+      v-if="sidebarDesktop"
+      :width="sidebarExpandedWidth"
+      :min="sidebarWidthLimits.min"
+      :max="sidebarWidthLimits.max"
+      @resize="onSidebarResize"
+      @resize-end="onSidebarResizeEnd"
+      @resizing="onSidebarResizing"
+    />
   </div>
 </template>
 
@@ -45,19 +46,26 @@
 import { getMenuSider, getHeaderName, findFirstNonNullChildren } from '@/libs/system';
 import Logo from '@/layout/logo/index.vue';
 import { mapState } from 'vuex';
+import SidebarResizer from '@/layout/component/sidebarResizer.vue';
+import sidebarResize from '@/layout/component/sidebarResize.js';
 
 export default {
   name: 'layoutColumnsAside',
-  components: { Logo },
+  components: { Logo, SidebarResizer },
+  mixins: [sidebarResize],
   data() {
     return {
       columnsAsideList: [],
       liIndex: 0,
       difference: 0,
       routeSplit: [],
+      sidebarDesktop: document.body.clientWidth > 1000,
     };
   },
   computed: {
+    sidebarResizeKey() {
+      return 'columnsPrimary';
+    },
     // 设置分栏高亮风格
     setColumnsAsideStyle() {
       return this.$store.state.themeConfig.themeConfig.columnsAsideStyle;
@@ -75,15 +83,20 @@ export default {
     ...mapState('menu', ['activePath']),
   },
   beforeDestroy() {
+    window.removeEventListener('resize', this.updateSidebarDesktop);
     this.bus.$off('routesListChange');
   },
   mounted() {
+    window.addEventListener('resize', this.updateSidebarDesktop);
     this.bus.$on('routesListChange', () => {
       this.setFilterRoutes();
     });
     this.setFilterRoutes();
   },
   methods: {
+    updateSidebarDesktop() {
+      this.sidebarDesktop = document.body.clientWidth > 1000;
+    },
     // 设置菜单高亮位置移动
     setColumnsAsideMove(k) {
       if (k === undefined) return false;
@@ -205,7 +218,9 @@ export default {
 
 <style scoped lang="scss">
 .layout-columns-aside {
-  width: 70px;
+  position: relative;
+  flex-shrink: 0;
+  width: var(--layout-sidebar-width, 70px);
   height: 100%;
   background: var(--prev-bg-columnsMenuBar);
   box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
@@ -224,6 +239,8 @@ export default {
       z-index: 1;
       .columns-vertical {
         margin: auto;
+        max-width: 100%;
+        padding: 0 5px;
         .columns-vertical-title {
           padding-top: 1px;
         }
@@ -237,9 +254,11 @@ export default {
         padding: 0 5px;
         i {
           margin-right: 3px;
+          flex-shrink: 0;
         }
         a {
           display: flex;
+          min-width: 0;
           .columns-horizontal-title {
             padding-top: 1px;
           }
@@ -248,6 +267,12 @@ export default {
       a {
         text-decoration: none;
         color: var(--prev-bg-columnsMenuBarColor);
+      }
+      .font12 {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
     // li:hover {
@@ -270,7 +295,7 @@ export default {
       left: 50%;
       top: 2px;
       height: 50px;
-      width: 65px;
+      width: calc(100% - 5px);
       transform: translateX(-50%);
       z-index: 0;
       transition: 0.3s ease-in-out;

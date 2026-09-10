@@ -59,7 +59,7 @@
         <el-row>
           <el-col :span="24">
             <span class="save-type"> 存储方式： </span>
-            <el-radio-group v-model="formValidate.upload_type" @input="changeSave">
+            <el-radio-group v-model="storageType" :disabled="storageSaving" @change="changeSave">
               <el-radio label="1">本地存储</el-radio>
               <el-radio label="2">七牛云存储</el-radio>
               <el-radio label="3">阿里云存储</el-radio>
@@ -484,7 +484,9 @@ export default {
   data() {
     return {
       modalPic: false,
-      saveType: 0,
+      storageType: '1',
+      savedStorageType: '1',
+      storageSaving: false,
       isChoice: '单选',
       gridBtn: {
         xl: 4,
@@ -568,8 +570,8 @@ export default {
       if (res.data.type == 1) {
         this.localStorage = true;
       }
-      this.formValidate.upload_type = res.data.type;
-      this.currentTab = res.data.type.toString();
+      this.storageType = this.savedStorageType = String(res.data.type);
+      this.currentTab = this.storageType;
       this.changeTab();
     });
   },
@@ -584,13 +586,17 @@ export default {
         });
     },
     changeSave(type) {
-      saveType(type)
+      this.storageSaving = true;
+      return saveType(type)
         .then((res) => {
+          this.savedStorageType = String(type);
           this.$message.success(res.msg);
         })
         .catch((err) => {
+          this.storageType = this.savedStorageType;
           this.$message.error(err.msg);
-        });
+        })
+        .finally(() => { this.storageSaving = false; });
     },
     bindbox(item) {
       this.positionId = item.id;
@@ -705,7 +711,7 @@ export default {
     },
     getposition() {
       let that = this;
-      positionInfoApi().then((res) => {
+      return positionInfoApi().then((res) => {
         this.formValidate = res.data;
         this.positionId = res.data.watermark_position;
         for (var i = 0; i < this.boxs.length; i++) {

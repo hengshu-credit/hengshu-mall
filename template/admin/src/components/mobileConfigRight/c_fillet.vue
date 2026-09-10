@@ -4,17 +4,18 @@
       <div class="c_label">{{ configData.title }}</div>
       <div class="c_content">
         <div class="main-setting">
-          <el-slider v-model="configData.val" show-input :min="configData.min" :max="configData.max || 100"></el-slider>
-          <div class="expand-icon" :class="configData.type ? 'selected' : ''" @click="toggleExpand">
+          <el-slider v-model="configData.val" @input="setAllCorners" @input.native="updateTypedRadius($event)" show-input :min="configData.min" :max="configData.max || 100"></el-slider>
+          <div class="expand-icon" :class="Number(configData.type) === 1 ? 'selected' : ''" @click="toggleExpand">
             <span class="iconfont iconcaozuo-bianjiao"></span>
           </div>
         </div>
-        <div class="sub-settings" v-if="configData.type">
+        <div class="sub-settings" v-if="Number(configData.type) === 1">
           <div class="sub-item" v-for="(item, index) in configData.valList" :key="index">
             <div class="input-box">
               <span class="prefix-icon iconfont" :class="getIcon(index)"></span>
               <el-input-number
                 v-model="item.val"
+                @input.native="updateTypedRadius($event, item)"
                 :min="configData.min"
                 :max="configData.max || 100"
                 size="small"
@@ -78,9 +79,27 @@ export default {
     },
   },
   methods: {
+    updateTypedRadius(event, corner) {
+      // Element UI's number field otherwise waits for a native change event.
+      // Keep the decoration preview in sync while a value is being typed.
+      const input = event.target;
+      if (!input || input.tagName !== 'INPUT' || input.value.trim() === '') return;
+      const value = Number(input.value);
+      if (!Number.isFinite(value)) return;
+      const radius = Math.max(Number(this.configData.min) || 0, Math.min(Number(this.configData.max) || 100, value));
+      if (corner) this.$set(corner, 'val', radius);
+      else {
+        this.$set(this.configData, 'val', radius);
+        this.setAllCorners(radius);
+      }
+    },
+    setAllCorners(value) {
+      // Only user input updates all corners; loading saved asymmetric values must not reset them.
+      if (this.configData.valList) this.configData.valList.forEach((item) => { item.val = value; });
+    },
     toggleExpand() {
       if (!this.configData) return;
-      this.$set(this.configData, 'type', this.configData.type ? 0 : 1);
+      this.$set(this.configData, 'type', Number(this.configData.type) === 1 ? 0 : 1);
     },
     getIcon(index) {
       const icons = ['iconzuoshangjiao', 'iconyoushangjiao', 'iconzuoxiajiao', 'iconyouxiajiao'];

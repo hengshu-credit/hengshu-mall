@@ -75,7 +75,7 @@ class JdCrawlerServices
 
     protected function request(string $method, string $path, array $body = []): array
     {
-        if (!sys_config('jd_crawler_enabled', 0)) throw new AdminException('请先在商品采集配置中启用京东独立采集');
+        if (!JdCrawlerConfig::enabled()) throw new AdminException('请先在商品采集配置的基础配置中选择本地京东采集服务（启用京东独立采集）');
         $url = JdCrawlerConfig::serviceUrl((string)sys_config('jd_crawler_url', ''));
         $token = (string)sys_config('jd_crawler_token', '');
         if (strlen($token) < 32 || preg_match('/[\x00-\x20\x7f]/', $token)) throw new AdminException('请先配置京东采集服务的访问密钥');

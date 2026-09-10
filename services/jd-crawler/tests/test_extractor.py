@@ -10,6 +10,8 @@ from jd_crawler.extractor import (
     ExtractionError,
     _extract_native_gallery,
     _extract_video_candidates,
+    original_image_candidate,
+    _prefer_full_size_gallery,
     classify_page,
     extract_product,
     validate_final_item,
@@ -65,13 +67,25 @@ class ExtractorTests(unittest.TestCase):
         self.assertIn("image-carousel-track", tab.script)
         self.assertIn("data-origin", tab.script)
         self.assertIn("currentSrc", tab.script)
-        self.assertLess(tab.script.index("getAttribute('src')"), tab.script.index("img.currentSrc"))
         self.assertIn("shaidan", tab.script)
         self.assertIn("imagetools", tab.script)
         self.assertIn("value.toLowerCase()", tab.script)
         self.assertIn("indexOf('play')", tab.script)
         self.assertIn("indexOf('icon')", tab.script)
         self.assertNotIn("s1440x1440", tab.script)
+
+    def test_original_candidate_keeps_native_format_and_query(self):
+        source = 'https://img10.360buyimg.com/n1/s228x228_jfs/t1/a.jpg.avif?sign=a%2Bb'
+        self.assertEqual(original_image_candidate(source), 'https://img10.360buyimg.com/imgzone/jfs/t1/a.jpg.avif?sign=a%2Bb')
+        self.assertIsNone(original_image_candidate('https://evil.test/n1/jfs/a.jpg'))
+        self.assertIsNone(original_image_candidate('https://img10.360buyimg.com/sku/jfs/detail.webp'))
+
+    def test_quality_probe_failure_retains_source(self):
+        class OfflineTab:
+            def run_js(self, *args):
+                raise RuntimeError('offline')
+        urls = ['https://img10.360buyimg.com/n1/s228x228_jfs/t1/a.jpg.avif']
+        self.assertEqual(_prefer_full_size_gallery(OfflineTab(), urls), urls)
 
     def test_video_probe_reads_current_source_and_source_elements(self):
         class RecordingTab:

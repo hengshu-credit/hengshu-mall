@@ -9,7 +9,7 @@
 			<view class='item' v-for="(item,index) in hostProduct" :key="index" hover-class='none'
 				@tap="goDetail(item)">
 				<view class='pictrue'>
-					<easy-loadimage mode="widthFix" :image-src="item.image"></easy-loadimage>
+					<easy-loadimage mode="widthFix" :marketing-style="item.marketing_style" :image-src="item.image"></easy-loadimage>
 					<span class="pictrue_log_big pictrue_log_class"
 						v-if="item.activity && item.activity.type === '1' && $permission('seckill')">{{$t(`秒杀`)}}</span>
 					<span class="pictrue_log_big pictrue_log_class"

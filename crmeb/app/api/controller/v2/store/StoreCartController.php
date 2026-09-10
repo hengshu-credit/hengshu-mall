@@ -51,6 +51,9 @@ class StoreCartController
         $uid = (int)$request->uid();
         $data = $this->services->getCartList(['uid' => $uid, 'is_del' => 0, 'is_new' => 0, 'is_pay' => 0, 'combination_id' => 0, 'seckill_id' => 0, 'bargain_id' => 0], 0, 0, ['productInfo', 'attrInfo']);
         [$data, $valid, $invalid] = $this->services->handleCartList($uid, $data);
+        $quote = app()->make(\app\services\activity\fullreduction\FullReductionQuoteServices::class)->quote($uid, $valid);
+        foreach ($data as &$cart) $cart['full_reduction_price'] = $quote['lines'][(string)$cart['id']]['full_reduction_price'] ?? '0.00';
+        unset($cart);
         return app('json')->success($data);
     }
 

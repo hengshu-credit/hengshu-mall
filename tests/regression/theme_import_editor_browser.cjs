@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict');
+const {chromium}=require('playwright');
+const {bundle,install}=require('./theme_component_harness.cjs');
+(async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await install(page,bundle('template/admin/src/pages/setting/theme/editTheme/components/CategoryEditor.vue'));
+ await page.waitForFunction(()=>!editor.loading);
+ await page.evaluate(()=>{themeData.category='2';themeData.theme={theme_color:'#1DB0FC'};window.previewCatalog=[{id:11,cate_name:'数码分类',children:[{id:12,cate_name:'耳机'}]}];window.previewProducts=[{id:42,store_name:'商城真实商品',price:188,image:'/uploads/example.png'}];mountEditor();});
+ await page.locator('.category-products.large .product-title').filter({hasText:'商城真实商品'}).waitFor();
+ assert.equal(await page.locator('.side-nav').innerText(),'数码分类');
+ assert.match(await page.locator('.sub-tabs').innerText(),/耳机/);
+ assert.equal(await page.locator('.product-price').innerText(),'¥ 188.00');
+ assert.equal(await page.locator('.product-price').evaluate(el=>getComputedStyle(el).color),'rgb(29, 176, 252)');
+ assert.equal(await page.locator('.category-buy').innerText(),'加入购物车');
+ await page.locator('.module-grid button').filter({hasText:'分类结算栏'}).click();await page.getByText('悬浮胶囊',{exact:true}).click();
+ assert.equal(await page.locator('.checkout-preview b').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(29, 176, 252)');
+ await page.getByRole('button',{name:'保存分类页',exact:true}).click();await page.evaluate(()=>mountEditor());await page.waitForFunction(()=>!editor.loading);
+ assert.equal(await page.evaluate(()=>editor.config.status),2);assert.equal(await page.evaluate(()=>editor.config.checkout.barLayout),'floating');
+ assert.deepEqual(errors,[]);console.log('PASS imported editor: scalar preset, live category/products, theme colors and component edits survive save/reload');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

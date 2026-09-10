@@ -262,6 +262,9 @@
 					<view>{{$t(`会员运费优惠`)}}：</view>
 					<view class='money'>-{{$t(`￥`)}}{{parseFloat(priceGroup.storePostageDiscount).toFixed(2)}}</view>
 				</view>
+				<view class='item acea-row row-between-wrapper' v-if="Number(full_reduction_price) > 0"><view>满减优惠：</view><view class='money'>-{{$t(`￥`)}}{{Number(full_reduction_price).toFixed(2)}}</view></view>
+				<view v-if="pricingLoading" class='item'>正在计算优惠…</view>
+				<view v-if="pricingError" class='item font-color' @tap="computedPrice">{{pricingError}}，点击重试</view>
 				<view class='item acea-row row-between-wrapper' v-if="coupon_price > 0">
 					<view>{{$t(`优惠券抵扣`)}}：</view>
 					<view class='money'>-{{$t(`￥`)}}{{parseFloat(coupon_price).toFixed(2)}}</view>
@@ -436,6 +439,10 @@
 				mark: '', //备注信息
 				couponTitle: this.$t(`请选择`), //优惠券
 				coupon_price: 0, //优惠券抵扣金额
+				full_reduction_price: '0.00',
+				pricingLoading: false,
+				pricingError: '',
+				pricingRequestId: 0,
 				useIntegral: false, //是否使用积分
 				integral_price: 0, //积分抵扣金额
 				integral: 0,
@@ -771,6 +778,9 @@
 				this.computedPrice()
 			},
 			computedPrice() {
+				const requestId = ++this.pricingRequestId;
+				this.pricingLoading = true;
+				this.pricingError = '';
 				let shippingType = this.shippingType;
 				let data = {
 					addressId: this.addressId,
@@ -781,16 +791,20 @@
 				}
 				if (this.is_gift) data.is_gift = this.is_gift
 				postOrderComputed(this.orderKey, data).then(res => {
+					if (requestId !== this.pricingRequestId) return;
 					let result = res.data.result;
 					if (result) {
 						this.totalPrice = result.pay_price;
 						this.integral_price = result.deduction_price;
 						this.coupon_price = result.coupon_price;
+						this.full_reduction_price = result.full_reduction_price || '0.00';
 						this.integral = this.useIntegral ? result.SurplusIntegral : this.usable_integral;
 						this.$set(this.priceGroup, 'storePostage', shippingType == 1 ? 0 : result.pay_postage);
 						this.$set(this.priceGroup, 'storePostageDiscount', result.storePostageDiscount);
 					}
-				})
+				}).catch(error => {
+					if (requestId === this.pricingRequestId) this.pricingError = typeof error === 'string' ? error : (error.msg || '优惠计算失败');
+				}).finally(() => { if (requestId === this.pricingRequestId) this.pricingLoading = false; });
 			},
 			addressType(e) {
 				let index = e;
@@ -1008,9 +1022,8 @@
 					setTimeout(() => {
 						that.getCouponList();
 					}, 500);
-					if (this.addressId && !this.is_gift) {
-						this.computedPrice();
-					}
+					// Promotions must be quoted even before an address is chosen (postage remains zero).
+					this.computedPrice();
 				}).catch(err => {
 					uni.hideLoading()
 					return this.$util.Tips({
@@ -1166,6 +1179,7 @@
 				this.$refs.textarea.focus()
 			},
 			SubOrder(e) {
+				if (this.pricingLoading || this.pricingError) return this.$util.Tips({ title: this.pricingError || '请等待优惠计算完成' });
 				let that = this,
 					data = {};
 				if (!that.addressId && !that.shippingType && !that.virtual_type && !that.is_gift) return that.$util.Tips({

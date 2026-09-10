@@ -432,6 +432,7 @@
 					<view>{{ $t(`礼品附加费用`) }}：</view>
 					<view class="conter">-{{ $t(`￥`) }}{{ parseFloat(orderInfo.gift_price).toFixed(2) }}</view>
 				</view>
+				<view class="item acea-row row-between" v-if="Number(orderInfo.full_reduction_price) > 0"><view>满减优惠：</view><view class="conter">-{{ $t(`￥`) }}{{ Number(orderInfo.full_reduction_price).toFixed(2) }}</view></view>
 				<view class="item acea-row row-between" v-if="orderInfo.coupon_price > 0">
 					<view>{{ $t(`优惠券抵扣`) }}：</view>
 					<view class="conter">-{{ $t(`￥`) }}{{ parseFloat(orderInfo.coupon_price).toFixed(2) }}</view>

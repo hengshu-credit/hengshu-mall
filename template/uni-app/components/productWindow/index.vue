@@ -1,5 +1,5 @@
 <template>
-  <view :style="colorStyle">
+  <view class="product-window-layer" :class="{ 'is-open': attr.cartAttr === true && !!iScart }" :style="colorStyle">
     <view
       class="product-window"
       :class="
@@ -189,7 +189,7 @@
       >
     </view>
     <view
-      class="mask"
+      class="mask product-window-mask"
       @touchmove.stop.prevent="moveHandle"
       :hidden="attr.cartAttr === false"
       @click="closeAttr"
@@ -331,6 +331,18 @@ export default {
 </script>
 
 <style scoped lang="scss">
+// Self-contained cart dialogs cover navigation. Activity dialogs retain their page purchase bar.
+.product-window-layer.is-open {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1200;
+}
+.product-window-layer.is-open > .product-window { z-index: 2 !important; }
+.product-window-layer.is-open > .product-window-mask { z-index: 1 !important; }
+
 .vip-money {
   color: #282828;
   font-size: 28rpx;

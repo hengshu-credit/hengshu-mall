@@ -53,6 +53,15 @@ export default {
     this.onLayoutResize();
     window.addEventListener('resize', this.onLayoutResize);
   },
+  async mounted() {
+    try {
+      await this.$store.dispatch('menus/getMenusNavList');
+      await this.$nextTick();
+      this.bus.$emit('routesListChange');
+    } catch (error) {
+      // 网络暂时不可用时保留已有菜单；登录失效由请求拦截器处理。
+    }
+  },
   methods: {
     ...mapMutations(['setBreadCrumb', 'setTagNavList', 'addTag', 'setLocal', 'setHomeRoute', 'closeTag']),
 

@@ -1,16 +1,14 @@
 <template>
-	<view class='productSort copy-data' :style="{height:pageHeight}">
-		<view class='header acea-row row-center-wrapper'>
-			<view class='acea-row row-between-wrapper input'>
-				<text class='iconfont icon-sousuo'></text>
-				<input type='text' :placeholder="$t('搜索商品名称')" @confirm="searchSubmitValue" confirm-type='search'
-					name="search" placeholder-class='placeholder'></input>
-			</view>
-		</view>
-		<view class="scroll-box">
+	<view class='productSort copy-data category-decorated' :class="decorationClasses" :style="[decorationStyle, {height:pageHeight}]">
+		<view v-if="categoryAppearance.show_search" class="category-search-shell">
+          <header-serch :dataConfig="categoryAppearance.search_component" :special="1" />
+        </view>
+        <view v-show="categoryAppearance.show_category && !categoryAppearance.category_hidden" class="category-module-shell" :style="categoryOuterStyle">
+		<view class="scroll-box" :style="categoryModuleStyle">
 			<view class='aside'>
 				<scroll-view scroll-y="true" scroll-with-animation='true' style="height: calc(100% - 100rpx)">
-					<view class='item acea-row row-center-wrapper' :class='index==navActive?"on":""'
+					<view v-if="categoryAppearance.show_recommend" class="item acea-row row-center-wrapper" :class="{on: navActive === -1}" @click="tap(-1, 'category-recommend')">{{ $t(categoryAppearance.recommend_text) }}</view>
+                    <view class='item acea-row row-center-wrapper' :class='index==navActive?"on":""'
 						v-for="(item,index) in productList" :key="index" @click='tap(index,"b"+index)'>
 						<text>{{$t(item.cate_name)}}</text>
 					</view>
@@ -24,30 +22,41 @@
 			<view class='conter'>
 				<scroll-view scroll-y="true" :scroll-into-view="toView" @scroll="scroll" scroll-with-animation='true'
 					style="height: 100%;" class="conterScroll">
-					<block v-for="(item,index) in productList" :key="index">
+					<view class="category-scroll-origin"></view>
+					<category-banner :config="categoryAppearance" @load="infoScroll" />
+                    <view v-if="categoryAppearance.show_recommend" id="category-recommend" class="recommend-section">
+                      <view class="title"><view class="name">{{ $t(categoryAppearance.recommend_text) }}</view></view>
+                      <view class="list acea-row" :style="{display:'grid',gridTemplateColumns:'repeat('+categoryAppearance.columns+',minmax(0,1fr))'}">
+                        <navigator v-for="item in productList.slice(0,12)" :key="item.id" class="item acea-row row-column row-middle" :url="'/pages/goods/goods_list/index?cid='+item.id" style="width:100%">
+                          <view class="picture" :style="{borderRadius:categoryAppearance.image_radius+'rpx',overflow:'hidden'}"><image :src="item.pic || defimg" :mode="categoryAppearance.image_fit === 'contain' ? 'aspectFit' : 'aspectFill'" :style="{borderRadius:categoryAppearance.image_radius+'rpx'}" /></view>
+                          <view v-if="categoryAppearance.show_category_name" class="name line1">{{ $t(item.cate_name) }}</view>
+                        </navigator>
+                      </view>
+                    </view>
+                    <block v-for="(item,index) in productList" :key="index">
 						<view class='listw' :id="'b'+index">
 							<view class='title acea-row row-center-wrapper'>
 								<view class='line'></view>
 								<view class='name'>{{$t(item.cate_name)}}</view>
 								<view class='line'></view>
 							</view>
-							<view class='list acea-row'>
+							<view class='list acea-row' :style="{display:'grid',gridTemplateColumns:'repeat('+categoryAppearance.columns+',minmax(0,1fr))'}">
 								<navigator hover-class='none'
 									:url='"/pages/goods/goods_list/index?cid="+item.id+"&title="+item.cate_name'
-									class='item acea-row row-column row-middle'>
-									<view class='picture'>
-										<image :src="item.pic || defimg" mode="aspectFill" lazy-load></image>
+									class='item acea-row row-column row-middle' style="width:100%">
+									<view class='picture' :style="{borderRadius:categoryAppearance.image_radius+'rpx',overflow:'hidden'}">
+										<image :src="item.pic || defimg" :mode="categoryAppearance.image_fit === 'contain' ? 'aspectFit' : 'aspectFill'" :style="{borderRadius:categoryAppearance.image_radius+'rpx'}" lazy-load></image>
 									</view>
-									<view class='name line1'>{{$t(`全部商品`)}}</view>
+									<view v-if="categoryAppearance.show_category_name" class='name line1'>{{$t(`全部商品`)}}</view>
 								</navigator>
 								<block v-for="(itemn,indexn) in item.children" :key="indexn">
 									<navigator hover-class='none'
 										:url='"/pages/goods/goods_list/index?sid="+itemn.id+"&title="+itemn.cate_name'
-										class='item acea-row row-column row-middle'>
-										<view class='picture'>
-											<image :src="itemn.pic" mode="aspectFill" lazy-load></image>
+										class='item acea-row row-column row-middle' style="width:100%">
+										<view class='picture' :style="{borderRadius:categoryAppearance.image_radius+'rpx',overflow:'hidden'}">
+											<image :src="itemn.pic" :mode="categoryAppearance.image_fit === 'contain' ? 'aspectFit' : 'aspectFill'" :style="{borderRadius:categoryAppearance.image_radius+'rpx'}" lazy-load></image>
 										</view>
-										<view class='name line1'>{{$t(itemn.cate_name)}}</view>
+										<view v-if="categoryAppearance.show_category_name" class='name line1'>{{$t(itemn.cate_name)}}</view>
 									</navigator>
 								</block>
 							</view>
@@ -57,12 +66,19 @@
 				</scroll-view>
 			</view>
 		</view>
+		</view>
+    <view :style="{height:checkoutHeight+'px',flexShrink:0}"></view>
+    <category-checkout :config="checkoutConfig" :standalone="true" :navigationHeight="navigationHeight" @heightChange="checkoutHeight = $event" />
 	</view>
 </template>
 
 <script>
 import { resolveCategoryTarget } from '@/utils/categoryNavigation.js';
-	import categoryData from '@/mixins/categoryData.js';
+	import categoryDecoration from '@/mixins/categoryDecoration.js';
+	import headerSerch from '@/subpackage/diyComponents/headerSerch.vue';
+	import categoryCheckout from '@/components/categoryCheckout';
+import categoryBanner from '@/components/categoryBanner';
+import categoryData from '@/mixins/categoryData.js';
 	let sysHeight = uni.getWindowInfo().statusBarHeight + 'px';
 	import {
 		mapState,
@@ -74,13 +90,14 @@ import { resolveCategoryTarget } from '@/utils/categoryNavigation.js';
 	import pageFooter from '@/components/pageFooter/index.vue'
 	const app = getApp();
 	export default {
-		mixins: [categoryData],
+		mixins: [categoryDecoration, categoryData],
 		props: { categoryTarget: { type: Object, default: () => ({ cid: 0, sid: 0 }) } },
 		watch: {
 			categoryTarget: { deep: true, handler() { this.positionCategory(); } },
 		},
 		components: {
-			pageFooter
+            headerSerch, categoryCheckout,
+			pageFooter, categoryBanner
 		},
 		data() {
 			return {
@@ -133,7 +150,7 @@ import { resolveCategoryTarget } from '@/utils/categoryNavigation.js';
 				if (selected) this.$nextTick(() => this.tap(selected.index, 'b' + selected.index));
 			},
 			getNav() {
-				getNavigation().then(res => {
+				getNavigation({ page: 'category', theme_id: uni.getStorageSync('previewThemeId') || 0 }).then(res => {
 					this.newData = res.data
 				})
 			},
@@ -170,9 +187,10 @@ import { resolveCategoryTarget } from '@/utils/categoryNavigation.js';
 				});
 				// Measure the ordered sections in one layout pass and update once.
 				const query = uni.createSelectorQuery().in(this);
-				query.selectAll('.listw').boundingClientRect();
+				query.selectAll('.category-scroll-origin, .listw').boundingClientRect();
 				query.exec((res) => {
-					if (!this._isDestroyed) this.hightArr = (res[0] || []).map(rect => rect.top);
+					const rects = res[0] || [];
+					if (!this._isDestroyed) this.hightArr = rects.slice(1).map(rect => rect.top - rects[0].top);
 				});
 			},
 			tap: function(index, id) {
@@ -202,6 +220,7 @@ import { resolveCategoryTarget } from '@/utils/categoryNavigation.js';
 				}
 			},
 			scroll: function(e) {
+				this.notifyThemeScroll(e);
 				let scrollTop = e.detail.scrollTop;
 				let scrollArr = this.hightArr;
 				uni.$emit('scroll');
@@ -210,10 +229,14 @@ import { resolveCategoryTarget } from '@/utils/categoryNavigation.js';
 					return;
 				}
 				if (!scrollArr.length || scrollTop < 0) return;
+				if (this.categoryAppearance.show_recommend && scrollTop < scrollArr[0]) {
+					this.navActive = -1;
+					return;
+				}
 				let low = 0, high = scrollArr.length - 1;
 				while (low < high) {
 					const middle = Math.ceil((low + high) / 2);
-					if (scrollTop >= scrollArr[middle] - scrollArr[0]) low = middle;
+					if (scrollTop >= scrollArr[middle]) low = middle;
 					else high = middle - 1;
 				}
 				if (this.navActive !== low) this.navActive = low;
@@ -407,4 +430,8 @@ import { resolveCategoryTarget } from '@/utils/categoryNavigation.js';
 		width: 120rpx;
 		text-align: center;
 	}
+</style>
+
+<style lang="scss">
+@import "./decoration.scss";
 </style>

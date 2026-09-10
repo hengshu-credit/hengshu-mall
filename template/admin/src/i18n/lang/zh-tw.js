@@ -100,6 +100,7 @@ export default {
     foundBtn: '返回首頁',
   },
   layout: {
+    resizeSidebar: '拖曳調整選單欄寬度',
     configTitle: '佈局配寘',
     oneTitle: '全域主題',
     menuBag: '菜單背景色',

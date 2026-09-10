@@ -1,7 +1,7 @@
 <template>
   <!-- 底部导航 -->
-  <view v-if="renderNavigation" :class="{ 'managed-navigation': managed }">
-    <view class="footer-dock fixed-lb w-full pb-safe z-999" :class="{ 'is-collapsed': collapsed }" :style="[bgColor]" :aria-hidden="collapsed ? 'true' : 'false'">
+  <view v-if="renderNavigation" :class="{ 'managed-navigation': managed, 'configured-navigation': !!newData.mainNavigation }">
+    <view class="footer-dock fixed-lb w-full pb-safe z-999" :class="{ 'is-collapsed': isCollapsed }" :style="[bgColor]" :aria-hidden="isCollapsed ? 'true' : 'false'">
       <view class="page-footer-wrapper">
         <view
           class="page-footer"
@@ -16,13 +16,13 @@
             class="foot-item flex-1 flex-col flex-center h-96 relative"
             v-for="(item, index) in newData.menuList"
             :key="index"
-            :aria-current="item.link.split('?')[0] === activeRouter ? 'page' : null"
+            :aria-current="index === activeIndex ? 'page' : null"
             @click="goRouter(item)"
           >
-            <template v-if="item.link.split('?')[0] == activeRouter">
-              <image
+            <template v-if="index === activeIndex">
+              <image mode="aspectFit"
                 v-if="newData.navStyleConfig.tabVal != 1"
-                :src="item.imgList[0]"
+                :src="iconUrl(item.imgList[0])"
               ></image>
               <view
                 v-if="newData.navStyleConfig.tabVal != 2"
@@ -32,9 +32,9 @@
               >
             </template>
             <template v-else>
-              <image
+              <image mode="aspectFit"
                 v-if="newData.navStyleConfig.tabVal != 1"
-                :src="item.imgList[1]"
+                :src="iconUrl(item.imgList[1])"
               ></image>
               <view
                 v-if="newData.navStyleConfig.tabVal != 2"
@@ -57,7 +57,7 @@
       </view>
     </view>
     <view v-if="!managed" :style="{ height: `${footerHeight}px` }"></view>
-    <view v-if="!managed" class="safe-area-inset-bottom"></view>
+    <view v-if="!managed && !newData.mainNavigation" class="safe-area-inset-bottom"></view>
   </view>
 </template>
 
@@ -65,12 +65,15 @@
 import { mapState, mapGetters } from "vuex";
 import { getNavigation } from "@/api/public.js";
 // import {getCartCounts} from '@/api/order.js';
-import { getDiyVersion } from "@/api/api.js";
+import { activeNavigationIndex, navigationVisible, navigationPage, navigationPath, navigationScroll } from '../../../shared/mainNavigation';
+import { componentStyle as commonComponentStyle } from '../../../shared/componentStyle';
+import { HTTP_REQUEST_URL } from "@/config/app.js";
 import BaseBadge from "@/components/BaseBadge/index.vue";
 export default {
   name: "pageFooter",
   components: { BaseBadge },
   props: {
+    mainNavigationOnly: { type: Boolean, default: false },
     managed: { type: Boolean, default: false },
     collapsed: { type: Boolean, default: false },
     activePath: { type: String, default: '' },
@@ -84,11 +87,13 @@ export default {
     },
   },
   computed: {
+    isCollapsed() { return this.managed ? this.collapsed : this.scrollCollapsed; },
+    activeIndex() { return activeNavigationIndex(this.newData.menuList, this.activeRouter); },
     renderNavigation() {
       // #ifdef H5
       if (!this.managed) return false;
       // #endif
-      return this.showTabBar && !this.newData.isHide && (this.newData.menuList || []).length > 0;
+      return this.isTabBar && navigationVisible(this.newData, this.activeRouter, !this.mainNavigationOnly);
     },
     ...mapGetters(["isLogin", "cartNum"]),
     txtActiveColor() {
@@ -107,15 +112,21 @@ export default {
     },
     bgColor() {
       let styleObject = {};
+      if (this.newData.name === 'mainNavigation') return commonComponentStyle(this.newData, 'rpx', this.iconUrl).outer;
       if (!this.newData.name) {
         return styleObject;
       }
       if (!this.newData.navConfig.tabVal) {
         styleObject["background"] = this.newData.bgColor.color[0].item;
       }
+      if (this.newData.mainNavigation) {
+        if (this.newData.mainNavigation.backgroundMode === 'system' && !this.newData.navConfig.tabVal) styleObject.background = '#FFFFFF';
+        styleObject.borderRadius = `${this.newData.mainNavigation.corner}px ${this.newData.mainNavigation.corner}px 0 0`;
+      }
       return styleObject;
     },
     componentStyle() {
+      if (this.newData.name === 'mainNavigation') return commonComponentStyle(this.newData, 'rpx', this.iconUrl).inner;
       let styleObject = {};
       let borderRadius = ``;
       if (!this.newData.name) {
@@ -142,7 +153,11 @@ export default {
           `${this.newData.bottomConfig.val * 2}rpx`;
         styleObject["background"] = this.newData.bgColor.color[0].item;
       }
-      if (this.managed && this.newData.navConfig.tabVal) {
+      if (this.newData.mainNavigation) {
+        if (this.newData.mainNavigation.backgroundMode === 'system') styleObject.background = '#FFFFFF';
+        styleObject['border-radius'] = `${this.newData.mainNavigation.corner}px`;
+      }
+      if ((this.managed || this.newData.mainNavigation) && this.newData.navConfig.tabVal) {
         styleObject['margin-left'] = styleObject.left;
         styleObject['margin-right'] = styleObject.right;
         styleObject['margin-bottom'] = styleObject.bottom;
@@ -154,7 +169,11 @@ export default {
     },
   },
   watch: {
-    activePath: { immediate: true, handler(path) { if (path) this.activeRouter = path; } },
+    isCollapsed() { this.$nextTick(this.measureFooter); },
+    'newData.scrollMode'() { this.resetScroll(); },
+    renderNavigation() { this.$nextTick(this.measureFooter); },
+    newData: { deep: true, handler() { this.$nextTick(this.measureFooter); } },
+    activePath: { immediate: true, handler(path) { if (path) this.activeRouter = path; this.resetScroll(); } },
     configData: {
       handler(newVal) {
         if (newVal) {
@@ -170,16 +189,28 @@ export default {
   created() {
     let routes = getCurrentPages(); //获取当前打开过的页面路由数组
     let curRoute = routes.length ? routes[routes.length - 1].route : '';
-    this.activeRouter = this.activePath || '/' + curRoute;
+    const current = routes[routes.length - 1];
+    this.activeRouter = this.activePath || (current && current.$page && current.$page.fullPath) || '/' + curRoute;
   },
   mounted() {
     // #ifdef H5
     return;
     // #endif
     this.navigationInfo();
+    uni.$on('uploadFooter', this.navigationInfo);
+    uni.$on('theme-page-scroll', this.onContentScroll);
+    uni.$on('theme-page-show', this.handleThemePageShow);
     // if (this.isLogin) {
     // 	this.getCartNum()
     // }
+  },
+  beforeDestroy() {
+    clearTimeout(this._footerMeasureTimer);
+    // #ifndef H5
+    uni.$off('uploadFooter', this.navigationInfo);
+    uni.$off('theme-page-scroll', this.onContentScroll);
+    uni.$off('theme-page-show', this.handleThemePageShow);
+    // #endif
   },
   data() {
     return {
@@ -187,52 +218,84 @@ export default {
       activeRouter: "",
       showTabBar: false,
       footerHeight: 0,
+      scrollCollapsed: false,
     };
   },
   methods: {
-    setNavigationInfo(data) {
-      if (this.isTabBar) {
-        this.newData = data;
-        this.showTabBar = data.effectConfig.tabVal;
-        let pdHeight = data.topConfig.val + data.bottomConfig.val;
-        this.$emit(
-          "newDataStatus",
-          data.effectConfig.tabVal,
-          pdHeight,
-          data.mbConfig.val,
-        );
-        if (data.effectConfig.tabVal) {
-          uni.hideTabBar();
-        } else {
-          uni.showTabBar();
-        }
-      }
+    handleThemePageShow(event) {
+      const pages = getCurrentPages(), current = pages[pages.length - 1];
+      const path = event && event.path || (current ? '/' + current.route : '');
+      if (navigationPath(path) !== navigationPath(this.activeRouter)) return;
+      this.resetScroll();
+      this.navigationInfo();
     },
-    getNavigationInfo() {
-      getNavigation().then((res) => {
-        uni.setStorageSync("diyVersionNav", res.data);
-        this.setNavigationInfo(res.data);
-      });
+    resetScroll() { this._scrollPosition = {}; this.scrollCollapsed = false; },
+    onContentScroll(event) {
+      if (!event || !this.renderNavigation || navigationPath(event.path) !== navigationPath(this.activeRouter)) return;
+      this._scrollPosition = navigationScroll(this.newData, this._scrollPosition, event.top);
+      this.scrollCollapsed = this._scrollPosition.collapsed;
+    },
+    iconUrl(url) { return url && url.startsWith('/') && !url.startsWith('/static/') ? HTTP_REQUEST_URL + url : url; },
+    measureFooter() {
+      // #ifndef H5
+      if (this._isDestroyed || this.managed) return;
+      if (!this.renderNavigation || !this.newData.mainNavigation) {
+        clearTimeout(this._footerMeasureTimer);
+        this._footerMeasureRetries = 0;
+        this.footerHeight = 0; this.$emit('heightChange', 0); return;
+      }
+      uni.createSelectorQuery().in(this).select('.footer-dock').boundingClientRect(rect => {
+        if (this._isDestroyed) return;
+        // Native view updates arrive after the service-side nextTick. A transient
+        // missing node must not collapse the space reserved above the navigation.
+        if (!rect && this.renderNavigation) {
+          if (!this._footerMeasureTimer && (this._footerMeasureRetries || 0) < 3) {
+            this._footerMeasureRetries = (this._footerMeasureRetries || 0) + 1;
+            this._footerMeasureTimer = setTimeout(() => { this._footerMeasureTimer = null; this.measureFooter(); }, 60);
+          }
+          return;
+        }
+        clearTimeout(this._footerMeasureTimer);
+        this._footerMeasureTimer = null;
+        this._footerMeasureRetries = 0;
+        this.footerHeight = this.renderNavigation && rect ? rect.height : 0;
+        this.$emit('heightChange', this.isCollapsed ? 0 : this.footerHeight);
+      }).exec();
+      // #endif
+    },
+    setNavigationInfo(data) {
+      if (!this.isTabBar) return;
+      if (!data || !data.effectConfig) {
+        this.newData = {}; this.showTabBar = false;
+        this.$emit('configuration', {}); this.$emit('newDataStatus', 0, 0, 0);
+        this.$nextTick(this.measureFooter); return;
+      }
+      this.newData = data;
+      this.$emit('configuration', data);
+      this.showTabBar = this.renderNavigation;
+      this.$emit('newDataStatus', this.renderNavigation ? 1 : 0, (data.topConfig.val || 0) + (data.bottomConfig.val || 0), data.mbConfig.val);
+      if (data.mainNavigation || this.renderNavigation || this.mainNavigationOnly) uni.hideTabBar();
+      else uni.showTabBar();
+      this.$nextTick(this.measureFooter);
     },
     navigationInfo() {
-      let footerNavigation = uni.getStorageSync("footerNavigation");
-      if (footerNavigation) {
-        getDiyVersion(0).then((res) => {
-          let diyVersion = uni.getStorageSync("diyVersionNav");
-          if (res.data.version + "0" === diyVersion) {
-            this.setNavigationInfo(footerNavigation);
-          } else {
-            uni.setStorageSync("diyVersionNav", res.data.version + "0");
-            this.getNavigationInfo();
-          }
-        });
-      } else {
-        this.getNavigationInfo();
+      if (this.configData && this.configData.mainNavigation && this.configData.mainNavigation.pageScoped) {
+        this.setNavigationInfo(this.configData); return Promise.resolve();
       }
+      if (this._request) return this._request;
+      const key = navigationPage(this.activeRouter) + ':' + (uni.getStorageSync('previewThemeId') || 0);
+      this._request = getNavigation({ page: navigationPage(this.activeRouter), theme_id: uni.getStorageSync('previewThemeId') || 0 }).then(res => {
+        if (this._isDestroyed) return;
+        uni.setStorageSync('footerNavigation:' + key, res.data);
+        this.setNavigationInfo(res.data);
+      }).catch(() => {
+        if (!this._isDestroyed) this.setNavigationInfo(uni.getStorageSync('footerNavigation:' + key));
+      }).finally(() => { this._request = null; });
+      return this._request;
     },
     goRouter(item) {
       var pages = getCurrentPages();
-      var page = pages[pages.length - 1].$page.fullPath;
+      var page = this.activeRouter;
       if (item.link == page) return;
       // #ifdef H5
       const tabPages = ['/pages/index/index', '/pages/goods_cate/goods_cate', '/pages/order_addcart/order_addcart', '/pages/user/index'];
@@ -278,6 +341,12 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.footer-dock { position: fixed; left: 0; right: 0; bottom: 0; transition: transform 180ms ease, opacity 180ms ease; }
+.footer-dock.is-collapsed { transform: translate3d(0, 110%, 0); opacity: 0; pointer-events: none; }
+.configured-navigation {
+  .page-footer-wrapper { display: flow-root; }
+  .page-footer { position: relative; }
+}
 .managed-navigation {
   .footer-dock {
     z-index: 90;
@@ -313,6 +382,8 @@ export default {
   left: 0;
   display: flex;
 
+  .foot-item { min-width: 0; }
+
   .foot-item image {
     display: block;
     height: 48rpx;
@@ -321,6 +392,10 @@ export default {
   }
 
   .foot-item .txt {
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     margin-top: 4rpx;
     font-size: 20rpx;
     line-height: 28rpx;
