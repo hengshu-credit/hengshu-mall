@@ -120,8 +120,9 @@
     </el-col>
 
     <el-col :span="24">
-      <el-form-item label="所属商户：" prop="seller_shop_id" required>
-        <merchant-select v-model="formValidate.seller_shop_id" class="content_width" :auto-default="!formValidate.id" />
+      <el-form-item label="所属商户：" prop="seller_shop_id">
+        <merchant-select v-model="formValidate.seller_shop_id" class="content_width" clearable :empty-value="0" placeholder="选填，可稍后分配商户" />
+        <div class="tips-info">未选择时为未分配，可正常上架，后续可分配商户或由商户认领。</div>
       </el-form-item>
     </el-col>
     <el-col :span="24">

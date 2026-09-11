@@ -749,7 +749,8 @@ class StoreProductServices extends BaseServices
                 $videoToImport = '';
             }
         }
-        // Initialize missing brand tables before MySQL opens the product transaction.
+        // Initialize schema before MySQL opens the product transaction.
+        \app\services\merchant\MerchantInstaller::ensure();
         $brandServices = $brandIds !== null ? app()->make(StoreProductBrandServices::class) : null;
         $this->transaction(function () use ($id, $brandIds, $brandServices, $is_copy, $data, $descriptionImages, $description, $cate_id, $storeDescriptionServices, $storeProductCateServices, $storeProductAttrServices, $storeProductCouponServices, $storeCategoryServices, $detail, $attr, $coupon_ids, $type, $slider_image, $videoToImport, &$collectedVideoJob) {
             $data = \app\services\merchant\MerchantProducts::prepare($data, $id);

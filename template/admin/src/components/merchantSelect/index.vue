@@ -13,14 +13,14 @@
 import { merchantOptions } from '@/api/merchant';
 export default {
   name: 'MerchantSelect',
-  props: { value: [Number, String], clearable: Boolean, disabled: Boolean, allowUnavailable: Boolean, autoDefault: Boolean, placeholder: { type: String, default: '请选择所属商户' } },
+  props: { value: [Number, String], clearable: Boolean, disabled: Boolean, allowUnavailable: Boolean, autoDefault: Boolean, emptyValue: { default: null }, placeholder: { type: String, default: '请选择所属商户' } },
   data() { return { options: [], loading: false, error: '', sequence: 0 }; },
   computed: { selected() { return this.options.find((item) => Number(item.id) === Number(this.value)); } },
   watch: { value(value) { if (value && !this.options.some((item) => Number(item.id) === Number(value))) this.search(''); } },
   created() { this.search(''); },
   methods: {
     visible(open) { if (open && !this.options.length) this.search(''); },
-    change(value) { this.$emit('input', value === '' ? null : Number(value)); this.$emit('change', value); },
+    change(value) { this.$emit('input', value === '' ? this.emptyValue : Number(value)); this.$emit('change', value); },
     async search(keyword) { const seq = ++this.sequence; this.loading = true; this.error = ''; try { const { data } = await merchantOptions({ keyword, selected_ids: Number(this.value) > 0 ? [Number(this.value)] : [] }); if (seq === this.sequence) { this.options = data; if (!this.value && this.autoDefault) { const platform = data.find((item) => item.is_platform); if (platform) this.change(platform.id); } } } catch (e) { if (seq === this.sequence) this.error = e.msg || e.message || '商户候选读取失败'; } finally { if (seq === this.sequence) this.loading = false; } },
   },
 };

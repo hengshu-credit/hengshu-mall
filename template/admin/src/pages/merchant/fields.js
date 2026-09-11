@@ -1,6 +1,6 @@
 export const stateNames = { preparing: '待开业', open: '营业中', paused: '暂停营业', closed: '已关闭' };
 export const auditNames = { draft: '草稿', submitted: '待审核', approved: '已通过', rejected: '已驳回', supplement: '待补充', withdrawn: '已撤回', cancelled: '已结束' };
-export const eventNames = { create: '创建', change: '修改信息', submit: '提交审核', audit: '审核', withdraw: '撤回', state: '状态调整', dictionary: '分类字典调整', export: '资料导出' };
+export const eventNames = { create: '创建', change: '修改信息', product_assignment: '商品归属调整', submit: '提交审核', audit: '审核', withdraw: '撤回', state: '状态调整', dictionary: '分类字典调整', export: '资料导出' };
 export const subjectNames = { company: '企业法人', organization: '其他组织', individual: '个体工商户', person: '自然人' };
 export const docNames = { contract: '电子合同', license: '营业执照／登记证明', identity: '身份证明', qualification: '专项资质' };
 export const sections = [

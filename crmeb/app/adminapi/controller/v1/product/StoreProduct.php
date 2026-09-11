@@ -75,6 +75,7 @@ class StoreProduct extends AuthController
     {
         $data = $this->request->postMore([
             ['seller_shop_id', null],
+            ['merchant_version', null],
             ['cate_id', []],
             ['brand_ids', []],
             ['store_name', ''],
@@ -226,6 +227,7 @@ class StoreProduct extends AuthController
     {
         $data = $this->request->postMore([
             ['seller_shop_id', null],
+            ['merchant_version', null],
             ['virtual_type', 0],// 商品类型
             ['cate_id', []],//分类id
             ['brand_ids', null],//旧客户端未传时保留品牌关系

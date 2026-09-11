@@ -206,6 +206,7 @@
           </el-dropdown-menu>
         </el-dropdown>
         <el-button v-auth="['export-storeProduct']" class="export" v-db-click @click="onExports(0)">数据导出</el-button>
+        <el-button v-if="artFrom.type !== '6'" v-auth="['merchant-management-product-assign']" class="mr14" :disabled="!multipleSelection.length" @click="openMerchantAssignment(multipleSelection)">分配商户</el-button>
       </div>
       <el-table
         ref="table"
@@ -277,7 +278,7 @@
           </template>
         </el-table-column>
         <el-table-column label="所属商户" min-width="150" show-overflow-tooltip>
-          <template slot-scope="{ row }">{{ row.merchant_name || '平台商城' }}</template>
+          <template slot-scope="{ row }">{{ row.merchant_name || '未分配' }}</template>
         </el-table-column>
         <el-table-column label="商品售价" min-width="100">
           <template slot-scope="scope">
@@ -322,9 +323,10 @@
             <el-divider direction="vertical"></el-divider> -->
             <a v-db-click @click="edit(scope.row)">编辑</a>
             <el-divider direction="vertical"></el-divider>
-            <el-dropdown size="small">
+            <el-dropdown size="small" trigger="click">
               <span class="el-dropdown-link">更多<i class="el-icon-arrow-down el-icon--right"></i> </span>
               <el-dropdown-menu slot="dropdown">
+                <el-dropdown-item v-if="artFrom.type !== '6'" v-auth="['merchant-management-product-assign']" @click.native="openMerchantAssignment([scope.row])">分配商户</el-dropdown-item>
                 <el-dropdown-item>
                   <router-link :to="{ path: $routeProStr + '/product/product_reply/' + scope.row.id }"
                     ><a>查看评论</a></router-link
@@ -576,6 +578,7 @@
     >
       <goodsImport v-if="importShow" @close="importShow = false"></goodsImport>
     </el-dialog>
+    <merchant-product-assignment v-if="assignmentVisible" :visible.sync="assignmentVisible" :products="assignmentProducts" @success="getDataList" />
     <brokerageSet ref="brokerageSet" :productId="productId"></brokerageSet>
     <vipPriceSet ref="vipPriceSet" :productId="productId"></vipPriceSet>
     <!-- 商品标签 -->
@@ -598,6 +601,7 @@ import { mapState } from 'vuex';
 import taoBao from './taoBao';
 import goodsDetail from './components/goodsDetail.vue';
 import MerchantSelect from '@/components/merchantSelect';
+import MerchantProductAssignment from '../../merchant/components/MerchantProductAssignment';
 import couponList from '@/components/couponList';
 import { exportProductList, exportProductExport } from '@/api/export';
 import settings from '@/setting';
@@ -629,6 +633,7 @@ export default {
     taoBao,
     goodsDetail,
     MerchantSelect,
+    MerchantProductAssignment,
     userLabel,
     couponList,
     goodsImport,
@@ -643,6 +648,8 @@ export default {
   data() {
     return {
       routePre: settings.routePre,
+      assignmentVisible: false,
+      assignmentProducts: [],
       pickerOptions: this.$timeOptions,
       template: false,
       modals: false,
@@ -737,6 +744,7 @@ export default {
     }
   },
   methods: {
+    openMerchantAssignment(products) { this.assignmentProducts = products; this.assignmentVisible = true; },
     // 具体日期
     onchangeTime(e) {
       this.timeVal = e;

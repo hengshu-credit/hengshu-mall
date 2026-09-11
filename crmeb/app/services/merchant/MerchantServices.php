@@ -35,7 +35,7 @@ class MerchantServices
 
     private function history(int $shopId, int $applicationId, string $type, string $stage, array $before, array $after, array $actor, array $result, array $scope = [], array $extra = []): void
     {
-        $changes = MerchantData::diff($before,$after);
+        $changes = $extra['changes'] ?? MerchantData::diff($before,$after);
         foreach ($changes as &$change) {
             if ($change['field'] === 'type_id') foreach (['before','after'] as $side) $change[$side . '_label'] = Db::name('merchant_type')->where('id',(int)$change[$side])->value('name') ?: '';
             if ($change['field'] === 'tag_ids') foreach (['before','after'] as $side) $change[$side . '_label'] = $change[$side] ? Db::name('merchant_tag')->whereIn('id',$change[$side])->order('id')->column('name') : [];
@@ -54,6 +54,57 @@ class MerchantServices
         $row = Db::name('merchant_shop')->where('id',$id)->lock($lock)->find();
         if (!$row) throw new AdminException('商户不存在');
         return $row;
+    }
+
+    /** Both UI entry points use this transaction; locked product rows determine the final ownership. */
+    public function assignProducts(array $productIds, int $shopId, string $entry, array $actor, string $key): array
+    {
+        if (!$productIds || count($productIds)>200) throw new AdminException('请选择 1 至 200 件商品');
+        foreach ($productIds as $id) if (is_bool($id) || filter_var($id,FILTER_VALIDATE_INT)===false || (int)$id<1) throw new AdminException('商品编号不正确');
+        $productIds=array_values(array_unique(array_map('intval',$productIds))); sort($productIds,SORT_NUMERIC);
+        if ($shopId<0 || !in_array($entry,['assign','claim'],true) || ($entry==='claim' && !$shopId)) throw new AdminException('商品归属操作不正确');
+        return $this->mutate($actor,$key,['product-assign',$productIds,$shopId,$entry],function () use ($productIds,$shopId,$entry,$actor) {
+            $products=Db::name('store_product')->whereIn('id',$productIds)->order('id')->lock(true)->select()->toArray();
+            if (count($products)!==count($productIds)) throw new AdminException('部分商品不存在，请刷新后重新选择');
+            $target=$shopId?$this->rawShop($shopId,true):null;
+            if ($target && $target['state']==='closed') throw new AdminException('不能分配给已关闭商户');
+            $available=!$target || $this->available($target);
+            $before=MerchantProducts::summaries($products);
+            $changes=[]; $scope=[];
+            foreach ($before as $product) {
+                if (!empty($product['is_del'])) throw new AdminException('回收站中的商品不能分配或认领');
+                if (!empty($product['is_show']) && !$available) throw new AdminException('已上架商品只能分配给营业中且资料有效的商户');
+                if (!$shopId && !empty($product['mer_id'])) throw new AdminException('历史商户商品请先完成归属迁移');
+                $oldId=(int)$product['seller_shop_id'];
+                if ($oldId===$shopId) continue;
+                $scope[]=$oldId;
+                $changes[]=['field'=>'product_'.$product['id'],'label'=>'商品 #'.$product['id'].' '.$product['store_name'],'before'=>$oldId,'after'=>$shopId,'before_label'=>$product['merchant_name'],'after_label'=>$target['name'] ?? '未分配'];
+                Db::name('store_product')->where('id',$product['id'])->update(['seller_shop_id'=>$shopId,'merchant_version'=>(int)$product['merchant_version']+1]);
+            }
+            $result=['shop_id'=>$shopId,'product_ids'=>$productIds,'changed'=>count($changes),'count'=>count($productIds)];
+            $actor['source']=$entry==='claim'?'merchant_claim':'product_assign';
+            $summary=($entry==='claim'?'认领商品':'分配商户').'：'.count($changes).' 件商品 → '.($target['name'] ?? '未分配');
+            $this->history($shopId,0,'product_assignment','effective',[],[],$actor,$result,$scope,['summary'=>$summary,'changes'=>$changes]);
+            return $result;
+        });
+    }
+
+    public function productCandidates(array $filters, int $page=1, int $limit=20): array
+    {
+        $query=Db::name('store_product')->where('is_del',0);
+        $keyword=trim((string)($filters['keyword'] ?? ''));
+        if ($keyword!=='') $query->where(function ($q) use ($keyword) {
+            $q->whereLike('store_name','%'.$keyword.'%');
+            if (ctype_digit($keyword)) $q->whereOr('id',(int)$keyword);
+        });
+        if (($filters['owner'] ?? '')!=='') {
+            $owner=MerchantProducts::ownerInput($filters['owner']);
+            $query->where('seller_shop_id',$owner);
+            if (!$owner) $query->where('mer_id',0);
+        }
+        $count=(clone $query)->count();
+        $rows=$query->field('id,store_name,image,price,is_show,mer_id,seller_shop_id,merchant_version')->order('id desc')->page(max(1,$page),min(100,max(1,$limit)))->select()->toArray();
+        return ['list'=>MerchantProducts::summaries($rows),'count'=>$count];
     }
 
     private function profile(array $row): array

@@ -135,6 +135,53 @@ test('history displays audits and field differences through one table', async ()
   app.destroy();
 });
 
+test('optional merchant selection stays empty and can explicitly remove an existing owner', async () => {
+  const component = load('components/merchantSelect/index.vue', { merchantOptions: async () => ({ data: [{ id: 1, name: '平台商城', is_platform: true, available: true }] }) });
+  const app = mount(component, { value: null, clearable: true, emptyValue: 0 }); await flush();
+  assert.equal(app.vm.props.value, null, 'platform merchant is not selected automatically');
+  app.child.change(1); await flush(); assert.equal(app.vm.props.value, 1);
+  app.child.change(''); await flush(); assert.equal(app.vm.props.value, 0, 'clearing has an explicit unassigned value');
+  app.destroy();
+});
+
+test('product assignment preserves selection after failure and reuses the request key on retry', async () => {
+  const calls = [];
+  const component = load('pages/merchant/components/MerchantProductAssignment.vue', { merchantOptions: async () => ({ data: [] }), merchantWrite: async (route, payload) => { calls.push({ route, payload }); if (calls.length === 1) throw new Error('网络暂时不可用'); return { data: { changed: 1 } }; } });
+  const app = mount(component, { visible: true, products: [{ id: 8, store_name: '测试商品', seller_shop_id: 2, merchant_name: '原商户', is_show: 1 }] }); await flush();
+  app.child.$message = { success() {} };
+  app.child.targetId = 3; await app.child.submit(); await flush();
+  assert.ok(app.vm.$el.textContent.includes('网络暂时不可用'));
+  assert.equal(app.child.chosen[0].id, 8); assert.equal(app.child.targetId, 3);
+  await app.child.submit();
+  assert.equal(calls[0].route, 'product/assign');
+  assert.deepEqual(calls[0].payload.product_ids, [8]);
+  assert.equal(calls[0].payload.shop_id, 3); assert.equal(calls[0].payload.entry, 'assign');
+  assert.equal(calls[0].payload.request_key, calls[1].payload.request_key);
+  app.child.targetId = 0; await app.child.submit();
+  assert.equal(calls[2].payload.shop_id, 0, 'clear assignment is sent as zero');
+  app.destroy();
+});
+
+test('merchant claim keeps selected products across pages and calls the same allocation endpoint', async () => {
+  const calls = []; const queries = [];
+  const component = load('pages/merchant/components/MerchantProductAssignment.vue', { merchantGet: async (route, query) => { queries.push(query); return { data: { list: [{ id: query.page === 1 ? 31 : 32, store_name: '可认领商品', merchant_name: '其他商户', is_show: 1 }], count: 21 } }; }, merchantWrite: async (route, payload) => { calls.push({ route, payload }); return { data: { changed: 2 } }; } });
+  const app = mount(component, { visible: true, mode: 'claim', shop: { id: 9, name: '目标商户' } }); await flush(); await flush();
+  app.child.$message = { success() {} };
+  const table = app.child.$refs.products;
+  table.toggleRowSelection(app.child.rows[0], true); await flush();
+  app.child.page = 2; await app.child.load(); await flush();
+  table.toggleRowSelection(app.child.rows[0], true); await flush();
+  assert.deepEqual(app.child.chosen.map(row => row.id).sort(), [31, 32]);
+  await app.child.submit();
+  assert.equal(calls[0].route, 'product/assign'); assert.equal(calls[0].payload.entry, 'claim'); assert.equal(calls[0].payload.shop_id, 9);
+  assert.deepEqual(calls[0].payload.product_ids, [31, 32]);
+  app.child.owner = '0'; app.child.keyword = '31'; await app.child.search(); await flush();
+  assert.equal(queries[queries.length - 1].owner, '0');
+  assert.equal(queries[queries.length - 1].keyword, '31');
+  app.child.clearSelection(); await flush(); assert.equal(app.child.chosen.length, 0);
+  app.destroy();
+});
+
 test('all new pages compile with actual component imports', () => {
   for (const file of ['pages/merchant/index.vue', 'pages/merchant/applications.vue', 'pages/merchant/dictionary.vue']) assert.ok(load(file).render);
   const source = fs.readFileSync(path.join(root, 'template/uni-app/pages/merchant/application.vue'), 'utf8');

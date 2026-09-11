@@ -8,13 +8,14 @@ use think\facade\Db;
 class MerchantInstaller
 {
     private static $ready = false;
-    public const VERSION = 2;
+    public const VERSION = 3;
     public const PERMISSIONS = [
         'list' => ['查看商户','get','merchant/shop/list'],
         'info' => ['商户详情','get','merchant/shop/info/<id>'],
         'save' => ['保存商户','post','merchant/shop/save/<id>'],
         'status' => ['商户状态','post','merchant/shop/status/<id>'],
         'history' => ['历史记录','get','merchant/shop/history/<id>'],
+        'product-assign' => ['分配与认领商品','post','merchant/product/assign'],
         'sensitive' => ['敏感资料读写','get','merchant/shop/sensitive/<id>'],
         'files' => ['私有资料上传下载','post','merchant/document/upload'],
         'export' => ['导出商户资料','get','merchant/shop/export/<id>'],
@@ -48,7 +49,7 @@ class MerchantInstaller
             $sql = file_get_contents(app()->getRootPath() . 'upgrade/merchants.sql');
             if ($sql === false) throw new AdminException('商户初始化 SQL 文件缺失');
             foreach (explode(';', str_replace('`eb_', '`' . $prefix, $sql)) as $statement) if (trim($statement)) $db->execute(trim($statement));
-            foreach (['store_product'=>['seller_shop_id'=>"int unsigned NOT NULL DEFAULT 0",'merchant_lock'=>"tinyint unsigned NOT NULL DEFAULT 0"], 'store_order'=>['seller_shop_id'=>"int unsigned NOT NULL DEFAULT 0",'merchant_snapshot'=>"mediumtext NULL"]] as $table=>$columns) {
+            foreach (['store_product'=>['seller_shop_id'=>"int unsigned NOT NULL DEFAULT 0",'merchant_lock'=>"tinyint unsigned NOT NULL DEFAULT 0",'merchant_version'=>"int unsigned NOT NULL DEFAULT 0"], 'store_order'=>['seller_shop_id'=>"int unsigned NOT NULL DEFAULT 0",'merchant_snapshot'=>"mediumtext NULL"]] as $table=>$columns) {
                 if (!$db->query('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?', [$prefix.$table])) continue;
                 foreach ($columns as $column=>$type) if (!$db->query('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?', [$prefix.$table,$column])) $db->execute('ALTER TABLE `'.$prefix.$table.'` ADD `'.$column.'` '.$type);
                 if (!$db->query('SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME=?',[$prefix.$table,'merchant_owner'])) $db->execute('ALTER TABLE `'.$prefix.$table.'` ADD INDEX `merchant_owner` (`seller_shop_id`)');
@@ -64,8 +65,8 @@ class MerchantInstaller
                     Db::name('merchant_history_scope')->insert(['history_id'=>$history,'shop_id'=>$id]);
                     $platform = ['id'=>$id];
                 }
-                // Only known legacy platform rows are mapped. Nonzero legacy merchants remain unmapped.
-                foreach (['store_product','store_order'] as $table) if ($db->query('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?',[$prefix.$table,'seller_shop_id'])) {
+                // Only the first installation maps legacy rows. Zero is now intentional unassigned ownership.
+                foreach (!Db::name('merchant_install')->where('id',1)->find() ? ['store_product','store_order'] : [] as $table) if ($db->query('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?',[$prefix.$table,'seller_shop_id'])) {
                     $legacy=Db::name($table)->where('mer_id',0)->where('seller_shop_id',0);
                     if ($table==='store_order') $legacy->where(function ($query) { $query->whereNull('merchant_snapshot')->whereOr('merchant_snapshot',''); });
                     $legacy->update(['seller_shop_id'=>$platform['id']]);

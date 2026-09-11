@@ -39,10 +39,11 @@
         <el-table-column label="商品数" width="80"><template slot-scope="{ row }"><button type="button" class="merchant-number-link" @click="products(row)">{{ row.product_count }}</button></template></el-table-column>
         <el-table-column label="审核状态" width="120"><template slot-scope="{ row }"><el-tag :type="row.audit_status === 'approved' ? 'success' : 'info'" size="small">{{ auditNames[row.audit_status] }}</el-tag><div v-if="row.pending_status" class="muted">修改：{{ auditNames[row.pending_status] }}</div></template></el-table-column>
         <el-table-column label="经营状态" width="105"><template slot-scope="{ row }"><span class="merchant-state" :class="'is-' + row.state">{{ stateNames[row.state] }}</span></template></el-table-column>
-        <el-table-column label="操作" fixed="right" width="170"><template slot-scope="{ row }"><div class="merchant-row-actions"><el-button type="text" @click="open(row, false)">详情</el-button><el-button v-if="permissions.save" type="text" @click="open(row, true)">编辑</el-button><el-dropdown trigger="click" @command="action(row, $event)"><el-button type="text">更多<i class="el-icon-arrow-down" /></el-button><el-dropdown-menu slot="dropdown"><el-dropdown-item v-if="permissions.history" command="history">历史记录</el-dropdown-item><el-dropdown-item v-if="permissions.status && row.state !== 'open'" command="open">开业／恢复</el-dropdown-item><el-dropdown-item v-if="permissions.status && row.state === 'open' && !row.is_platform" command="paused">暂停营业</el-dropdown-item><el-dropdown-item v-if="permissions.status && !row.is_platform && row.state !== 'closed'" command="closed">关闭商户</el-dropdown-item><el-dropdown-item v-if="permissions.export && permissions.files" command="export">导出资料包</el-dropdown-item></el-dropdown-menu></el-dropdown></div></template></el-table-column>
+        <el-table-column label="操作" fixed="right" width="250"><template slot-scope="{ row }"><div class="merchant-row-actions"><el-button type="text" @click="open(row, false)">详情</el-button><el-button v-if="permissions.save" type="text" @click="open(row, true)">编辑</el-button><el-button v-if="permissions['product-assign'] && row.state !== 'closed'" type="text" @click="claim(row)">认领商品</el-button><el-dropdown trigger="click" @command="action(row, $event)"><el-button type="text">更多<i class="el-icon-arrow-down" /></el-button><el-dropdown-menu slot="dropdown"><el-dropdown-item v-if="permissions.history" command="history">历史记录</el-dropdown-item><el-dropdown-item v-if="permissions.status && row.state !== 'open'" command="open">开业／恢复</el-dropdown-item><el-dropdown-item v-if="permissions.status && row.state === 'open' && !row.is_platform" command="paused">暂停营业</el-dropdown-item><el-dropdown-item v-if="permissions.status && !row.is_platform && row.state !== 'closed'" command="closed">关闭商户</el-dropdown-item><el-dropdown-item v-if="permissions.export && permissions.files" command="export">导出资料包</el-dropdown-item></el-dropdown-menu></el-dropdown></div></template></el-table-column>
       </el-table>
       <el-pagination class="merchant-pagination" :current-page.sync="page" :page-size="20" :total="count" layout="total, prev, pager, next" @current-change="load" />
     </el-card>
+    <merchant-product-assignment v-if="claimVisible" :visible.sync="claimVisible" mode="claim" :shop="claimShop" @success="load" />
     <el-drawer custom-class="merchant-drawer" :title="drawerTitle" :visible.sync="drawer" size="min(100%, 1080px)" :wrapper-closable="false" destroy-on-close>
       <div v-loading="detailLoading" class="drawer-body">
         <el-alert v-if="detailError" :title="detailError" type="error" :closable="false" />
@@ -72,11 +73,12 @@ import { merchantGet, merchantWrite, operationKey, merchantFile, saveBlob } from
 import MerchantForm from './components/MerchantForm';
 import MerchantHistory from './components/MerchantHistory';
 import MerchantDetail from './components/MerchantDetail';
+import MerchantProductAssignment from './components/MerchantProductAssignment';
 import { stateNames, auditNames, emptyMerchant } from './fields';
 const filters = () => ({ keyword: '', type_id: '', tag_ids: [], state: '', audit_status: '' });
 export default {
-  name: 'MerchantList', components: { MerchantForm, MerchantHistory, MerchantDetail },
-  data() { return { stateNames, auditNames, filters: filters(), permissions: {}, types: [], tags: [], list: [], page: 1, count: 0, loading: false, error: '', drawer: false, editing: false, editId: 0, form: emptyMerchant(), documents: [], record: null, tab: 'profile', detailLoading: false, detailError: '', saving: false, sequence: 0, detailSequence: 0, historyKey: 0, showEffective: false, saveKey: '', saveFingerprint: '' }; },
+  name: 'MerchantList', components: { MerchantForm, MerchantHistory, MerchantDetail, MerchantProductAssignment },
+  data() { return { claimVisible: false, claimShop: {}, stateNames, auditNames, filters: filters(), permissions: {}, types: [], tags: [], list: [], page: 1, count: 0, loading: false, error: '', drawer: false, editing: false, editId: 0, form: emptyMerchant(), documents: [], record: null, tab: 'profile', detailLoading: false, detailError: '', saving: false, sequence: 0, detailSequence: 0, historyKey: 0, showEffective: false, saveKey: '', saveFingerprint: '' }; },
   computed: {
     detailMeta() { return this.record ? { ...this.record, audit_status: this.record.pending && !this.showEffective ? this.record.pending.status : this.record.audit_status } : {}; },
     drawerTitle() { return !this.editId ? '新增商户' : this.editing ? '编辑商户' : '商户详情'; },
@@ -85,6 +87,7 @@ export default {
   },
   created() { this.initialize(); },
   methods: {
+    claim(row) { this.claimShop = row; this.claimVisible = true; },
     async initialize() { try { const { data } = await merchantGet('config'); this.permissions = data.permissions; this.types = data.types; this.tags = data.tags; await this.load(); } catch (e) { this.error = e.msg || e.message || '商户配置读取失败'; } },
     async load() { const seq = ++this.sequence; this.loading = true; this.error = ''; try { const { data } = await merchantGet('shop/list', { ...this.filters, page: this.page, limit: 20 }); if (seq === this.sequence) { this.list = data.list; this.count = data.count; } } catch (e) { if (seq === this.sequence) this.error = e.msg || e.message || '列表读取失败'; } finally { if (seq === this.sequence) this.loading = false; } },
     search() { this.page = 1; this.load(); }, reset() { this.filters = filters(); this.search(); },

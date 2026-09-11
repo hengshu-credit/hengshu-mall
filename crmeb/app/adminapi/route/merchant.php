@@ -18,6 +18,8 @@ Route::group('merchant', function () {
     Route::get('config', 'v1.merchant.MerchantManager/config')->option(['real_name' => '商户管理']);
     Route::get('shop/list', 'v1.merchant.MerchantManager/index')->option(['real_name' => '商户管理']);
     Route::get('shop/options', 'v1.merchant.MerchantManager/options')->option(['real_name' => '商户管理']);
+    Route::get('product/candidates', 'v1.merchant.MerchantManager/productCandidates')->option(['real_name' => '选择待认领商品']);
+    Route::post('product/assign', 'v1.merchant.MerchantManager/assignProducts')->option(['real_name' => '分配与认领商品']);
     Route::get('shop/info/:id', 'v1.merchant.MerchantManager/info')->option(['real_name' => '商户管理']);
     Route::post('shop/save/:id', 'v1.merchant.MerchantManager/save')->option(['real_name' => '商户管理']);
     Route::post('shop/submit/:id', 'v1.merchant.MerchantManager/submit')->option(['real_name' => '商户管理']);

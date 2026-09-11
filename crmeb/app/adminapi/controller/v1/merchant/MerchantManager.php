@@ -6,6 +6,7 @@ use app\services\merchant\MerchantServices;
 use app\services\merchant\MerchantInstaller;
 use app\services\merchant\MerchantData;
 use app\services\merchant\MerchantDocuments;
+use app\services\merchant\MerchantProducts;
 use app\services\system\admin\SystemRoleServices;
 use crmeb\exceptions\AuthException;
 use crmeb\exceptions\AdminException;
@@ -28,7 +29,7 @@ class MerchantManager extends AuthController
     private function profile(): array { $data=$this->request->post('profile',[]); if (!is_array($data)) throw new AdminException('资料格式不正确'); return $data; }
     public function config()
     {
-        if (!$this->permits('list') && !$this->permits('save') && !$this->permits('applications') && !$this->permits('type-list') && !$this->permits('tag-list')) throw new AuthException('没有权限访问');
+        if (!$this->permits('list') && !$this->permits('save') && !$this->permits('applications') && !$this->permits('type-list') && !$this->permits('tag-list') && !$this->permits('product-assign')) throw new AuthException('没有权限访问');
         $permissions=[]; foreach (MerchantInstaller::PERMISSIONS as $key=>$value) $permissions[$key]=$this->permits($key);
         return app('json')->success(['permissions'=>$permissions,'types'=>$this->service()->dictionary('type'),'tags'=>$this->service()->dictionary('tag'),'platform_id'=>MerchantInstaller::platformId(),'labels'=>MerchantData::LABELS]);
     }
@@ -40,7 +41,7 @@ class MerchantManager extends AuthController
     public function history($id) { $this->requirePermission('history'); return app('json')->success($this->service()->histories((int)$id,$this->request->getMore([['event_type',''],['actor_name',''],['from',''],['to','']]),$this->permits('sensitive'),...$this->page())); }
     public function options()
     {
-        $allowed=$this->permits('list') || $this->permits('save');
+        $allowed=$this->permits('list') || $this->permits('save') || $this->permits('product-assign');
         if (!$allowed) {
             $roles=app()->make(SystemRoleServices::class)->getRolesByAuth($this->adminInfo['roles'] ?? [],2);
             $allowed=in_array('product/product/<id>',$roles['post'] ?? [],true) || in_array('product/product/<id>',$roles['get'] ?? [],true) || in_array('product/product',$roles['get'] ?? [],true);
@@ -49,6 +50,18 @@ class MerchantManager extends AuthController
         return app('json')->success($this->service()->options((string)$this->request->get('keyword',''),MerchantData::ids($this->request->get('selected_ids',[]))));
     }
     public function applications() { $this->requirePermission('applications'); return app('json')->success($this->service()->applications($this->request->getMore([['status',''],['kind','']]),...$this->page())); }
+    public function assignProducts()
+    {
+        $this->requirePermission('product-assign');
+        $ids=$this->request->post('product_ids',[]);
+        if (!is_array($ids)) throw new AdminException('商品编号格式不正确');
+        return app('json')->success($this->service()->assignProducts($ids,MerchantProducts::ownerInput($this->request->post('shop_id',0)),(string)$this->request->post('entry','assign'),$this->actor(),$this->key()));
+    }
+    public function productCandidates()
+    {
+        $this->requirePermission('product-assign');
+        return app('json')->success($this->service()->productCandidates($this->request->getMore([['keyword',''],['owner','']]),...$this->page()));
+    }
     public function applicationInfo($id)
     {
         $this->requirePermission('application-info');
