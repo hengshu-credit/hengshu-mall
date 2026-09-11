@@ -1,6 +1,6 @@
 # 商户管理
 
-分支：`codex/merchant-management`。独立工作目录：`E:\workspace\CRMEB-merchant-management`。产品方案见 [整合设计](/E:/workspace/CRMEB-merchant-management/docs/superpowers/specs/2026-09-11-merchant-design.md)。
+已合并至 `master`。产品方案见 [整合设计](superpowers/specs/2026-09-11-merchant-design.md)。
 
 ## 已实现
 
