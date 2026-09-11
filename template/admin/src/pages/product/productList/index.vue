@@ -277,7 +277,7 @@
           </template>
         </el-table-column>
         <el-table-column label="所属商户" min-width="150" show-overflow-tooltip>
-          <template slot-scope="{ row }"><div>{{ row.merchant_name || '平台商城' }}</div><small style="color:#909399">{{ row.merchant_type_name }}</small></template>
+          <template slot-scope="{ row }">{{ row.merchant_name || '平台商城' }}</template>
         </el-table-column>
         <el-table-column label="商品售价" min-width="100">
           <template slot-scope="scope">
