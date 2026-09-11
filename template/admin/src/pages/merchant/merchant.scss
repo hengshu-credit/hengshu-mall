@@ -1,0 +1,32 @@
+.merchant-page {
+  .merchant-panel { border: 1px solid #edf0f5; border-radius: 8px; }
+  .merchant-panel + .merchant-panel { margin-top: 16px; }
+  .merchant-panel > .el-card__body { padding: 20px; }
+  .merchant-filter .el-form-item { margin-right: 22px; margin-bottom: 16px; }
+  .merchant-filter .el-form-item__label { color: #6b7688; font-weight: 400; }
+  .merchant-filter .el-input,.merchant-filter .el-select { width: 190px; }
+  .merchant-filter { margin-bottom: -16px; }
+  .merchant-table { color: #465164; font-size: 13px; border-radius: 6px; }
+  .merchant-table th.el-table__cell { background: #f6f8fc !important; color: #7b8698; font-size: 12px; font-weight: 500; padding: 13px 0 !important; border-bottom: 1px solid #edf0f5 !important; }
+  .merchant-table td.el-table__cell { padding: 14px 0 !important; border-bottom: 1px solid #f0f2f6 !important; }
+  .merchant-table .cell { padding-left: 16px; padding-right: 16px; line-height: 22px; word-break: normal; }
+  .merchant-table .merchant-id-column .cell { color: #8b96a7; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .merchant-table .el-table__row:hover > td.el-table__cell { background: #f8faff !important; }
+  .merchant-table:before,.merchant-table .el-table__fixed-right:before { background: #edf0f5; }
+  .merchant-table .el-table__empty-block { min-height: 150px; }
+  .merchant-row-actions { display: flex; align-items: center; justify-content: flex-start; flex-wrap: nowrap; gap: 14px; white-space: nowrap; }
+  .merchant-row-actions .el-button { display: inline-flex !important; align-items: center; flex: 0 0 auto; width: auto !important; min-width: 0 !important; height: 24px; padding: 0 !important; margin: 0 !important; line-height: 24px; white-space: nowrap !important; font-size: 13px; }
+  .merchant-row-actions .el-dropdown { display: inline-flex; align-items: center; flex: 0 0 auto; margin: 0; }
+  .merchant-row-actions .el-button span { white-space: nowrap; }
+  .merchant-row-actions .el-icon-arrow-down { font-size: 11px; margin-left: 4px; }
+  .merchant-pagination { padding-top: 18px; text-align: right; }
+  .merchant-drawer .el-drawer__header { color: #344054; margin-bottom: 0; padding: 22px 28px 16px; border-bottom: 1px solid #edf0f5; }
+  .merchant-drawer .el-drawer__body { position: relative; min-height: 0; }
+  .merchant-drawer .drawer-body { padding: 0 28px 28px; height: calc(100% - 73px); overflow-y: auto; }
+  .merchant-drawer .drawer-footer { position: absolute; bottom: 0; left: 0; right: 0; height: 73px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; background: #fff; padding: 16px 28px; border-top: 1px solid #edf0f5; }
+  .merchant-drawer .drawer-footer .el-button { margin-left: 0; }
+  .merchant-drawer .el-tabs__header { margin: 0 0 22px; }
+  .merchant-drawer .el-tabs__item { height: 52px; line-height: 52px; }
+  .merchant-drawer .el-tabs__nav-wrap:after { height: 1px; background: #edf0f5; }
+  .merchant-drawer .el-alert { margin-top: 16px; margin-bottom: 16px; }
+}

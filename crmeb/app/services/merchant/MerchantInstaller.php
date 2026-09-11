@@ -81,6 +81,11 @@ class MerchantInstaller
     {
         self::ensure();
         $root = Db::name('system_menus')->where('unique_auth','admin-merchant-management')->find();
+        // Navigation uses Element icons; legacy schemas truncated the iView name to 16 characters.
+        if ($root && in_array((string)$root['icon'], ['', 'ios-people-outline', 'ios-people-outli'], true)) {
+            Db::name('system_menus')->where('id', $root['id'])->update(['icon' => 's-shop']);
+            CacheService::delete('all_auth');
+        }
         $expected = 5 + count(self::PERMISSIONS);
         if ($root && Db::name('system_menus')->whereLike('unique_auth','merchant-management-%')->where('is_del',0)->count() === $expected - 1) return;
         Db::transaction(function () {
@@ -92,7 +97,7 @@ class MerchantInstaller
                 if ($existing) { Db::name('system_menus')->where('id',$existing['id'])->update($data); return (int)$existing['id']; }
                 return (int)Db::name('system_menus')->insertGetId($data);
             };
-            $rootId = $upsert('admin-merchant-management',['pid'=>0,'menu_name'=>'商户','menu_path'=>'/merchant','path'=>'','auth_type'=>1,'icon'=>'ios-people-outline']);
+            $rootId = $upsert('admin-merchant-management',['pid'=>0,'menu_name'=>'商户','menu_path'=>'/merchant','path'=>'','auth_type'=>1,'icon'=>'s-shop']);
             $pages=[];
             foreach (['shop'=>'商户列表','application'=>'入驻申请','type'=>'商户类型','tag'=>'商户标签'] as $key=>$title) $pages[$key]=$upsert('merchant-management-page-'.$key,['pid'=>$rootId,'menu_name'=>$title,'menu_path'=>'/merchant/'.$key.'/list','path'=>(string)$rootId,'auth_type'=>1]);
             foreach (self::PERMISSIONS as $key=>[$title,$method,$route]) {

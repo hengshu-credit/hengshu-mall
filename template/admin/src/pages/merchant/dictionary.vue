@@ -1,8 +1,8 @@
 <template>
-  <el-card shadow="never" class="dictionary-page">
+  <el-card shadow="never" class="dictionary-page merchant-page">
     <div class="toolbar"><div><h3>{{ title }}</h3><p class="help">{{ kind === 'type' ? '类型用于单选分类，不影响商户的经营身份、权限和结算。' : '标签用于运营分组，可为每个商户设置多个标签。' }}</p></div><el-button v-if="permissions[kind + '-save']" type="primary" size="small" @click="edit()">新增{{ noun }}</el-button></div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
-    <el-table v-loading="loading" :data="rows" row-key="id" empty-text="暂无数据">
+    <el-table class="merchant-table" v-loading="loading" :data="rows" row-key="id" empty-text="暂无数据">
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column label="名称" min-width="150"><template slot-scope="{ row }"><el-tag v-if="kind === 'tag'" :style="{ color: row.color }">{{ row.name }}</el-tag><span v-else>{{ row.name }}</span></template></el-table-column>
       <el-table-column prop="description" label="说明" min-width="180" show-overflow-tooltip />
@@ -10,7 +10,7 @@
       <el-table-column prop="merchant_count" label="关联商户" width="105" />
       <el-table-column label="状态" width="90"><template slot-scope="{ row }"><el-tag :type="row.status ? 'success' : 'info'" size="small">{{ row.status ? '启用' : '停用' }}</el-tag></template></el-table-column>
       <el-table-column v-if="kind === 'type'" label="允许入驻选择" width="115"><template slot-scope="{ row }">{{ row.apply_selectable ? '是' : '否' }}</template></el-table-column>
-      <el-table-column label="操作" width="140"><template slot-scope="{ row }"><el-button v-if="permissions[kind + '-save']" type="text" @click="edit(row)">编辑</el-button><el-button v-if="permissions[kind + '-delete']" type="text" :disabled="!!row.merchant_count" @click="remove(row)">删除</el-button></template></el-table-column>
+      <el-table-column label="操作" width="140"><template slot-scope="{ row }"><div class="merchant-row-actions"><el-button v-if="permissions[kind + '-save']" type="text" @click="edit(row)">编辑</el-button><el-button v-if="permissions[kind + '-delete']" type="text" :disabled="!!row.merchant_count" @click="remove(row)">删除</el-button></div></template></el-table-column>
     </el-table>
     <el-dialog :title="(form.id ? '编辑' : '新增') + noun" :visible.sync="dialog" width="560px" :close-on-click-modal="false" append-to-body>
       <el-form label-width="130px" @submit.native.prevent>
@@ -40,4 +40,5 @@ export default {
   },
 };
 </script>
+<style lang="scss" src="./merchant.scss"></style>
 <style scoped>.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }.toolbar h3 { margin: 0 0 10px; font-size: 16px; }.help { color: #909399; font-size: 12px; margin: 0; }</style>

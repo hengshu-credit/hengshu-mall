@@ -1,7 +1,7 @@
 <template>
   <div class="merchant-page">
-    <el-card shadow="never">
-      <el-form inline size="small" @submit.native.prevent>
+    <el-card shadow="never" class="merchant-panel">
+      <el-form class="merchant-filter" inline size="small" @submit.native.prevent>
         <el-form-item label="商户搜索"><el-input v-model="filters.keyword" clearable placeholder="商户名称／编号／主体" @keyup.enter.native="search" /></el-form-item>
         <el-form-item label="商户类型"><el-select v-model="filters.type_id" clearable placeholder="全部"><el-option v-for="item in types" :key="item.id" :value="item.id" :label="item.name" /></el-select></el-form-item>
         <el-form-item label="商户标签"><el-select v-model="filters.tag_ids" multiple clearable placeholder="全部"><el-option v-for="item in tags" :key="item.id" :value="item.id" :label="item.name" /></el-select></el-form-item>
@@ -10,29 +10,47 @@
         <el-form-item><el-button type="primary" @click="search">查询</el-button><el-button @click="reset">重置</el-button></el-form-item>
       </el-form>
     </el-card>
-    <el-card shadow="never" class="mt16">
-      <div class="toolbar"><div><strong>商户列表</strong><span class="help">统一维护商户资料、审核与历史记录</span></div><el-button v-if="permissions.save" type="primary" size="small" @click="create">新增商户</el-button></div>
+    <el-card shadow="never" class="merchant-panel">
+      <div class="toolbar"><div><strong>商户列表</strong><span class="merchant-count">{{ count }} 家商户</span></div><el-button v-if="permissions.save" type="primary" size="small" @click="create">新增商户</el-button></div>
       <el-alert v-if="error" :title="error" type="error" :closable="false" class="mb16" />
-      <el-table v-loading="loading" :data="list" row-key="id" empty-text="暂无商户">
-        <el-table-column label="商户" min-width="220"><template slot-scope="{ row }"><div class="merchant-name"><img v-if="row.logo" :src="row.logo" alt="商户Logo" /><div><el-button type="text" @click="open(row, false)">{{ row.name }}</el-button><div class="muted">{{ row.code }}</div></div></div></template></el-table-column>
+      <el-table class="merchant-table" v-loading="loading" :data="list" row-key="id" empty-text="暂无商户">
+        <el-table-column label="商户名称" min-width="220">
+          <template slot-scope="{ row }">
+            <div class="merchant-name">
+              <div class="merchant-avatar"><img v-if="row.logo" :src="row.logo" alt="商户Logo" /><i v-else class="el-icon-s-shop" aria-hidden="true" /></div>
+              <div class="merchant-identity">
+                <button type="button" class="merchant-name-link" :title="row.name" @click="open(row, false)">{{ row.name }}</button>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="code" label="商户ID" min-width="140" show-overflow-tooltip class-name="merchant-id-column" />
         <el-table-column prop="subject_name" label="主体名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="type_name" label="商户类型" width="110" />
-        <el-table-column label="标签" min-width="140"><template slot-scope="{ row }"><el-tag v-for="tag in row.tags" :key="tag.id" size="mini" :color="tag.color + '15'" :style="{ color: tag.color, margin: '2px' }">{{ tag.name }}</el-tag><span v-if="!row.tags.length">—</span></template></el-table-column>
-        <el-table-column label="联系人" width="145"><template slot-scope="{ row }">{{ row.contact_name || '—' }}<div class="muted">{{ row.contact_phone }}</div></template></el-table-column>
-        <el-table-column label="商品数" width="85"><template slot-scope="{ row }"><el-button type="text" @click="products(row)">{{ row.product_count }}</el-button></template></el-table-column>
-        <el-table-column label="审核状态" width="135"><template slot-scope="{ row }"><el-tag :type="row.audit_status === 'approved' ? 'success' : 'info'" size="small">{{ auditNames[row.audit_status] }}</el-tag><div v-if="row.pending_status" class="muted">修改：{{ auditNames[row.pending_status] }}</div></template></el-table-column>
-        <el-table-column label="经营状态" width="105"><template slot-scope="{ row }">{{ stateNames[row.state] }}</template></el-table-column>
-        <el-table-column label="操作" fixed="right" width="170"><template slot-scope="{ row }"><el-button type="text" @click="open(row, false)">详情</el-button><el-button v-if="permissions.save" type="text" @click="open(row, true)">编辑</el-button><el-dropdown trigger="click" @command="action(row, $event)"><el-button type="text">更多<i class="el-icon-arrow-down" /></el-button><el-dropdown-menu slot="dropdown"><el-dropdown-item v-if="permissions.history" command="history">历史记录</el-dropdown-item><el-dropdown-item v-if="permissions.status && row.state !== 'open'" command="open">开业／恢复</el-dropdown-item><el-dropdown-item v-if="permissions.status && row.state === 'open' && !row.is_platform" command="paused">暂停营业</el-dropdown-item><el-dropdown-item v-if="permissions.status && !row.is_platform && row.state !== 'closed'" command="closed">关闭商户</el-dropdown-item><el-dropdown-item v-if="permissions.export && permissions.files" command="export">导出资料包</el-dropdown-item></el-dropdown-menu></el-dropdown></template></el-table-column>
+        <el-table-column label="商户类型" width="100"><template slot-scope="{ row }"><span class="merchant-type-label" :title="row.type_name">{{ row.type_name }}</span></template></el-table-column>
+        <el-table-column label="标签" min-width="110">
+          <template slot-scope="{ row }">
+            <el-tooltip v-if="row.tags.length" :content="row.tags.map(tag => tag.name).join('、')" placement="top" :disabled="row.tags.length < 2">
+              <div class="merchant-tag-strip"><span class="merchant-tag-label">{{ row.tags[0].name }}</span><span v-if="row.tags.length > 1" class="merchant-tag-more">+{{ row.tags.length - 1 }}</span></div>
+            </el-tooltip>
+            <span v-else class="muted">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="联系人" width="135"><template slot-scope="{ row }">{{ row.contact_name || '—' }}<div class="muted">{{ row.contact_phone }}</div></template></el-table-column>
+        <el-table-column label="商品数" width="80"><template slot-scope="{ row }"><button type="button" class="merchant-number-link" @click="products(row)">{{ row.product_count }}</button></template></el-table-column>
+        <el-table-column label="审核状态" width="120"><template slot-scope="{ row }"><el-tag :type="row.audit_status === 'approved' ? 'success' : 'info'" size="small">{{ auditNames[row.audit_status] }}</el-tag><div v-if="row.pending_status" class="muted">修改：{{ auditNames[row.pending_status] }}</div></template></el-table-column>
+        <el-table-column label="经营状态" width="105"><template slot-scope="{ row }"><span class="merchant-state" :class="'is-' + row.state">{{ stateNames[row.state] }}</span></template></el-table-column>
+        <el-table-column label="操作" fixed="right" width="170"><template slot-scope="{ row }"><div class="merchant-row-actions"><el-button type="text" @click="open(row, false)">详情</el-button><el-button v-if="permissions.save" type="text" @click="open(row, true)">编辑</el-button><el-dropdown trigger="click" @command="action(row, $event)"><el-button type="text">更多<i class="el-icon-arrow-down" /></el-button><el-dropdown-menu slot="dropdown"><el-dropdown-item v-if="permissions.history" command="history">历史记录</el-dropdown-item><el-dropdown-item v-if="permissions.status && row.state !== 'open'" command="open">开业／恢复</el-dropdown-item><el-dropdown-item v-if="permissions.status && row.state === 'open' && !row.is_platform" command="paused">暂停营业</el-dropdown-item><el-dropdown-item v-if="permissions.status && !row.is_platform && row.state !== 'closed'" command="closed">关闭商户</el-dropdown-item><el-dropdown-item v-if="permissions.export && permissions.files" command="export">导出资料包</el-dropdown-item></el-dropdown-menu></el-dropdown></div></template></el-table-column>
       </el-table>
-      <el-pagination class="pagination" :current-page.sync="page" :page-size="20" :total="count" layout="total, prev, pager, next" @current-change="load" />
+      <el-pagination class="merchant-pagination" :current-page.sync="page" :page-size="20" :total="count" layout="total, prev, pager, next" @current-change="load" />
     </el-card>
-    <el-drawer :title="drawerTitle" :visible.sync="drawer" size="min(100%, 1080px)" :wrapper-closable="false" destroy-on-close>
+    <el-drawer custom-class="merchant-drawer" :title="drawerTitle" :visible.sync="drawer" size="min(100%, 1080px)" :wrapper-closable="false" destroy-on-close>
       <div v-loading="detailLoading" class="drawer-body">
         <el-alert v-if="detailError" :title="detailError" type="error" :closable="false" />
         <el-tabs v-if="!detailLoading && !detailError" v-model="tab">
           <el-tab-pane label="商户资料" name="profile">
             <el-alert v-if="record && record.pending" :title="`存在${auditNames[record.pending.status]}的资料修改；当前展示${showEffective ? '有效资料' : '待审资料'}`" type="warning" :closable="false" class="mb16"><el-button slot="default" type="text" @click="toggleEffective">{{ showEffective ? '查看待审资料' : '查看有效资料' }}</el-button></el-alert>
-            <merchant-form v-model="form" :types="types" :tags="tags" :documents="documents" :shop-id="editId" :readonly="!editing || showEffective || isSubmitted" :sensitive="!!permissions.sensitive" :can-files="!!permissions.files" />
+            <merchant-form v-if="editing && !showEffective && !isSubmitted" v-model="form" :types="types" :tags="tags" :documents="documents" :shop-id="editId" :readonly="!editing || showEffective || isSubmitted" :sensitive="!!permissions.sensitive" :can-files="!!permissions.files" />
+            <merchant-detail v-else :value="form" :meta="detailMeta" :types="types" :tags="tags" :documents="documents" :can-files="!!permissions.files" />
           </el-tab-pane>
           <el-tab-pane v-if="editId && permissions.history" label="历史记录" name="history" lazy><merchant-history v-if="tab === 'history'" :shop-id="editId" :can-files="!!permissions.files" :key="historyKey" /></el-tab-pane>
         </el-tabs>
@@ -53,12 +71,14 @@
 import { merchantGet, merchantWrite, operationKey, merchantFile, saveBlob } from '@/api/merchant';
 import MerchantForm from './components/MerchantForm';
 import MerchantHistory from './components/MerchantHistory';
+import MerchantDetail from './components/MerchantDetail';
 import { stateNames, auditNames, emptyMerchant } from './fields';
 const filters = () => ({ keyword: '', type_id: '', tag_ids: [], state: '', audit_status: '' });
 export default {
-  name: 'MerchantList', components: { MerchantForm, MerchantHistory },
+  name: 'MerchantList', components: { MerchantForm, MerchantHistory, MerchantDetail },
   data() { return { stateNames, auditNames, filters: filters(), permissions: {}, types: [], tags: [], list: [], page: 1, count: 0, loading: false, error: '', drawer: false, editing: false, editId: 0, form: emptyMerchant(), documents: [], record: null, tab: 'profile', detailLoading: false, detailError: '', saving: false, sequence: 0, detailSequence: 0, historyKey: 0, showEffective: false, saveKey: '', saveFingerprint: '' }; },
   computed: {
+    detailMeta() { return this.record ? { ...this.record, audit_status: this.record.pending && !this.showEffective ? this.record.pending.status : this.record.audit_status } : {}; },
     drawerTitle() { return !this.editId ? '新增商户' : this.editing ? '编辑商户' : '商户详情'; },
     isSubmitted() { return !!(this.record && this.record.pending && this.record.pending.status === 'submitted'); },
     canSubmit() { return this.permissions.submit && this.editId && this.record && !this.isSubmitted && !this.editing && (this.record.audit_status !== 'approved' || this.record.pending); },
@@ -80,6 +100,26 @@ export default {
   },
 };
 </script>
+<style lang="scss" src="./merchant.scss"></style>
 <style scoped>
-.mt16 { margin-top: 16px; }.mb16 { margin-bottom: 16px; }.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }.help { color: #909399; margin-left: 14px; font-size: 12px; }.muted { font-size: 12px; color: #909399; line-height: 1.8; }.merchant-name { display: flex; align-items: center; gap: 10px; }.merchant-name img { width: 38px; height: 38px; border-radius: 5px; object-fit: cover; }.pagination { text-align: right; margin-top: 18px; }.drawer-body { padding: 0 24px 100px; height: calc(100vh - 90px); overflow-y: auto; }.drawer-footer { position: absolute; bottom: 0; left: 0; right: 0; background: #fff; padding: 16px 24px; border-top: 1px solid #ebeef5; text-align: right; }.el-dropdown { margin-left: 10px; }
+.mb16 { margin-bottom: 16px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.toolbar strong { font-size: 16px; color: #344054; font-weight: 600; }
+.merchant-count { display: inline-block; margin-left: 12px; font-size: 12px; color: #8b96a7; }
+.muted { font-size: 12px; color: #98a2b2; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.merchant-name { display: flex; align-items: center; flex-wrap: nowrap; gap: 12px; width: 100%; min-width: 0; }
+.merchant-avatar { display: flex; align-items: center; justify-content: center; flex: 0 0 36px; width: 36px; height: 36px; background: #eff4ff; color: #7596dd; font-size: 20px; border-radius: 7px; }
+.merchant-avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.merchant-identity { min-width: 0; flex: 1; overflow: hidden; }
+.merchant-name-link { display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: none; color: #344054; font: inherit; font-weight: 600; line-height: 22px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.merchant-name-link:hover { color: #3375ec; }
+.merchant-name-link:focus-visible,.merchant-number-link:focus-visible { outline: 2px solid #8db2ff; outline-offset: 2px; }
+.merchant-type-label { display: inline-block; max-width: 100%; padding: 1px 7px; background: #f3f5f9; color: #68768d; border-radius: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.merchant-tag-strip { display: flex; align-items: center; gap: 5px; min-width: 0; white-space: nowrap; }
+.merchant-tag-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #71819b; font-size: 12px; }
+.merchant-tag-more { flex: 0 0 auto; color: #8d9ab0; background: #f3f5f9; padding: 0 5px; border-radius: 3px; font-size: 11px; }
+.merchant-number-link { display: inline-flex; border: 0; background: none; padding: 0; color: #4078e8; font: inherit; font-weight: 500; cursor: pointer; }
+.merchant-state { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: #99a2b0; font-size: 12px; }
+.merchant-state:before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.merchant-state.is-open { color: #23a56d; }.merchant-state.is-preparing,.merchant-state.is-paused { color: #b98c3b; }
 </style>

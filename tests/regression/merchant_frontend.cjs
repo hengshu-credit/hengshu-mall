@@ -55,6 +55,47 @@ test('merchant form stays neutral, preserves basic contact fields and protects s
   app.destroy();
 });
 
+test('merchant details display label-value content and only the selected attachments without form controls', async () => {
+  const component = load('pages/merchant/components/MerchantDetail.vue');
+  const value = { ...profile(), tag_ids: [5], contact_address: '上海市测试路 1 号', document_ids: [12] };
+  const app = mount(component, { value, meta: { code: 'PLATFORM', state: 'open', audit_status: 'approved' }, types: [{ id: 2, name: '合作商户' }], tags: [{ id: 5, name: '优选' }], documents: [{ id: 11, kind: 'contract', name: '旧合同.pdf' }, { id: 12, kind: 'contract', name: '当前合同.pdf' }], canFiles: false });
+  await flush();
+  const root = app.vm.$el;
+  assert.equal(root.querySelectorAll('input, textarea, select, .el-form').length, 0);
+  const entries = [...root.querySelectorAll('.detail-row')];
+  const findValue = label => entries.find(row => row.querySelector('dt').textContent === label).querySelector('dd').textContent;
+  assert.equal(findValue('商户名称'), '测试商户');
+  assert.equal(findValue('商户类型'), '合作商户');
+  assert.equal(findValue('联系地址'), '上海市测试路 1 号');
+  assert.equal(findValue('银行账号'), '62****5555', 'server masking is preserved');
+  assert.equal(findValue('邮箱'), '—', 'missing data has a plain placeholder');
+  assert.ok(root.textContent.includes('优选') && root.textContent.includes('PLATFORM'));
+  assert.ok(root.textContent.includes('当前合同.pdf') && !root.textContent.includes('旧合同.pdf'));
+  assert.equal(root.querySelectorAll('.detail-file-actions button').length, 0, 'file actions require permission');
+  app.vm.props.canFiles = true; await flush();
+  assert.equal(root.querySelectorAll('.detail-file-actions button').length, 2);
+  app.destroy();
+});
+
+test('merchant names and business IDs have independent columns and viewing switches to a form only when editing', async () => {
+  const p = profile();
+  const record = { id: 3, code: 'M000003', version: 1, audit_status: 'approved', state: 'open', profile: p, documents: [], pending: null };
+  const component = load('pages/merchant/index.vue', { merchantGet: async route => ({ data: route === 'config' ? { permissions: { save: true }, types: [{ id: 2, name: '合作商户' }], tags: [] } : route === 'shop/list' ? { count: 1, list: [{ ...p, ...record, type_name: '合作商户', tags: [] }] } : record }) });
+  const app = mount(component, {}); await flush(); await flush();
+  const table = app.child.$children.flatMap(child => child.$children).find(child => child.$options.name === 'ElTable');
+  const columns = table.store.states.columns;
+  assert.ok(columns.some(column => column.label === '商户名称'));
+  assert.ok(columns.some(column => column.label === '商户ID' && column.property === 'code'));
+  assert.equal(app.vm.$el.querySelector('.merchant-name').textContent.trim(), '测试商户');
+  await app.child.open({ id: 3 }, false); await flush();
+  assert.ok(app.vm.$el.querySelector('.merchant-detail'));
+  assert.equal(app.vm.$el.querySelectorAll('.drawer-body input, .drawer-body textarea, .drawer-body select').length, 0);
+  app.child.editing = true; await flush();
+  assert.ok(app.vm.$el.querySelector('.drawer-body .el-form'));
+  assert.equal(app.vm.$el.querySelectorAll('.merchant-detail').length, 0);
+  app.destroy();
+});
+
 test('uploaded contracts become draft attachments without losing previous references', async () => {
   const component = load('pages/merchant/components/MerchantForm.vue', { uploadMerchantDocument: async () => ({ data: { id: 12, kind: 'contract', name: '新合同.pdf', created_at: 1 } }) });
   const app = mount(component, { value: { ...profile(), document_ids: [11] }, types: [], tags: [], documents: [{ id: 11, kind: 'contract', name: '旧合同.pdf', created_at: 1 }], shopId: 3, sensitive: true, canFiles: true });

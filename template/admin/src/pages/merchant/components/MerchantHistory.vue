@@ -6,7 +6,7 @@
       <el-form-item><el-button type="primary" @click="page = 1; load()">查询</el-button></el-form-item>
     </el-form>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
-    <el-table v-loading="loading" :data="list" empty-text="暂无历史记录" row-key="id">
+    <el-table class="merchant-table" v-loading="loading" :data="list" empty-text="暂无历史记录" row-key="id">
       <el-table-column type="expand"><template slot-scope="{ row }">
         <div class="history-detail">
           <p v-if="row.opinion"><strong>审核意见：</strong>{{ row.opinion }}</p>

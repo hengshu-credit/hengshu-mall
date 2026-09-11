@@ -1,17 +1,17 @@
 <template>
-  <div>
-    <el-card shadow="never"><el-form inline size="small" @submit.native.prevent>
+  <div class="merchant-page">
+    <el-card class="merchant-panel" shadow="never"><el-form class="merchant-filter" inline size="small" @submit.native.prevent>
       <el-form-item label="审核状态"><el-select v-model="filters.status" clearable placeholder="全部"><el-option v-for="(name, key) in auditNames" :key="key" :value="key" :label="name" /></el-select></el-form-item>
       <el-form-item label="申请内容"><el-select v-model="filters.kind" clearable placeholder="全部"><el-option value="onboarding" label="商户入驻" /><el-option value="profile_change" label="资料修改" /></el-select></el-form-item>
       <el-form-item><el-button type="primary" @click="page = 1; load()">查询</el-button></el-form-item>
       <el-form-item><el-popover placement="bottom" width="360" trigger="click"><p>商城入驻页面</p><code>/pages/merchant/application</code><p style="color:#909399">可在商城装修中配置此页面链接。</p><el-button slot="reference">入驻入口</el-button></el-popover></el-form-item>
     </el-form></el-card>
-    <el-card shadow="never" class="mt16">
+    <el-card shadow="never" class="merchant-panel">
       <el-alert v-if="error" :title="error" type="error" :closable="false" />
-      <el-table v-loading="loading" :data="rows" row-key="id" empty-text="暂无入驻或资料申请">
+      <el-table class="merchant-table" v-loading="loading" :data="rows" row-key="id" empty-text="暂无入驻或资料申请">
         <el-table-column prop="id" label="申请编号" width="90" />
-        <el-table-column prop="name" label="申请商户" min-width="180" />
-        <el-table-column prop="subject_name" label="主体名称" min-width="180" />
+        <el-table-column prop="name" label="申请商户" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="subject_name" label="主体名称" min-width="180" show-overflow-tooltip />
         <el-table-column prop="type_name" label="商户类型" width="110" />
         <el-table-column prop="contact_name" label="联系人" width="100" />
         <el-table-column label="内容" width="100"><template slot-scope="{ row }">{{ row.kind === 'profile_change' ? '资料修改' : '商户入驻' }}</template></el-table-column>
@@ -22,13 +22,13 @@
       </el-table>
       <el-pagination class="pagination" :current-page.sync="page" :page-size="20" :total="count" layout="total, prev, pager, next" @current-change="load" />
     </el-card>
-    <el-drawer title="申请资料" :visible.sync="drawer" size="min(100%, 1080px)" :wrapper-closable="false" destroy-on-close>
+    <el-drawer custom-class="merchant-drawer" title="申请资料" :visible.sync="drawer" size="min(100%, 1080px)" :wrapper-closable="false" destroy-on-close>
       <div v-loading="detailLoading" class="drawer-body">
         <el-alert v-if="detailError" :title="detailError" type="error" :closable="false" />
         <template v-if="application && !detailLoading && !detailError">
           <el-alert v-if="application.affected_shops.length" type="warning" :closable="false" :title="'本次主体资料关联：' + application.affected_shops.map(item => item.name).join('、')" />
           <el-alert v-if="application.opinion" :title="'上次审核意见：' + application.opinion" type="info" :closable="false" />
-          <merchant-form :value="application.profile" :types="types" :tags="tags" :documents="application.documents" readonly :sensitive="!!permissions.sensitive" :can-files="!!permissions.files" />
+          <merchant-detail :value="application.profile" :meta="{ audit_status: application.status, created_at: application.created_at }" :types="types" :tags="tags" :documents="application.documents" :can-files="!!permissions.files" />
           <template v-if="application.status === 'submitted' && permissions.audit"><h3>审核意见</h3><el-input v-model="opinion" type="textarea" :rows="3" maxlength="2000" placeholder="驳回或要求补充时请填写具体原因" /></template>
           <div v-if="application.history && application.history.list.length" class="review-history"><h3>历史记录</h3><div v-for="event in application.history.list" :key="event.id" class="history-row"><span>{{ formatTime(event.created_at) }} · {{ event.actor_name }}</span><p>{{ event.summary }}<template v-if="event.opinion">：{{ event.opinion }}</template></p></div></div>
         </template>
@@ -39,10 +39,10 @@
 </template>
 <script>
 import { merchantGet, merchantWrite, operationKey } from '@/api/merchant';
-import MerchantForm from './components/MerchantForm';
+import MerchantDetail from './components/MerchantDetail';
 import { auditNames, formatTime } from './fields';
 export default {
-  name: 'MerchantApplications', components: { MerchantForm },
+  name: 'MerchantApplications', components: { MerchantDetail },
   data() { return { auditNames, filters: { status: 'submitted', kind: '' }, page: 1, count: 0, rows: [], permissions: {}, types: [], tags: [], loading: false, error: '', drawer: false, detailLoading: false, detailError: '', application: null, opinion: '', saving: false, sequence: 0, detailSequence: 0, reviewKey: '', reviewFingerprint: '' }; },
   created() { this.initialize(); },
   methods: {
@@ -54,4 +54,5 @@ export default {
   },
 };
 </script>
-<style scoped>.mt16 { margin-top: 16px; }.pagination { text-align: right; margin-top: 18px; }.drawer-body { padding: 0 24px 110px; height: calc(100vh - 90px); overflow-y: auto; }.drawer-footer { position: absolute; bottom: 0; left: 0; right: 0; background: #fff; padding: 16px 24px; border-top: 1px solid #ebeef5; text-align: right; }.history-row { border-left: 2px solid #dce6f2; padding: 4px 14px; margin: 14px 0; }.history-row span { color: #909399; font-size: 12px; }.history-row p { margin: 6px 0; }</style>
+<style lang="scss" src="./merchant.scss"></style>
+<style scoped>.pagination { text-align: right; margin-top: 18px; }.history-row { border-left: 2px solid #dce6f2; padding: 4px 14px; margin: 14px 0; }.history-row span { color: #909399; font-size: 12px; }.history-row p { margin: 6px 0; }</style>
