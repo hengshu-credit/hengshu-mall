@@ -1,4 +1,4 @@
-# 恒数商城与京东采集：单包更新
+# 衡枢商城与京东采集：单包更新
 
 此包用于已部署在 `/root/hengshu-mall/crmeb-mall` 的商城。包含 PHP 后端、管理后台与手机 H5 生产文件、Compose 启动配置和独立京东采集容器；不会打包数据库、现有 `.env`、`.constant`、安装锁、上传文件或安装 SQL。服务器不需要 Node.js 或 Python。
 

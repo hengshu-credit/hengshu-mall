@@ -1,4 +1,4 @@
-# 恒数商城：打包与部署
+# 衡枢商城：打包与部署
 
 PHP 后端在 `crmeb/`，管理后台源码在 `template/admin/`，移动端源码在 `template/uni-app/`。发布配置统一维护在 `help/release/`，此前安装页和任务容器的修补已合入。
 

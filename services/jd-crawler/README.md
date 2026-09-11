@@ -1,4 +1,4 @@
-# 恒数商城京东商品素材采集服务
+# 衡枢商城京东商品素材采集服务
 
 独立运行的 Python + Chromium 服务，复用 [CherryPainter/jd-product-crawler](https://github.com/CherryPainter/jd-product-crawler) 的页面提取代码。商城通过内部 HTTP 调用，不安装 Python、不共享数据库。服务导入当前商品链接对应 SKU 的真实标题、价格、图片、可获取的视频、详情及参数；不采用上游演示代码的随机价格、销量、库存、评论。
 
