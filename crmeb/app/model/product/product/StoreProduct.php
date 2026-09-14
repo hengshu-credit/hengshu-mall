@@ -39,7 +39,8 @@ class StoreProduct extends BaseModel
 
     public function searchSellerShopIdAttr($query, $value)
     {
-        if ($value !== '' && $value !== null) $query->where('seller_shop_id', (int)$value);
+        // Zero is the public catalog's "all shops" default, not a real shop.
+        if ((int)$value > 0) $query->where('seller_shop_id', (int)$value);
     }
 
     public function searchMerchantTypeIdAttr($query, $value)

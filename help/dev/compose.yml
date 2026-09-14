@@ -1,5 +1,11 @@
 # Layer on help/docker/docker-compose.yml for Windows source development.
 services:
+  media-display:
+    build: ../../services/media-display
+    read_only: true
+    volumes:
+      - ../../crmeb/public/uploads:/media:ro
+    networks: [app_net]
   php-storage-init:
     image: ccr.ccs.tencentyun.com/crmebky_php/php:v7.4
     profiles: [tools]

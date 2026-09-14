@@ -219,7 +219,10 @@ class StoreProductServices extends BaseServices
         \app\services\merchant\MerchantInstaller::ensure();
         sort($ids);
         return $this->transaction(function () use ($ids, $is_show) {
-        if ($is_show) foreach ($ids as $merchantProductId) \app\services\merchant\MerchantProducts::prepare(['is_show'=>1], (int)$merchantProductId);
+        if ($is_show) foreach ($ids as $merchantProductId) {
+            \app\services\merchant\MerchantProducts::prepare(['is_show'=>1], (int)$merchantProductId);
+            (new ProductQualityServices)->assertPublish((int)$merchantProductId);
+        }
 //        if ($is_show == 0) {
 //            //下架检测是否有参与活动商品
 //            $this->checkActivity($ids);
@@ -610,8 +613,12 @@ class StoreProductServices extends BaseServices
      * @param int $id
      * @param array $data
      */
-    public function save(int $id, array $data)
+    public function save(int $id, array $data, int $adminId = 0)
     {
+        $quality=$data['quality_review']??null;
+        if($quality!==null&&!is_array($quality))throw new AdminException('商品经营核对格式不正确');
+        unset($data['quality_review']);
+        if(!$id&&($data['type']??0)==-1){$data['is_show']=0;$quality=null;}
         \app\services\merchant\MerchantInstaller::ensure();
         $brandIds = array_key_exists('brand_ids', $data) ? ProductBrandScope::ids($data['brand_ids']) : null;
         unset($data['brand_ids'], $data['brand_list']);
@@ -752,7 +759,7 @@ class StoreProductServices extends BaseServices
         // Initialize schema before MySQL opens the product transaction.
         \app\services\merchant\MerchantInstaller::ensure();
         $brandServices = $brandIds !== null ? app()->make(StoreProductBrandServices::class) : null;
-        $this->transaction(function () use ($id, $brandIds, $brandServices, $is_copy, $data, $descriptionImages, $description, $cate_id, $storeDescriptionServices, $storeProductCateServices, $storeProductAttrServices, $storeProductCouponServices, $storeCategoryServices, $detail, $attr, $coupon_ids, $type, $slider_image, $videoToImport, &$collectedVideoJob) {
+        $this->transaction(function () use ($id, $adminId, $quality, $brandIds, $brandServices, $is_copy, $data, $descriptionImages, $description, $cate_id, $storeDescriptionServices, $storeProductCateServices, $storeProductAttrServices, $storeProductCouponServices, $storeCategoryServices, $detail, $attr, $coupon_ids, $type, $slider_image, $videoToImport, &$collectedVideoJob) {
             $data = \app\services\merchant\MerchantProducts::prepare($data, $id);
             if ($data['spec_type'] == 0) {
                 $attr = [
@@ -866,6 +873,10 @@ class StoreProductServices extends BaseServices
                     }
                 }
             }
+            $qualityId=$id ?: (int)$res->id;
+            $qualityService=new ProductQualityServices;
+            $qualityService->save($qualityId,$quality,$adminId);
+            if (!empty($data['is_show'])) $qualityService->assertPublish($qualityId);
         });
         // Publish after the product transaction commits so a fast worker can see it.
         return ['collection_warnings' => $collectedVideoJob ? (new JdVideoImportServices())->schedule(...$collectedVideoJob) : []];
@@ -1249,6 +1260,7 @@ class StoreProductServices extends BaseServices
      */
     public function create(array $data)
     {
+        $data['is_show']=0;
         return $this->dao->save($data);
     }
 
@@ -1313,7 +1325,7 @@ class StoreProductServices extends BaseServices
         }
         $list = $this->getActivityList($list);
         $list = $this->getProduceOtherList($list, $uid, !!$where['type']);
-        return $list;
+        return \app\services\merchant\MerchantStorefrontServices::decorateProducts($list);
     }
 
     /**
@@ -1696,6 +1708,8 @@ class StoreProductServices extends BaseServices
         ]]);
 
         $data['storeInfo'] = app()->make(\app\services\activity\style\MarketingStyleServices::class)->decorateProducts([$data['storeInfo']])[0];
+        $data['storeInfo']['seller_shop_id'] = (int)$merchantSummary['id'];
+        $data['storeInfo']['merchant_name'] = $merchantSummary['id'] ? $merchantSummary['name'] : '';
         return $data;
     }
 
@@ -2262,7 +2276,12 @@ class StoreProductServices extends BaseServices
      */
     public function batchSetting($data)
     {
+        return $this->transaction(function()use($data){
         $ids = $data['ids'];
+        foreach($ids as $productId){
+            $current=$this->dao->getOneForUpdate(['id'=>$productId]);
+            if($current && $current['is_show'] && in_array((int)$data['type'],[1,2],true))throw new AdminException('在售商品的分类和物流修改请进入商品编辑并重新核对');
+        }
         $batchData = [];
         if (!count($ids)) throw new AdminException('请选择商品');
         switch ($data['type']) {
@@ -2371,6 +2390,7 @@ class StoreProductServices extends BaseServices
                 return true;
         }
         return true;
+        });
     }
 
     /**
@@ -2664,6 +2684,9 @@ class StoreProductServices extends BaseServices
 
     public function otherSave($id, $type, $data)
     {
+        return $this->transaction(function()use($id,$type,$data){
+        $current=$this->dao->getOneForUpdate(['id'=>$id]);
+        if($current && $current['is_show'] && (int)$type===2)throw new AdminException('在售商品的会员价修改请进入商品编辑并重新核对');
         $upProductData = [];
         if ($type == 1) {
             $upProductData = [
@@ -2711,6 +2734,7 @@ class StoreProductServices extends BaseServices
             $storeProductAttrResultServices->update(['product_id' => $id, 'type' => 0], ['result' => json_encode($attrResult)]);
         }
         return true;
+        });
     }
 
     /**
@@ -2820,12 +2844,14 @@ class StoreProductServices extends BaseServices
 
     public function batchRecover($ids)
     {
-        foreach ($ids as $id) {
-            $data['is_del'] = 0;
-            $this->dao->update($id, $data);
-            app()->make(StoreProductCateServices::class)->update(['product_id' => $id], ['status' => 1]);
-        }
-        return true;
+        return $this->transaction(function()use($ids){
+            foreach($ids as $id){
+                $this->dao->getOneForUpdate(['id'=>$id]);
+                $this->dao->update($id,['is_del'=>0,'is_show'=>0]);
+                app()->make(StoreProductCateServices::class)->update(['product_id'=>$id],['status'=>0]);
+            }
+            return true;
+        });
     }
 
     /**

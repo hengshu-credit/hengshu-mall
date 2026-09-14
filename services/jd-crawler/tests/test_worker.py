@@ -50,6 +50,8 @@ class WorkerBrowserTests(unittest.TestCase):
         fake_module = types.SimpleNamespace(Chromium=Browser, ChromiumOptions=Options)
         expected = {"sku_id": "1"}
         with patch.dict(sys.modules, {"DrissionPage": fake_module}), \
+                patch("jd_crawler.worker.product_page_ready", side_effect=[False, True]) as ready, \
+                patch("jd_crawler.worker.time.sleep"), \
                 patch("jd_crawler.worker.extract_product", return_value=expected):
             actual = crawl("https://item.jd.com/1.html", "127.0.0.1:9222", 0.8)
 
@@ -57,6 +59,7 @@ class WorkerBrowserTests(unittest.TestCase):
         self.assertEqual(observed["address"], "127.0.0.1:9222")
         self.assertTrue(observed["existing_only"])
         self.assertTrue(tab.closed)
+        self.assertEqual(ready.call_count, 2)
 
 
 if __name__ == "__main__":

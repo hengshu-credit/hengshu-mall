@@ -58,7 +58,7 @@ try {
   assert.equal(images[0].showTransition, false, 'Replacement images must reset the fade-in');
   images[0].handleImgLoad();
   images[0].borderLoaded = 1;
-  options.watch.borderSrc.call(images[0]);
+  options.watch.displayedBorder.call(images[0]);
   assert.equal(images[0].borderLoaded, 0, 'A replacement decoration must wait for its own load event');
   options.beforeDestroy.call(images[1]); images[1]._isDestroyed = true;
   observers[0].callback([{ target: images[1].$el, isIntersecting: true }]);
@@ -84,6 +84,11 @@ for (const flags of [{ H5: true }, { MP: true, MP_WEIXIN: true }, { APP_PLUS: tr
   const fallback = load('components/easy-loadimage/easy-loadimage.vue').default;
   const image = mountImage(fallback);
   try {
+    if (flags.APP_PLUS) {
+      assert.equal(image.loadImg, true, 'App images must load inside nested decoration scrollers without global scroll events');
+      assert.equal(listeners.size, 0);
+      continue;
+    }
     assert.equal(image.loadImg, false);
     assert.equal(listeners.size, 1, 'Unsupported browsers and non-H5 platforms must retain scroll fallback');
     imageTop = 300;

@@ -8,7 +8,7 @@
           class="serch-wrapper acea-row row-middle"
           :style="[serchWrapperStyle, txtPosition]"
         >
-          <page-action-buttons :buttons="actions.left" :config="actions" :product="product" @action="$emit('action', $event)" />
+          <page-action-buttons :shopId="shopId" :buttons="actions.left" :config="actions" :product="product" @action="$emit('action', $event)" />
           <view
             class="logo skeleton-rect"
             v-if="styleConfig == 0 && styleTypeConfig == 1 && logoConfig"
@@ -27,7 +27,7 @@
           >
           <navigator
             v-if="styleConfig === 0"
-            url="/pages/goods/goods_search/index"
+            :url="shopId ? '/pages/merchant/products?shop_id='+shopId : '/pages/goods/goods_search/index'"
             class="input acea-row row-middle skeleton-rect"
             hover-class="none"
           >
@@ -50,7 +50,7 @@
               <text v-else>{{ dataConfig.tipConfig.value }}</text>
             </view>
           </navigator>
-          <page-action-buttons :buttons="actions.right" :config="actions" :product="product" @action="$emit('action', $event)" />
+          <page-action-buttons :shopId="shopId" :buttons="actions.right" :config="actions" :product="product" @action="$emit('action', $event)" />
         </view>
       </view>
       <!-- #endif -->
@@ -74,7 +74,7 @@
               class="serch-wrapper acea-row row-middle"
               :style="[txtPosition]"
             >
-              <page-action-buttons :buttons="actions.left" :config="actions" :product="product" @action="$emit('action', $event)" />
+              <page-action-buttons :shopId="shopId" :buttons="actions.left" :config="actions" :product="product" @action="$emit('action', $event)" />
               <view
                 class="logo skeleton-rect"
                 v-if="styleConfig == 0 && styleTypeConfig == 1 && logoConfig"
@@ -94,7 +94,7 @@
               >
               <navigator
                 v-if="styleConfig === 0"
-                url="/pages/goods/goods_search/index"
+                :url="shopId ? '/pages/merchant/products?shop_id='+shopId : '/pages/goods/goods_search/index'"
                 class="input acea-row row-middle skeleton-rect"
                 hover-class="none"
               >
@@ -122,7 +122,7 @@
                   }}</text>
                 </view>
               </navigator>
-              <page-action-buttons :buttons="actions.right" :config="actions" :product="product" @action="$emit('action', $event)" />
+              <page-action-buttons :shopId="shopId" :buttons="actions.right" :config="actions" :product="product" @action="$emit('action', $event)" />
             </view>
           </view>
         </view>
@@ -148,6 +148,7 @@ export default {
     pageActionButtons,
   },
   props: {
+    shopId: {type:Number,default:0},
     product: { type: Object, default: () => ({}) },
     dataConfig: {
       type: Object,

@@ -1,10 +1,10 @@
 <template>
-  <common_wrapper :config="configObj">
+  <common_wrapper :config="configObj" v-if="!liveProductPreview || previewStore.is_vip && Number(previewStore.vip_price)>0">
     <div class="vip-container" :style="[containerStyle]">
       <div class="left-content">
         <img :src="imgUrl" class="vip-icon" v-if="imgUrl" />
         <div class="text-content" :style="{ color: tipsTextColor }">
-          开通SVIP会员预计省 <span :style="{ color: moneyTextColor }">2.90</span> 元
+          开通SVIP会员预计省 <span :style="{ color: moneyTextColor }">{{liveProductPreview ? (Number(previewStore.price)-Number(previewStore.vip_price)).toFixed(2) : '2.90'}}</span> 元
         </div>
       </div>
       <div class="right-content">
@@ -19,8 +19,10 @@
 
 <script>
 import { mapState } from 'vuex';
+import productPreview from '@/mixins/productPreview';
 
 export default {
+  mixins:[productPreview],
   name: 'home_paid_vip',
   cname: '付费会员',
   configName: 'c_paid_vip',

@@ -214,7 +214,9 @@ class StoreProduct extends AuthController
      */
     public function get_product_info($id = 0)
     {
-        return app('json')->success($this->service->getInfo((int)$id));
+        $info=$this->service->getInfo((int)$id);
+        if($id)$info['productInfo']['quality_review']=(new \app\services\product\product\ProductQualityServices)->get((int)$id);
+        return app('json')->success($info);
     }
 
     /**
@@ -286,7 +288,8 @@ class StoreProduct extends AuthController
             ($data['soure_link'] !== '' && !preg_match('#^https?://[^\s]+$#D', $data['soure_link']))) {
             return app('json')->fail('商品来源链接格式不正确');
         }
-        $result = $this->service->save((int)$id, $data);
+        $data['quality_review']=$this->request->post('quality_review',null);
+        $result = $this->service->save((int)$id, $data, (int)$this->adminId);
         if (is_array($result) && !empty($result['collection_warnings'])) return app('json')->success($result);
         return app('json')->success('保存成功');
     }

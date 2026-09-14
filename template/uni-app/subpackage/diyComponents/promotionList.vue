@@ -3,7 +3,7 @@
   <view v-show="!isSortType">
     <common-wrapper :config="configData">
       <view class="index-product-wrapper">
-        <view :style="{ height: navBdH + 'px' }" class="nav-bd-box">
+        <view :style="{ height: sticky && navBdH > 0 ? navBdH + 'px' : 'auto' }" class="nav-bd-box">
           <view
             class="nav-bd"
             :class="{
@@ -59,6 +59,8 @@
           ref="goodLists"
           v-if="goodDataConfig"
           :dataConfig="goodDataConfig"
+          :shopId="shopId"
+          compactSingle emptyText="暂无商品，试试其他分类"
           @detail="goDetail"
         ></goodList>
       </view>
@@ -72,9 +74,11 @@ import commonWrapper from "./commonWrapper.vue";
 // 	getProductslist
 // } from '@/api/store.js';
 import goodList from "./goodList.vue";
+import {productTabsCard} from '../../../shared/productTabs';
 export default {
   name: "promotionList",
   props: {
+    shopId: {type:Number,default:0},
     dataConfig: {
       type: Object,
       default: () => {},
@@ -130,9 +134,10 @@ export default {
   },
   computed: {
     configData() {
+      const card=productTabsCard(this.dataConfig);
       return {
-        ...this.dataConfig,
-        paddingConfig: this.dataConfig.paddingConfig || {
+        ...card,
+        paddingConfig: card.paddingConfig || {
           isAll: false,
           valList: [
             {
@@ -153,23 +158,7 @@ export default {
             },
           ],
         },
-        marginConfig: this.dataConfig.marginConfig || {
-          isAll: false,
-          valList: [
-            {
-              val: this.dataConfig.mbConfig ? this.dataConfig.mbConfig.val : 0,
-            },
-            {
-              val: 0,
-            },
-            {
-              val: 0,
-            },
-            {
-              val: 0,
-            },
-          ],
-        },
+        marginConfig: card.marginConfig,
       };
     },
     decorateColor() {
@@ -283,7 +272,7 @@ export default {
             val: 8,
           },
           checkboxInfo: {
-            type: [0, 1, 2, 3, 4, 5],
+            type: [0, 1, 2, 3, 5],
           },
           toneConfig: {
             tabVal: 0,
@@ -328,7 +317,7 @@ export default {
               },
             ],
           },
-          fillet: this.dataConfig.fillet,
+          fillet: {type:0,val:8},
           name: "promotionList",
         };
         that.goodDataConfig = goodDataConfig;
@@ -402,7 +391,7 @@ export default {
         val: 8,
       },
       checkboxInfo: {
-        type: [0, 1, 2, 3, 4, 5],
+        type: [0, 1, 2, 3, 5],
       },
       toneConfig: {
         tabVal: 0,
@@ -447,7 +436,7 @@ export default {
           },
         ],
       },
-      fillet: this.dataConfig.fillet,
+      fillet: {type:0,val:8},
       name: "promotionList",
     };
     that.goodDataConfig = goodDataConfig;
@@ -457,13 +446,15 @@ export default {
     let views = uni.createSelectorQuery().in(this).select(".nav-bd-box");
     view
       .boundingClientRect((data) => {
-        this.navBdH = data.height;
+        if(data && data.height > 0)this.navBdH = data.height;
       })
       .exec();
     if (!this.dataConfig.slideConfig.tabVal) {
       uni.$on("onPageScroll", () => {
         views
           .boundingClientRect((data) => {
+            if(!data)return;
+            if(!this.sticky && data.height>0)this.navBdH=data.height;
             this.sticky = data.top <= this.positionTop;
           })
           .exec();
@@ -485,6 +476,7 @@ export default {
     // 促销列表的点击事件；
     changeTab(item) {
       this.goodType = item.tabVal;
+      this.numConfig = Number(item.numConfig && item.numConfig.val) || 6;
       this.activeValue = item;
       // this.tempArr = [];
       // this.page = 1;
@@ -549,6 +541,7 @@ export default {
 $border-radius: 10px;
 
 .index-product-wrapper {
+  .nav-bd-box { margin-bottom:20rpx; }
   &.on {
     min-height: 1500rpx;
   }

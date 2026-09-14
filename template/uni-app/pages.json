@@ -32,6 +32,12 @@
 			"path": "pages/merchant/application",
 			"style": { "navigationBarTitleText": "商户入驻" }
 		},
+        { "path":"pages/merchant/shop", "style":{"navigationBarTitleText":"店铺首页","navigationStyle":"custom","enablePullDownRefresh":true} },
+        { "path":"pages/merchant/street", "style":{"navigationBarTitleText":"店铺街","enablePullDownRefresh":true} },
+        { "path":"pages/merchant/products", "style":{"navigationBarTitleText":"店铺商品"} },
+        { "path":"pages/merchant/ranking", "style":{"navigationBarTitleText":"排行榜"} },
+        { "path":"pages/merchant/followed", "style":{"navigationBarTitleText":"已关注店铺","enablePullDownRefresh":true} },
+        { "path":"pages/merchant/category", "style":{"navigationBarTitleText":"店铺分类","navigationStyle":"custom"} },
 		{
 			"path": "pages/order_addcart/order_addcart",
 			"style": {
@@ -1552,6 +1558,7 @@
 				{
 					"path": "special/index",
 					"style": {
+						"navigationStyle": "custom",
 						"navigationBarTextStyle": "white",
 						"navigationBarBackgroundColor": "#333333",
 						"navigationBarTitleText": "专题页",

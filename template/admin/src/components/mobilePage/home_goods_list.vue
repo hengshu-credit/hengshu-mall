@@ -1,6 +1,8 @@
 <template>
   <div>
     <common_wrapper :config="configObj">
+      <div v-if="productPreviewMessage" style="padding:12px;color:#909399;font-size:12px">{{ productPreviewMessage }}</div>
+      <div v-if="configObj.headerText && configObj.headerText.value" style="padding:0 20px;margin-bottom:10px;font-size:16px;color:#333">{{ configObj.headerText.value }}</div>
       <div class="home_product">
         <!-- 单列 -->
         <template v-if="styleConfig == 0">
@@ -27,12 +29,12 @@
                 />
                 <div
                   v-else
-                  class="empty-box"
+                  class="empty-box theme-product-placeholder-frame"
                   :style="{
                     borderRadius: imgRadius,
                   }"
                 >
-                  <img src="../../assets/images/shan.png" />
+                  <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
                 </div>
               </div>
               <div class="info">
@@ -47,6 +49,7 @@
                   >
                     {{ item.store_name || '华为荣耀畅享平板换屏服务 屏幕换外屏主板维修' }}
                   </div>
+<div v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:11px;color:#999;margin:4px 0">{{ item.merchant_name || '商户店铺名称' }}</div>
                   <img v-if="checkboxInfo.indexOf(1) != -1" src="../../assets/images/goods01.png" />
                 </div>
                 <div
@@ -134,12 +137,12 @@
                 />
                 <div
                   v-else
-                  class="empty-box"
+                  class="empty-box theme-product-placeholder-frame"
                   :style="{
                     borderRadius: imgRadius2,
                   }"
                 >
-                  <img src="../../assets/images/shan.png" />
+                  <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
                 </div>
               </div>
               <div
@@ -167,6 +170,7 @@
                   >
                     {{ item.store_name || '这里是商品名称展示区域,商品名称展示区域,商品名称展示区域' }}
                   </div>
+<div v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:11px;color:#999;margin:4px 0">{{ item.merchant_name || '商户店铺名称' }}</div>
                   <img v-if="checkboxInfo.indexOf(1) != -1" src="../../assets/images/goods01.png" />
                 </div>
                 <div class="price acea-row row-middle">
@@ -231,12 +235,12 @@
                 />
                 <div
                   v-else
-                  class="empty-box"
+                  class="empty-box theme-product-placeholder-frame"
                   :style="{
                     borderRadius: imgRadius,
                   }"
                 >
-                  <img src="../../assets/images/shan.png" />
+                  <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
                 </div>
               </div>
               <div
@@ -263,6 +267,7 @@
                 >
                   {{ item.store_name || '商品名称商品商名称商品商…' }}
                 </div>
+<div v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:11px;color:#999;margin:4px 0">{{ item.merchant_name || '商户店铺名称' }}</div>
                 <img v-if="checkboxInfo.indexOf(1) != -1" src="../../assets/images/goods01.png" />
                 <div class="price acea-row row-middle">
                   <div
@@ -337,7 +342,7 @@
                     borderRadius: imgRadius,
                   }"
                 />
-                <img v-else src="../../assets/images/shan.png" />
+                <img class="theme-product-placeholder" v-else src="../../assets/images/product-diy.png" />
               </div>
               <div class="text">
                 <div
@@ -349,6 +354,7 @@
                   }"
                 >
                   <div class="line2">{{ item.store_name || '这里是标题这里是标题这...' }}</div>
+<div v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:11px;color:#999;margin:4px 0">{{ item.merchant_name || '商户店铺名称' }}</div>
                 </div>
                 <div
                   class="price"
@@ -388,12 +394,12 @@
                   />
                   <div
                     v-else
-                    class="empty-box"
+                    class="empty-box theme-product-placeholder-frame"
                     :style="{
                       borderRadius: imgRadius,
                     }"
                   >
-                    <img src="../../assets/images/shan.png" />
+                    <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
                   </div>
                 </div>
                 <div
@@ -416,6 +422,7 @@
                     >
                       {{ item.store_name || '商品名称商品商名称商品商…' }}
                     </div>
+<div v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:11px;color:#999;margin:4px 0">{{ item.merchant_name || '商户店铺名称' }}</div>
                   </div>
                   <div class="price" v-if="checkboxInfo.indexOf(2) != -1">
                     <div
@@ -451,9 +458,11 @@
 </template>
 
 <script>
+import decorationProducts from '@/mixins/decorationProducts';
 import { mapState } from 'vuex';
 // import theme from "@/mixins/theme";
 export default {
+  mixins: [decorationProducts],
   name: 'home_goods_list',
   cname: '商品列表',
   configName: 'c_home_goods_list',
@@ -504,6 +513,7 @@ export default {
         cname: '商品列表',
         desc: '商品列表介绍',
         name: 'goodList',
+        headerText: { title: '列表标题', value: '' },
         timestamp: this.num,
         isHide: false,
         setUp: {
@@ -1122,6 +1132,7 @@ export default {
       } else {
         this.list = data.productList.list.length ? data.productList.list : 4;
       }
+      this.refreshPreviewProducts(data);
     },
   },
 };

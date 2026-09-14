@@ -14,6 +14,14 @@ function load(file, api) {
   return mod.exports.default;
 }
 const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+test('confirmation rejects a price response after account changes and invalidates hidden page quotes',async()=>{
+  const task=deferred(); const options=load('pages/goods/order_confirm/index.vue',{postOrderComputed:()=>task.promise});
+  const vm={...options.methods,pricingRequestId:0,pricingLoading:false,pricingError:'',$store:{state:{app:{token:'account-a'}}},priceGroup:{},$set:(obj,key,value)=>obj[key]=value};
+  vm.computedPrice();vm.$store.state.app.token='account-b';
+  task.resolve({data:{result:{pay_price:'77.00',deduction_price:'0',coupon_price:'0',full_reduction_price:'0'}}});await flush();
+  assert.notEqual(vm.totalPrice,'77.00');
+  options.onHide.call(vm);assert.equal(vm.pricingLoading,false);assert.ok(vm.pricingError);
+});
 function cartContext(api) {
   const options = load('pages/order_addcart/order_addcart.vue', api);
   return { ...options.methods, selectValue: ['1'], reductionRequestId: 0, reductionLoading: false, reductionError: '', fullReductionPrice: '0.00', selectCountPrice: 0, messages: [], $util: { Tips(message) { this.messages.push(message); }, messages: [] } };

@@ -18,8 +18,8 @@ use app\http\middleware\AllowOriginMiddleware;
  */
 Route::group(function () {
     //升级程序
-    Route::get('upgrade', 'UpgradeController/index');
-    Route::get('upgrade/run', 'UpgradeController/upgrade');
+    Route::get('upgrade', 'UpgradeController/index')->middleware([\app\adminapi\middleware\AdminAuthTokenMiddleware::class,\app\adminapi\middleware\AdminCheckRoleMiddleware::class]);
+    Route::get('upgrade/run', 'UpgradeController/upgrade')->middleware([\app\adminapi\middleware\AdminAuthTokenMiddleware::class,\app\adminapi\middleware\AdminCheckRoleMiddleware::class]);
     //用户名密码登录
     Route::post('login', 'Login/login')->name('AdminLogin')->option(['real_name' => '下载表备份记录']);
     //后台登录页面数据

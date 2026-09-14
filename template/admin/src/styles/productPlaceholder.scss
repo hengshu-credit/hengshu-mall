@@ -1,0 +1,18 @@
+// Product preview photos occupy the existing image frame, rather than the old small pictogram.
+.diy-page .theme-product-placeholder-frame {
+  background-color: #fff !important;
+  overflow: hidden;
+}
+.diy-page img.theme-product-placeholder {
+  display: block;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100%;
+  object-fit: contain !important;
+  padding: 0 !important;
+  background: #fff;
+}
+.diy-page .theme-product-placeholder-frame > img.theme-product-placeholder,
+.diy-page .pictrue > img.theme-product-placeholder {
+  height: 100% !important;
+}

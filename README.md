@@ -12,7 +12,7 @@ PHP 后端在 `crmeb/`，管理后台源码在 `template/admin/`，移动端源�
 .\package.ps1 -Update -Verify
 ```
 
-脚本自动构建管理后台，生成唯一的 `dist/hengshu-mall.tar.gz` 和校验文件。再次打包替换同名产物，临时目录自动清理。需要 Node.js、npm、Git 和 tar；本机已有 HBuilderX 时会优先使用其 Node。首次缺少前端依赖时自动按 package-lock.json 安装。PHP vendor 依赖已随源码保留。
+脚本自动构建管理后台，生成唯一的 `dist/hengshu-mall.tar.gz` 和校验文件。再次打包替换同名产物，临时目录自动清理。需要 Node.js 22、npm、Python、Git 和 tar；本机已有 HBuilderX 时会优先使用其 Node。首次缺少前端依赖时自动按 package-lock.json 安装。PHP vendor 依赖已随源码保留。
 
 `-Update` 模式生成 `dist/hengshu-mall-update.tar.gz`，适用于 `/root/hengshu-mall/crmeb-mall` 的现有商城；上传一个包解压后执行 `docker-compose -f compose.yml up -d --build`。京东采集密钥自动生成，启动后可在本地电脑通过 SSH 转发的 noVNC 登录京东。完整操作见 [单包更新说明](help/release/README-update.md)。
 
@@ -29,7 +29,10 @@ bash start.sh
 
 服务使用主机 `8011` 端口，沿用 NPM 的 IP＋端口 HTTPS 代理。数据库和 Redis 分别保存在项目的 `data/mysql`、`data/redis`，普通 `down` 后重新启动会继续使用这些数据。保留 `.env`、应用配置、安装锁和上传文件；已安装服务器不要重新初始化或用全新安装包直接覆盖。详细参数和维护方式见 [部署说明](help/release/README.md)。
 
-本次发布包包含后端和管理后台，不包含移动端 H5/APK；移动端源码、现有 APK、签名和本地工具链保留。本地开发脚本在 `help/dev/`，回归测试在 `tests/regression/`。
+发布包包含 PHP 后端、管理后台和 H5，不包含 APK；移动端源码、原生编译资源、签名和本地工具链保留。本地开发脚本在 `help/dev/`，回归测试在 `tests/regression/`。
+
+交易可靠性版本要求先通过分层验收。运行 `tests/tooling/bootstrap.ps1` 按锁文件安装测试依赖，再执行 `tests/regression/run-all.ps1` 的 method、database、http、browser、native 检查；本机无 Docker 时可使用 `tests/tooling/run-database.py` 的独立 MySQL 环境。缺失、跳过、失败或源码不匹配的必需验收会阻止打包。具体环境、退款规则、商品上架核对和交付限制见 [本轮实施记录](docs/commerce-hardening-implementation.md)。
+
 
 清理历史发布包、截图、排查记录和缓存：先运行 `./cleanup.ps1` 查看精确清单，再运行 `./cleanup.ps1 -Apply` 执行。它保留一份已有 APK 到 `dist/`，保留源码、开发数据库、签名和工具链；打包或前端开发运行期间会停止清理。
 

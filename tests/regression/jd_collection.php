@@ -43,6 +43,7 @@ checkJd('real price retained, no invented stock/sales/original price', $mapped['
 checkJd('single current SKU, editable attribute', $mapped['spec_type'] === 0 && $mapped['attr']['price'] === 129.5 && $mapped['attr']['stock'] === 0);
 checkJd('material and source preserved', count($mapped['slider_image']) === 1 && $mapped['soure_link'] === $raw['source_url']);
 checkJd('description escapes untrusted parameters', strpos($mapped['description'], '<script>') === false && strpos($mapped['description'], '&amp;') !== false);
+checkJd('description images fill width with proportional height before editing', strpos($mapped['description'], 'width:100%;max-width:100%;height:auto;display:block;') !== false);
 checkJd('selected specifications become parameters', $mapped['params_list'][1]['value'] === '蓝色');
 $media = $raw;
 $media['images'] = ['https://img10.360buyimg.com/n1/jfs/test.jpg.avif'];

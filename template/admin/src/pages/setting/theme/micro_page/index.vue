@@ -8,7 +8,9 @@
     <el-card :bordered="false" shadow="never" class="ivu-mt">
       <div class="acea-row row-between-wrapper mb20">
         <div class="acea-row row-middle">
-          <el-button type="primary" @click="add">添加微页面</el-button>
+          <el-button type="primary" @click="add('micro')">添加专题页面</el-button>
+          <el-button @click="$router.push('/admin/setting/merchant_theme')">商户主题</el-button>
+          <el-select v-model="pageType" clearable placeholder="全部页面类型" style="margin-left:16px" @change="page=1;getList()"><el-option label="普通专题" value="micro" /><el-option label="店铺页面" value="shop" /></el-select>
         </div>
       </div>
       <el-table
@@ -20,6 +22,7 @@
       >
         <el-table-column label="编号" min-width="80" prop="id"></el-table-column>
         <el-table-column label="名称" min-width="150" prop="title"></el-table-column>
+        <el-table-column label="页面类型" width="120"><template slot-scope="{row}"><el-tag :type="row.page_type==='shop'?'success':'info'">{{row.page_type==='shop'?'店铺页面':'普通专题'}}</el-tag></template></el-table-column>
         <el-table-column label="添加时间" min-width="150" prop="add_time"></el-table-column>
         <el-table-column label="更新时间" min-width="150" prop="up_time"></el-table-column>
         <el-table-column label="操作" fixed="right" width="150">
@@ -50,6 +53,7 @@ export default {
       total: 0,
       page: 1,
       limit: 20,
+      pageType: '',
     };
   },
   created() {
@@ -58,7 +62,7 @@ export default {
   methods: {
     getList() {
       this.loading = true;
-      getMicroPageList({ page: this.page, limit: this.limit })
+      getMicroPageList({ page: this.page, limit: this.limit, page_type: this.pageType })
         .then((res) => {
           this.tableList = res.data.list;
           this.total = res.data.count;
@@ -69,16 +73,16 @@ export default {
           this.$message.error(err.msg);
         });
     },
-    add() {
+    add(pageType = 'micro') {
       this.$router.push({
         path: '/admin/setting/edit_theme',
-        query: { type: 'home', page_type: 'micro', id: 0 },
+        query: { type: pageType === 'shop' ? 'shop' : 'home', page_type: pageType, id: 0 },
       });
     },
     edit(row) {
       this.$router.push({
         path: '/admin/setting/edit_theme',
-        query: { type: 'home', page_type: 'micro', id: row.id },
+        query: { type: 'home', page_type: row.page_type === 'shop' ? 'merchant' : row.page_type, id: row.id },
       });
     },
     del(row, title, num) {

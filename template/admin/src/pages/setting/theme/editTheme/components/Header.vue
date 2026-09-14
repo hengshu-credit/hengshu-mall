@@ -82,7 +82,7 @@ export default {
         title: this.form.title,
         info: this.form.info,
       };
-      if (this.$route.query.page_type === 'micro') data.page_type = 'micro';
+      if (['micro', 'shop', 'merchant'].includes(this.$route.query.page_type)) data.page_type = this.$route.query.page_type;
       if (this.$route.query.tid) data.tid = this.$route.query.tid;
       this.$emit('update-info', data);
       this.dialogVisible = false;

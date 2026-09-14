@@ -12,6 +12,8 @@ import Vue from 'vue'
 import App from './App'
 import themePageEvents from './mixins/themePageEvents';
 Vue.mixin(themePageEvents);
+import { installMerchantPreviewNavigation } from './utils/installMerchantPreviewNavigation';
+installMerchantPreviewNavigation();
 // #ifdef APP-PLUS
 import appStartup from './mixins/appStartup';
 Vue.mixin(appStartup);

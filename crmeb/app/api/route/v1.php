@@ -15,6 +15,7 @@ use think\facade\Config;
 use think\Response;
 
 Route::group(function () {
+    Route::get('media/image', 'v1.MediaDisplay/image')->option(['real_name' => '商品兼容图片']);
     Route::any('wechat/serve', 'v1.wechat.WechatController/serve')->option(['real_name' => '公众号服务']);//公众号服务
     Route::any('wechat/miniServe', 'v1.wechat.WechatController/miniServe')->option(['real_name' => '小程序服务']);//公众号服务
     Route::any('pay/notify/:type', 'v1.PayController/notify')->option(['real_name' => '支付回调']);//支付回调
@@ -55,6 +56,8 @@ Route::group(function () {
     Route::get('copyright', 'v1.PublicController/copyright')->option(['real_name' => '申请版权'])->option(['real_name' => '查询版权']);
     //商城基础配置汇总接口
     Route::get('basic_config', 'v1.PublicController/getMallBasicConfig')->option(['real_name' => '商城基础配置汇总接口']);
+    Route::get('marketing/ranking/:id', 'v1.MarketingRanking/detail')->middleware(\app\api\middleware\AuthTokenMiddleware::class, false)->option(['real_name'=>'营销排行榜']);
+    Route::get('marketing/product_rankings/:id', 'v1.MarketingRanking/product')->middleware(\app\api\middleware\AuthTokenMiddleware::class, false)->option(['real_name'=>'商品上榜信息']);
     //小程序跳转url接口
     Route::get('get_scheme_url/:id', 'v1.PublicController/getSchemeUrl')->option(['real_name' => '小程序跳转url接口']);
     //远程注册用户
@@ -572,7 +575,23 @@ Route::group(function () {
     ->middleware(\app\api\middleware\StationOpenMiddleware::class)
     ->middleware(\app\api\middleware\AuthTokenMiddleware::class, false);
 
+Route::group('storefront', function () {
+    Route::get('shop/:id/theme/:type', 'v1.MerchantStorefront/theme');
+    Route::get('product/:id/theme', 'v1.MerchantStorefront/productTheme');
+    Route::get('shop/:id/follow', 'v1.MerchantStorefront/followState');
+    Route::get('shops', 'v1.MerchantStorefront/shops');
+    Route::get('shop/:id', 'v1.MerchantStorefront/shop');
+    Route::get('shop/:id/categories', 'v1.MerchantStorefront/categories');
+    Route::get('products', 'v1.MerchantStorefront/products');
+    Route::get('ranking', 'v1.MerchantStorefront/ranking');
+    Route::get('product/:id/rank', 'v1.MerchantStorefront/productRank');
+})->middleware(\app\http\middleware\AllowOriginMiddleware::class)
+  ->middleware(\app\api\middleware\StationOpenMiddleware::class)
+  ->middleware(\app\api\middleware\AuthTokenMiddleware::class, false);
+
 Route::group('merchant', function () {
+    Route::get('followed', 'v1.MerchantStorefront/followed');
+    Route::post('shop/:id/follow', 'v1.MerchantStorefront/follow');
     Route::get('config', 'v1.user.MerchantApplication/config');
     Route::get('applications', 'v1.user.MerchantApplication/index');
     Route::get('application/:id', 'v1.user.MerchantApplication/info');

@@ -8,7 +8,7 @@ use think\facade\Db;
 class MerchantInstaller
 {
     private static $ready = false;
-    public const VERSION = 3;
+    public const VERSION = 4;
     public const PERMISSIONS = [
         'list' => ['查看商户','get','merchant/shop/list'],
         'info' => ['商户详情','get','merchant/shop/info/<id>'],
@@ -81,15 +81,24 @@ class MerchantInstaller
     public static function menus(): void
     {
         self::ensure();
+        MerchantThemeInstaller::menus();
         $root = Db::name('system_menus')->where('unique_auth','admin-merchant-management')->find();
-        // Navigation uses Element icons; legacy schemas truncated the iView name to 16 characters.
-        if ($root && in_array((string)$root['icon'], ['', 'ios-people-outline', 'ios-people-outli'], true)) {
-            Db::name('system_menus')->where('id', $root['id'])->update(['icon' => 's-shop']);
+        $productSort = Db::name('system_menus')->where('pid',0)->where('menu_path','/product')->where('is_del',0)->value('sort');
+        $merchantSort = $root ? (int)$root['sort'] : ($productSort === null ? 116 : (int)$productSort + 1);
+        // Move the legacy bottom-of-menu default above Products, preserving later custom ordering.
+        if ($root && $merchantSort <= 1 && $productSort !== null) {
+            $merchantSort = (int)$productSort + 1;
+            Db::name('system_menus')->where('id',$root['id'])->update(['sort'=>$merchantSort]);
+            CacheService::delete('all_auth');
+        }
+        // Use a business-building icon distinct from the Products menu, and repair legacy names.
+        if ($root && in_array((string)$root['icon'], ['', 'ios-people-outline', 'ios-people-outli', 's-shop'], true)) {
+            Db::name('system_menus')->where('id', $root['id'])->update(['icon' => 'office-building']);
             CacheService::delete('all_auth');
         }
         $expected = 5 + count(self::PERMISSIONS);
         if ($root && Db::name('system_menus')->whereLike('unique_auth','merchant-management-%')->where('is_del',0)->count() === $expected - 1) return;
-        Db::transaction(function () {
+        Db::transaction(function () use ($merchantSort) {
             // Lock an existing stable row to serialize first visits without duplicate menu inserts.
             Db::name('system_menus')->order('id')->lock(true)->find();
             $upsert = function ($auth, $data) {
@@ -98,7 +107,7 @@ class MerchantInstaller
                 if ($existing) { Db::name('system_menus')->where('id',$existing['id'])->update($data); return (int)$existing['id']; }
                 return (int)Db::name('system_menus')->insertGetId($data);
             };
-            $rootId = $upsert('admin-merchant-management',['pid'=>0,'menu_name'=>'商户','menu_path'=>'/merchant','path'=>'','auth_type'=>1,'icon'=>'s-shop']);
+            $rootId = $upsert('admin-merchant-management',['pid'=>0,'menu_name'=>'商户','menu_path'=>'/merchant','path'=>'','auth_type'=>1,'icon'=>'office-building','sort'=>$merchantSort]);
             $pages=[];
             foreach (['shop'=>'商户列表','application'=>'入驻申请','type'=>'商户类型','tag'=>'商户标签'] as $key=>$title) $pages[$key]=$upsert('merchant-management-page-'.$key,['pid'=>$rootId,'menu_name'=>$title,'menu_path'=>'/merchant/'.$key.'/list','path'=>(string)$rootId,'auth_type'=>1]);
             foreach (self::PERMISSIONS as $key=>[$title,$method,$route]) {

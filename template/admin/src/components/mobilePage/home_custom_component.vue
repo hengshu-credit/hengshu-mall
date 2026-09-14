@@ -78,7 +78,7 @@
               <!-- Picture -->
               <img
                 v-if="item.component === 'Picture'"
-                :src="item.propValue.url || require('@/assets/images/shan.png')"
+                :src="item.propValue.url || (selectTypeValue === 'goods' ? require('@/assets/images/product-diy.png') : require('@/assets/images/shan.png'))"
                 :style="getPictureStyle(item.propValue)"
               />
 
@@ -125,6 +125,7 @@ import { mapState } from 'vuex';
 import { getArticleList, getCouponList, getThemeProduct } from '@/api/diy';
 
 export default {
+  inject:{decorationPreview:{default:null}},
   name: 'home_custom_component',
   cname: '超级组件',
   configName: 'c_custom_component',
@@ -143,6 +144,7 @@ export default {
     },
   },
   computed: {
+    previewScope(){return this.decorationPreview?this.decorationPreview():{shopId:0};},
     ...mapState('mobildConfig', ['defaultArray']),
     selectTypeValue() {
       return this.configObj.selectType ? this.configObj.selectType.activeValue : 'user';
@@ -299,6 +301,7 @@ export default {
     },
   },
   watch: {
+    previewScope:{deep:true,handler(){if(this.selectTypeValue==='goods')this.fetchGoodsList();}},
     num: {
       handler(nVal, oVal) {
         this.lastArticleParams = null;
@@ -770,6 +773,7 @@ export default {
     },
     fetchGoodsList() {
       if (!this.configObj.goodsDataSource) return;
+      if(this.previewScope.requiresShop&&!this.previewScope.shopId){this._goodsRequest=(this._goodsRequest||0)+1;this.lastGoodsParams=null;this.listData=[];return;}
       let params = {
         limit: this.configObj.goodsNum.val,
         order: this.configObj.goodsSort.tabVal,
@@ -780,6 +784,7 @@ export default {
         if (!this.configObj.goodsList || !this.configObj.goodsList.list) return;
         params.ids = this.configObj.goodsList.list.map((item) => item.id).join(',');
         if (params.ids.length === 0) {
+          this._goodsRequest=(this._goodsRequest||0)+1;this.lastGoodsParams=null;
           this.listData = [];
           return;
         }
@@ -789,14 +794,20 @@ export default {
           ? this.configObj.goodsClass.activeValue.join(',')
           : this.configObj.goodsClass.activeValue;
       }
+      if(this.previewScope.shopId)params.seller_shop_id=Number(this.previewScope.shopId);
       const paramsStr = JSON.stringify(params);
       if (this.lastGoodsParams === paramsStr) return;
       this.lastGoodsParams = paramsStr;
+      const request=this._goodsRequest=(this._goodsRequest||0)+1;
+      this.listData=[];
       getThemeProduct(params)
         .then((res) => {
+          if(this._isDestroyed||request!==this._goodsRequest||this.selectTypeValue!=='goods')return;
           this.listData = res.data;
         })
         .catch((err) => {
+          if(this._isDestroyed||request!==this._goodsRequest)return;
+          this.lastGoodsParams=null;
           this.$message.error(err.msg);
         });
     },
@@ -1279,7 +1290,7 @@ export default {
       if (field && !item.propValue.url && dataItem.image) {
         return dataItem.image;
       }
-      return item.propValue.url || require('@/assets/images/shan.png');
+      return item.propValue.url || (this.selectTypeValue === 'goods' ? require('@/assets/images/product-diy.png') : require('@/assets/images/shan.png'));
     },
   },
 };

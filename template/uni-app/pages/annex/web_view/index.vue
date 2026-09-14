@@ -1,5 +1,6 @@
 <template>
   <web-view
+    v-if="url"
     class="web-view"
     :webview-styles="webviewStyles"
     :src="url"
@@ -8,6 +9,7 @@
 </template>
 
 <script>
+import {decodedExternalLink} from '../../../../shared/pageActions';
 export default {
   data() {
     return {
@@ -22,7 +24,8 @@ export default {
     };
   },
   onLoad(option) {
-    this.url = option.url;
+    this.url = decodedExternalLink(option.url);
+    if(!this.url)uni.showToast({title:'链接地址不正确',icon:'none'});
     try {
       const res = uni.getWindowInfo();
       this.windowW = res.windowWidth;

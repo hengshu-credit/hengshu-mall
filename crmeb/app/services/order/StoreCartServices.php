@@ -387,6 +387,19 @@ class StoreCartServices extends BaseServices
             $query->where('type', 0);
         }]);
         [$list, $valid, $invalid] = $this->handleCartList($uid, $list);
+        // Batch the current shop names so the cart can group rows without one request per product.
+        $products = $list ? \app\services\merchant\MerchantProducts::summaries(array_values(array_filter(array_column($list, 'productInfo')))) : [];
+        $products = array_column($products, null, 'id');
+        foreach ($list as &$cart) {
+            $product = $products[$cart['product_id']] ?? [];
+            $cart['seller_shop_id'] = (int)($product['seller_shop_id'] ?? 0);
+            $cart['merchant'] = $product['merchant'] ?? null;
+            if (!empty($cart['productInfo'])) {
+                $cart['productInfo']['seller_shop_id'] = $cart['seller_shop_id'];
+                $cart['productInfo']['merchant_name'] = $product['merchant_name'] ?? '';
+            }
+        }
+        unset($cart);
         $seckillIds = array_unique(array_column($list, 'seckill_id'));
         $bargainIds = array_unique(array_column($list, 'bargain_id'));
         $combinationId = array_unique(array_column($list, 'combination_id'));

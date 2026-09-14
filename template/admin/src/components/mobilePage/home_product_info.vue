@@ -2,30 +2,29 @@
   <common_wrapper :config="configObj">
     <div class="product-info-box" :class="'style-' + specStyle">
       <div class="image-wrap">
-        <img src="@/assets/images/product-diy.png" />
+        <img :src="previewStore.image || require('@/assets/images/product-diy.png')" />
         <div class="indicators" :class="'pos-' + indicatorPosition" v-if="indicatorConfig">
           <!-- Line Style -->
           <div v-if="indicatorConfig.tabVal === 0" class="indicator-line">
             <div class="line-item active" :style="{ backgroundColor: selectColor }"></div>
-            <div class="line-item" v-for="i in 4" :key="i" :style="{ backgroundColor: defaultColor }"></div>
+            <div class="line-item" v-for="i in Math.max(0,previewSlides.length - 1)" :key="i" :style="{ backgroundColor: defaultColor }"></div>
           </div>
           <!-- Dot Style -->
           <div v-if="indicatorConfig.tabVal === 1" class="indicator-dot">
             <div class="dot-item active" :style="{ backgroundColor: selectColor }"></div>
-            <div class="dot-item" :style="{ backgroundColor: defaultColor }"></div>
-            <div class="dot-item" :style="{ backgroundColor: defaultColor }"></div>
+            <div class="dot-item" v-for="i in Math.max(0,previewSlides.length - 1)" :key="i" :style="{ backgroundColor: defaultColor }"></div>
           </div>
           <!-- Number Style -->
           <div v-if="indicatorConfig.tabVal === 2" class="indicator-number">
-            <div class="num-box"><span class="current">1</span>/<span class="total">3</span></div>
+            <div class="num-box"><span class="current">1</span>/<span class="total">{{previewSlides.length || 1}}</span></div>
           </div>
         </div>
         <!-- Spec Style 4: Below indicator, above card (inside image wrap) -->
-        <div v-if="specStyle === 3" class="spec-style-4">
+        <div v-if="specStyle === 3 && previewSpecs.length" class="spec-style-4">
           <div class="spec-list">
             <div
               class="spec-item"
-              v-for="(item, index) in mockSpecList"
+              v-for="(item, index) in previewSpecs"
               :key="index"
               :style="{
                 borderColor: index === 0 ? specSelectedBorderColor : 'transparent',
@@ -39,25 +38,25 @@
                   color: index === 0 ? specSelectedTextColor : specUnselectedTextColor,
                 }"
               >
-                <div class="name">蓝色云朵蕾丝花边</div>
+                <div class="name">{{item.suk || '默认规格'}}</div>
               </div>
             </div>
             <div class="total-count" :style="{ color: specTextColor }">
-              6款<br />可选<span class="iconfont iconyou"></span>
+              {{previewSpecs.length}}款<br />可选<span class="iconfont iconyou"></span>
             </div>
           </div>
         </div>
       </div>
       <div class="info-box">
         <!-- Spec Style 1 & 2: Top of info box -->
-        <div v-if="specStyle === 0 || specStyle === 1" class="spec-top-section" :class="'style-' + specStyle">
+        <div v-if="(specStyle === 0 || specStyle === 1) && previewSpecs.length" class="spec-top-section" :class="'style-' + specStyle">
           <div class="spec-list" v-if="specStyle === 0">
             <!-- Style 1: Small images -->
-            <div class="spec-item" v-for="(item, index) in mockSpecList" :key="index">
+            <div class="spec-item" v-for="(item, index) in previewSpecs" :key="index">
               <img :src="item.image" :style="{ borderColor: index === 0 ? specSelectedBorderColor : '#eee' }" />
             </div>
             <div class="total-count" style="margin-left: auto" :style="{ color: specTextColor }">
-              6款<br />可选<span class="iconfont iconyou"></span>
+              {{previewSpecs.length}}款<br />可选<span class="iconfont iconyou"></span>
             </div>
           </div>
           <div class="spec-list-text" v-if="specStyle === 1">
@@ -66,15 +65,15 @@
               class="spec-item active"
               :style="{ background: specSelectedBgColor, borderColor: specSelectedBorderColor }"
             >
-              <img :src="mockSpecList[0].image" />
-              <span class="name" :style="{ color: specSelectedTextColor }">家庭时光-32P 彩色磁力积木</span>
+              <img :src="previewSpecs[0].image" />
+              <span class="name" :style="{ color: specSelectedTextColor }">{{previewSpecs[0].suk || '默认规格'}}</span>
             </div>
-            <div class="spec-item">
-              <img :src="mockSpecList[1].image" />
-              <span class="name">家庭时光-64P 彩色</span>
+            <div class="spec-item" v-if="previewSpecs.length > 1">
+              <img :src="previewSpecs[1].image" />
+              <span class="name">{{previewSpecs[1].suk || '默认规格'}}</span>
             </div>
             <div class="total-count" style="margin-left: auto" :style="{ color: specTextColor }">
-              共6款<span class="iconfont iconyou"></span>
+              共{{previewSpecs.length}}款<span class="iconfont iconyou"></span>
             </div>
           </div>
         </div>
@@ -85,15 +84,15 @@
             <div class="price-row">
               <div v-if="item.checkList.includes(0)" class="main-price-wrap" :style="{ color: finalPriceColor }">
                 <span class="label">到手价</span>
-                <span class="price" :style="{ fontSize: priceFontSize + 'px' }">¥199.00</span>
+                <span class="price" :style="{ fontSize: priceFontSize + 'px' }">¥{{previewStore.price || '0.00'}}</span>
               </div>
               <div v-if="item.checkList.includes(1)" class="ot-price-wrap" :style="{ color: sellingPriceColor }">
                 <span class="label">售价</span>
-                <span class="price">¥299.00</span>
+                <span class="price">¥{{previewStore.ot_price || '0.00'}}</span>
               </div>
-              <div v-if="item.checkList.includes(2)" class="vip-price-wrap">
+              <div v-if="item.checkList.includes(2) && (!liveProductPreview || previewStore.is_vip && Number(previewStore.vip_price) > 0)" class="vip-price-wrap">
                 <span class="badge">SVIP</span>
-                <span class="price">¥26.00</span>
+                <span class="price">¥{{previewStore.vip_price || '0.00'}}</span>
               </div>
             </div>
           </div>
@@ -101,38 +100,39 @@
           <!-- Name Section -->
           <div v-if="item.name === 'name' && item.show" class="name-section">
             <div class="title" :style="{ color: titleColor, fontSize: titleFontSize + 'px' }">
-              美的（Midea）电热水壶家用烧水壶小容量 0涂层 食品级304不锈钢 双层防烫 全钢无缝
+              {{previewStore.store_name || '请选择预览商品'}}
             </div>
           </div>
 
+          <div v-if="item.name === 'name' && item.show && previewStore.seller_shop_id && previewStore.merchant_name && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:12px;color:#999;margin-top:8px">{{previewStore.merchant_name}}</div>
+
           <!-- Data Section -->
           <div v-if="item.name === 'data' && item.show" class="data-section">
-            <span v-if="item.checkList.includes(0)" :style="{ color: originalPriceColor }">原价: ¥299</span>
-            <span v-if="item.checkList.includes(1)" :style="{ color: stockColor }">库存: 1000</span>
-            <span v-if="item.checkList.includes(2)" :style="{ color: salesColor }">销量: 1000+</span>
+            <span v-if="item.checkList.includes(0)" :style="{ color: originalPriceColor }">原价: ¥{{previewStore.ot_price || 0}}</span>
+            <span v-if="item.checkList.includes(1)" :style="{ color: stockColor }">库存: {{previewStore.stock || 0}}</span>
+            <span v-if="item.checkList.includes(2)" :style="{ color: salesColor }">销量: {{previewStore.sales || 0}}</span>
           </div>
 
           <!-- Tags Section -->
           <div v-if="item.name === 'tags' && item.show" class="tags-section">
-            <span class="tag">活动标签</span>
-            <span class="tag">商品标签</span>
+            <span class="tag" v-for="(tag,index) in (previewStore.label_list || [])" :key="index">{{tag.label_name || tag.label || tag.name}}</span>
           </div>
         </div>
 
         <!-- Spec Style 3: Bottom of info box -->
-        <div v-if="specStyle === 2" class="spec-bottom-section">
+        <div v-if="specStyle === 2 && previewSpecs.length" class="spec-bottom-section">
           <div class="spec-list">
             <div class="spec-item selected" :style="{ borderColor: specSelectedBorderColor }">
-              <img :src="mockSpecList[0].image" />
+              <img :src="previewSpecs[0].image" />
               <div class="name" :style="{ color: specSelectedTextColor, background: specSelectedBgColor }">
-                蓝色云朵
+                {{previewSpecs[0].suk || '默认规格'}}
               </div>
             </div>
-            <div class="spec-item" v-for="(item, index) in mockSpecList.slice(1)" :key="index">
+            <div class="spec-item" v-for="(item, index) in previewSpecs.slice(1)" :key="index">
               <img :src="item.image" />
-              <div class="name" :style="{ color: specUnselectedTextColor }">黄色小鸭</div>
+              <div class="name" :style="{ color: specUnselectedTextColor }">{{item.suk || '默认规格'}}</div>
             </div>
-            <div class="total-count" style="margin-left: auto">6款<br />可选<span class="iconfont iconyou"></span></div>
+            <div class="total-count" style="margin-left: auto">{{previewSpecs.length}}款<br />可选<span class="iconfont iconyou"></span></div>
           </div>
         </div>
       </div>
@@ -142,8 +142,10 @@
 
 <script>
 import { mapState } from 'vuex';
+import productPreview from '@/mixins/productPreview';
 
 export default {
+  mixins:[productPreview],
   name: 'home_product_info',
   cname: '商品信息',
   desc: '商品信息组件',

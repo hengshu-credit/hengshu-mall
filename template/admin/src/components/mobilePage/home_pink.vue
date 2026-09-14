@@ -81,12 +81,12 @@
         <template v-if="goodStyleConfig == 0">
           <div class="itemOne acea-row" v-for="(item, index) in numberConfig" :key="index">
             <div
-              class="empty-box"
+              class="empty-box theme-product-placeholder-frame"
               :style="{
                 borderRadius: imgRadius,
               }"
             >
-              <img src="../../assets/images/shan.png" />
+              <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
             </div>
             <div class="text">
               <div class="top">
@@ -162,12 +162,12 @@
         <template v-if="goodStyleConfig == 1">
           <div class="itemTwo" v-for="(item2, index2) in numberConfig" :key="index2">
             <div
-              class="empty-box"
+              class="empty-box theme-product-placeholder-frame"
               :style="{
                 borderRadius: imgRadius,
               }"
             >
-              <img src="../../assets/images/shan.png" />
+              <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
             </div>
             <div
               :class="
@@ -241,12 +241,12 @@
           <div class="list-item" v-for="(item, index) in numberConfig" :key="index">
             <div class="img-box">
               <div
-                class="empty-box"
+                class="empty-box theme-product-placeholder-frame"
                 :style="{
                   borderRadius: imgRadius,
                 }"
               >
-                <img src="../../assets/images/shan.png" />
+                <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
                 <div
                   class="label"
                   v-if="checkboxInfo.indexOf(1) != -1"
@@ -292,12 +292,12 @@
         <template v-if="goodStyleConfig == 3">
           <div class="itemThree" v-for="(item2, index2) in numberConfig" :key="index2">
             <div
-              class="empty-box"
+              class="empty-box theme-product-placeholder-frame"
               :style="{
                 borderRadius: imgRadius,
               }"
             >
-              <img src="../../assets/images/shan.png" />
+              <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
               <div
                 class="label"
                 v-if="checkboxInfo.indexOf(1) != -1"

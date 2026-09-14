@@ -412,6 +412,7 @@
 				</view>
 			</view>
 			<view class="wrapper" v-if="orderInfo.total_price && (is_gift == 0 || is_gift == 1)">
+                <discount-explanation mode="order" :context="{snapshot:orderInfo}" />
 				<view class="item acea-row row-between">
 					<view>{{ $t(`商品总价`) }}：</view>
 					<view class="conter">{{ $t(`￥`) }}{{ (parseFloat(orderInfo.total_price) + parseFloat(orderInfo.vip_true_price)).toFixed(2) }}</view>
@@ -430,7 +431,7 @@
 				</view>
 				<view v-if="orderInfo.gift_price > 0" class="item acea-row row-between">
 					<view>{{ $t(`礼品附加费用`) }}：</view>
-					<view class="conter">-{{ $t(`￥`) }}{{ parseFloat(orderInfo.gift_price).toFixed(2) }}</view>
+					<view class="conter">+{{ $t(`￥`) }}{{ parseFloat(orderInfo.gift_price).toFixed(2) }}</view>
 				</view>
 				<view class="item acea-row row-between" v-if="Number(orderInfo.full_reduction_price) > 0"><view>满减优惠：</view><view class="conter">-{{ $t(`￥`) }}{{ Number(orderInfo.full_reduction_price).toFixed(2) }}</view></view>
 				<view class="item acea-row row-between" v-if="orderInfo.coupon_price > 0">
@@ -561,6 +562,7 @@
 </template>
 
 <script>
+import DiscountExplanation from "@/components/discountExplanation/index.vue";
 import { getOrderDetail, refundOrderDetail, orderAgain, orderTake, orderDel, refundOrderDel, orderCancel, refundExpress, cancelRefundOrder } from '@/api/order.js';
 import { openOrderRefundSubscribe } from '@/utils/SubscribeMessage.js';
 import { getCustomerType } from '@/api/api.js';
@@ -583,6 +585,7 @@ import { HTTP_REQUEST_URL } from '@/config/app.js';
 import { userShare } from '@/api/user.js';
 export default {
 	components: {
+        DiscountExplanation,
 		home,
 		invoicePicker,
 		invoiceModal,

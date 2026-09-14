@@ -12,6 +12,7 @@ from jd_crawler.extractor import (
     _extract_video_candidates,
     original_image_candidate,
     _prefer_full_size_gallery,
+    product_page_ready,
     classify_page,
     extract_product,
     validate_final_item,
@@ -77,8 +78,46 @@ class ExtractorTests(unittest.TestCase):
     def test_original_candidate_keeps_native_format_and_query(self):
         source = 'https://img10.360buyimg.com/n1/s228x228_jfs/t1/a.jpg.avif?sign=a%2Bb'
         self.assertEqual(original_image_candidate(source), 'https://img10.360buyimg.com/imgzone/jfs/t1/a.jpg.avif?sign=a%2Bb')
+        modern = 'https://img12.360buyimg.com/pcpubliccms/s228x228_jfs/t1/a.jpg.avif?sign=a%2Bb'
+        self.assertEqual(original_image_candidate(modern), 'https://img12.360buyimg.com/imgzone/jfs/t1/a.jpg.avif?sign=a%2Bb')
         self.assertIsNone(original_image_candidate('https://evil.test/n1/jfs/a.jpg'))
         self.assertIsNone(original_image_candidate('https://img10.360buyimg.com/sku/jfs/detail.webp'))
+
+    def test_readiness_waits_for_both_sku_title_and_trusted_gallery(self):
+        class LoadingTab:
+            title = ''
+            images = '[]'
+
+            def run_js(self, script):
+                return self.title if 'sku-title-name' in script else self.images
+
+        tab = LoadingTab()
+        self.assertFalse(product_page_ready(tab))
+        tab.title = '实木书桌'
+        self.assertFalse(product_page_ready(tab))
+        tab.images = '["data:image/gif;base64,placeholder"]'
+        self.assertFalse(product_page_ready(tab))
+        tab.images = '["https://img10.360buyimg.com/pcpubliccms/s228x228_jfs/product.jpg.avif"]'
+        self.assertTrue(product_page_ready(tab))
+
+    def test_reads_modern_title_and_gallery_after_scrolling(self):
+        class LoadingTab:
+            loaded = False
+
+            def run_js(self, script, *args):
+                if 'sku-title-name' in script:
+                    return '实木书桌' if self.loaded else ''
+                if 'function nativeSrc' in script:
+                    return '["https://img10.360buyimg.com/imgzone/jfs/product.jpg"]' if self.loaded else '[]'
+                return '[]'
+
+        class LoadingExtractors(FakeExtractors):
+            def _slow_scroll_to_load(self):
+                self.page.loaded = True
+
+        product = extract_product(LoadingTab(), 'https://item.jd.com/10119564643643.html', 0.05, LoadingExtractors)
+        self.assertEqual(product['title'], '实木书桌')
+        self.assertEqual(product['images'], ['https://img10.360buyimg.com/imgzone/jfs/product.jpg'])
 
     def test_quality_probe_failure_retains_source(self):
         class OfflineTab:

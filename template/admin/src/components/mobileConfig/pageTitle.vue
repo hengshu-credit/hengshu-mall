@@ -8,10 +8,11 @@
                 <el-input v-model="name" placeholder="选填不超过15个字" maxlength="15" @change="changName" />
             </el-col>
         </div> -->
-    <div class="c_row-item">
-      <el-col class="label" :span="4"> 页面标题 </el-col>
+    <div class="c_row-item" v-if="$route.query.page_type !== 'micro'">
+      <el-col class="label" :span="4"> 页面名称 </el-col>
       <el-col :span="19" class="slider-box">
         <el-input v-model="value" placeholder="选填不超过30个字" maxlength="30" @change="changVal" />
+        <div class="page-name-hint">显示标题请添加基础组件中的“页面标题”。</div>
       </el-col>
     </div>
     <div class="c_row-item">
@@ -149,6 +150,12 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.page-name-hint {
+  margin-top: 6px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.6;
+}
 .upload-box {
   display: flex;
   align-items: center;

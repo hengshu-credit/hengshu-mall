@@ -3,6 +3,7 @@ import { pageTitleFromPage, syncLegacyPageTitle } from './pageTitleComponent';
 import { searchBoxComponent } from './searchBoxComponent';
 import { checkoutComponent } from './checkoutComponent';
 import { commonStyleDefaults } from './componentStyle';
+import { normalizeModuleOrder } from './pageModuleOrder';
 export const categoryPageDefaults = () => ({
   status: 1, show_title: 1, title_hidden: 0, show_category: 1, category_hidden: 0, search_hidden: 0,
   show_search: 1, search_placeholder: '搜索商品名称', columns: 3,
@@ -21,6 +22,14 @@ export const categoryPageDefaults = () => ({
 export function categoryLayoutPreset(status) {
   return { ...categoryPageDefaults(), status, product_layout:status === 2 ? 'large' : status === 3 ? 'list' : 'grid', buy_button_style:status === 2 ? 8 : status === 3 ? 6 : 1, text_bold:status === 2 ? 1 : 0 };
 }
+
+// The category sidebar and product area form a continuous page surface.
+export function categoryBodyStyle(value) {
+  const style = JSON.parse(JSON.stringify(value || commonStyleDefaults()));
+  style.fillet = { ...(style.fillet || {}), type: 0, val: 0,
+    valList: [0, 1, 2, 3].map(index => ({ ...((style.fillet && style.fillet.valList || [])[index] || {}), val: 0 })) };
+  return style;
+}
 export function normalizeCategoryPage(value) {
   if (typeof value === 'string') { try { value = JSON.parse(value); } catch (_) { value = {}; } }
   if (typeof value === 'number') value = { status: value };
@@ -29,7 +38,7 @@ export function normalizeCategoryPage(value) {
     if (Number(value.status) === 2) result.product_layout = 'large';
     if (Number(value.status) === 3) result.product_layout = 'list';
     Object.keys(result).forEach(key => { if (value[key] !== undefined) result[key] = typeof result[key] === 'number' ? Number(value[key]) : value[key]; });
-    ['navigation_mode', 'navigation', 'search_style', 'category_style', 'layout_configs', 'search_actions', 'title_actions', 'title_component', 'search_component', 'checkout', 'actions_mode'].forEach(key => { if (value[key] !== undefined) result[key] = JSON.parse(JSON.stringify(value[key])); });
+    ['navigation_mode', 'navigation', 'search_style', 'category_style', 'layout_configs', 'search_actions', 'title_actions', 'title_component', 'search_component', 'checkout', 'actions_mode', 'content_order', 'extra_modules'].forEach(key => { if (value[key] !== undefined) result[key] = JSON.parse(JSON.stringify(value[key])); });
   }
   if (![1, 2, 3].includes(result.status)) result.status = 1;
   // PHP serializes an empty layout dictionary as []; do not let Vue create sparse arrays.
@@ -38,7 +47,7 @@ export function normalizeCategoryPage(value) {
   if (layouts && typeof layouts === 'object') {
     ['1', '2', '3'].forEach(key => {
       const layout = layouts[key];
-      if (layout && typeof layout === 'object' && !Array.isArray(layout)) result.layout_configs[key] = layout;
+      if (layout && typeof layout === 'object' && !Array.isArray(layout)) result.layout_configs[key] = layout.category_style ? {...layout, category_style:categoryBodyStyle(layout.category_style)} : layout;
     });
   }
   result.search_actions = headerActions(result.search_actions || { left: result.status > 1 ? [pageAction({type:'home'})] : [] });
@@ -54,7 +63,9 @@ export function normalizeCategoryPage(value) {
   result.search_placeholder = result.search_component.tipConfig.value;
   result.search_actions = result.search_component.headerActions;
   if (!result.actions_mode && result.checkout === undefined && result.status > 1) result.checkout = checkoutComponent();
-  result.category_style = result.category_style || commonStyleDefaults();
+  result.category_style = categoryBodyStyle(result.category_style);
+  result.extra_modules = (Array.isArray(result.extra_modules) ? result.extra_modules : []).filter(item => item && /^search_\w+$/.test(item.id) && item.config).map(item => ({id:item.id, config:searchBoxComponent(item.config)}));
+  result.content_order = normalizeModuleOrder(result.content_order, ['search', 'category'], result.extra_modules);
   return result;
 }
 export function categoryPageStyle(config, themeColor = '#E93323') {

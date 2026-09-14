@@ -19,6 +19,7 @@ async function run(response, options = {}, networkFailure = false) {
     }
   };
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.resolve(__dirname, '../../template/shared/displayMedia.js'), 'utf8').replace(/export function/g, 'function'), context);
   vm.runInContext(source, context, { filename: sourcePath });
   let state = 'pending', value;
   context.testRequest.get('synthetic', {}, options).then(result => { state = 'fulfilled'; value = result; }, error => { state = 'rejected'; value = error; });

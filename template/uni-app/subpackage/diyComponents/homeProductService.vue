@@ -5,13 +5,14 @@
         <!-- Activity -->
         <view
           class="item"
-          v-if="checkList.includes(0) && (couponList.length || activities.length)"
+          v-if="checkList.includes(0)"
         >
           <view class="label" :style="{ color: titleColor }">{{
             $t("活动")
           }}</view>
           <view class="content" @click="activityTap">
             <view class="tags-wrapper">
+              <text v-if="!couponList.length && !activities.length" class="empty-value" :style="{color:contentColor}">{{ $t('暂无活动') }}</text>
               <!-- Coupon -->
               <view
                 class="tag-item"
@@ -70,7 +71,7 @@
               </block>
             </view>
             <text
-              class="iconfont icon-jiantou"
+              v-if="couponList.length || activities.length" class="iconfont icon-you2"
               :style="{ color: contentColor }"
             ></text>
           </view>
@@ -79,9 +80,7 @@
         <!-- Selection -->
         <view
           class="item"
-          v-if="
-            checkList.includes(1) && attr.productAttr && attr.productAttr.length
-          "
+          v-if="checkList.includes(1)"
           @click="showSpecModal"
         >
           <view class="label" :style="{ color: titleColor }">{{
@@ -89,10 +88,10 @@
           }}</view>
           <view class="content">
             <view class="text line1" :style="{ color: contentColor }">
-              {{ attrValue || attrTxt || $t('请选择规格') }}
+              {{ selectionText }}
             </view>
             <text
-              class="iconfont icon-jiantou"
+              class="iconfont icon-you2"
               :style="{ color: contentColor }"
             ></text>
           </view>
@@ -101,22 +100,18 @@
         <!-- Parameters -->
         <view
           class="item"
-          v-if="
-            checkList.includes(2) &&
-            productData.params_list &&
-            productData.params_list.length
-          "
-          @click="openModal('specs')"
+          v-if="checkList.includes(2)"
+          @click="parameterText && openModal('specs')"
         >
           <view class="label" :style="{ color: titleColor }">{{
             $t("参数")
           }}</view>
           <view class="content">
             <view class="text line1" :style="{ color: contentColor }">
-              {{ parameterText }}
+              {{ parameterText || $t('暂无商品参数') }}
             </view>
             <text
-              class="iconfont icon-jiantou"
+              v-if="parameterText" class="iconfont icon-you2"
               :style="{ color: contentColor }"
             ></text>
           </view>
@@ -125,22 +120,18 @@
         <!-- Service -->
         <view
           class="item"
-          v-if="
-            checkList.includes(3) &&
-            productData.protection_list &&
-            productData.protection_list.length
-          "
-          @click="openModal('protection')"
+          v-if="checkList.includes(3)"
+          @click="protectionText && openModal('protection')"
         >
           <view class="label" :style="{ color: titleColor }">{{
             $t("服务")
           }}</view>
           <view class="content">
             <view class="text line1" :style="{ color: contentColor }">
-              {{ protectionText }}
+              {{ protectionText || $t('暂无服务保障') }}
             </view>
             <text
-              class="iconfont icon-jiantou"
+              v-if="protectionText" class="iconfont icon-you2"
               :style="{ color: contentColor }"
             ></text>
           </view>
@@ -190,13 +181,16 @@ export default {
     },
   },
   computed: {
+    selectionText() {
+      const text = this.attrValue || this.attrTxt;
+      if (Number(this.productData.spec_type) === 0 && (!text || ['请选择', '请选择规格'].includes(text))) return this.$t('默认规格');
+      return text || this.$t('请选择规格');
+    },
     activities() { return this.activity.filter(item => item && serviceActivities[Number(item.type)]); },
-    parameterText() { return serviceSummary(this.productData.params_list, 'name'); },
+    parameterText() { return serviceSummary(this.productData.params_list, 'value'); },
     protectionText() { return serviceSummary(this.productData.protection_list, 'title'); },
     hasRows() {
-      return this.checkList.includes(0) && (this.couponList.length || this.activities.length) ||
-        this.checkList.includes(1) && (this.attr.productAttr || []).length ||
-        this.checkList.includes(2) && !!this.parameterText || this.checkList.includes(3) && !!this.protectionText;
+      return this.checkList.length > 0;
     },
     isHide() {
       return this.dataConfig.isHide;

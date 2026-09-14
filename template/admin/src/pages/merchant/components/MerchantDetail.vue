@@ -17,6 +17,7 @@
     <section class="detail-section">
       <h3>基础信息</h3>
       <dl class="detail-grid">
+        <div class="detail-row"><dt>商户主题</dt><dd>{{ value.shop_page_id ? (meta.shop_page_title || '商户主题 #'+value.shop_page_id) : '基础店铺页' }}</dd></div>
         <div class="detail-row"><dt>商户名称</dt><dd>{{ display(value.name) }}</dd></div>
         <div class="detail-row"><dt>商户类型</dt><dd>{{ typeName }}</dd></div>
         <div class="detail-row"><dt>主体类别</dt><dd>{{ subjectNames[value.subject_kind] || '—' }}</dd></div>

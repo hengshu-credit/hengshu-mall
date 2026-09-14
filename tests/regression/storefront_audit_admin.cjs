@@ -1,0 +1,33 @@
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict'),{execFileSync}=require('node:child_process');
+const {chromium}=require('playwright');const root=path.resolve(__dirname,'../..'),out=path.join(root,'.build/storefront-audit'),dist=path.join(out,'admin');
+const read=n=>JSON.parse(fs.readFileSync(path.join(out,'live',n+'.json'))).data;
+const server=http.createServer((req,res)=>{let p=path.resolve(dist,'.'+new URL(req.url,'http://fixture').pathname.replace(/^\/admin/,''));if(!p.startsWith(dist+path.sep)||!fs.existsSync(p)||!fs.statSync(p).isFile())p=path.join(dist,'index.html');res.setHeader('Content-Type',({'.html':'text/html','.js':'application/javascript','.css':'text/css','.png':'image/png','.woff':'font/woff'})[path.extname(p)]||'application/octet-stream');fs.createReadStream(p).pipe(res);});
+(async()=>{await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port,browser=await chromium.launch({channel:'chrome',headless:true});
+try{
+ const context=await browser.newContext({viewport:{width:1650,height:1050}});await context.addCookies([{name:'from-crmeb-admin:token',value:'audit-only',url:base}]);
+ await context.addInitScript(()=>localStorage.setItem('vuex',JSON.stringify({userInfo:{uniqueAuth:['audit'],userInfo:{id:1}}})));await context.routeWebSocket('**/*',()=>{});
+ const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));let cart=read('cart_theme'),saves=0;
+ await page.route('**/adminapi/**',route=>{const p=new URL(route.request().url()).pathname;let data={};
+  if(route.request().resourceType()==='script'||p.endsWith('custom_admin_js'))return route.fulfill({contentType:'application/javascript',body:''});
+  if(/\/theme\/info\/\d+\/cart$/.test(p))data=cart;
+  else if(/\/theme\/info\/\d+\/home$/.test(p))data=read('home');
+  else if(/\/theme\/info\/\d+\/theme$/.test(p))data={theme_color:'#ff4081'};
+  else if(/\/theme\/info\/\d+\/base$/.test(p))data={id:42,title:'真实配置验收'};
+  else if(p.includes('/theme/save/')){const body=route.request().postDataJSON();assert.equal(body.type,'cart');cart=JSON.parse(execFileSync(path.join(root,'.build/php74/php.exe'),['-n','-d','extension_dir='+path.join(root,'.build/php74/ext'),'-d','extension=php_mbstring.dll',path.join(__dirname,'storefront_audit_save.php')],{input:JSON.stringify(body.value),encoding:'utf8',windowsHide:true}));saves++;data={id:42};}
+  return route.fulfill({json:{status:200,msg:'成功',data}});
+ });
+ const ready=()=>page.waitForFunction(()=>document.querySelector('.cart-editor')?.__vue__.loading===false);
+ const save=async()=>{const before=saves;await page.getByRole('button',{name:'保存购物车页',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('.cart-editor').__vue__.saving);assert.equal(saves,before+1);await page.reload();await ready();};
+ await page.goto(base+'/admin/setting/edit_theme?id=42&type=cart');await ready();
+ assert.equal(await page.locator('.navigation-preview-menu').count(),1,'legacy empty cart config previews inherited home navigation');
+ await page.getByRole('button',{name:'页面设置',exact:true}).first().click();
+ const source=page.locator('.el-form-item').filter({hasText:'底部导航'}).locator('.el-select');
+ await source.click();await page.getByRole('listitem').filter({hasText:'不显示'}).last().click();await save();
+ assert.equal(cart.navigation_source,'none');assert.equal(await page.locator('.navigation-preview-menu').count(),0,'explicit deletion persists through actual PHP validator');
+ await page.getByRole('button',{name:'页面设置',exact:true}).first().click();await source.click();await page.getByRole('listitem').filter({hasText:'单独配置'}).last().click();await save();
+ assert.equal(cart.navigation_source,'custom');assert.equal(await page.locator('.navigation-preview-menu').count(),1);
+ await page.getByRole('button',{name:'页面设置',exact:true}).first().click();await source.click();await page.getByRole('listitem').filter({hasText:'跟随首页'}).last().click();await save();
+ assert.equal(cart.navigation_source,'home');assert.equal(await page.locator('.navigation-preview-menu').count(),1);
+ await page.screenshot({path:path.join(out,'admin-cart-navigation.png')});assert.deepEqual(errors,[]);
+ console.log('PASS admin: live cart config, inherited/custom/hidden navigation, real PHP save and reload');
+}finally{await browser.close();server.closeAllConnections();server.close();}})().catch(e=>{console.error(e);server.closeAllConnections();server.close();process.exitCode=1;});

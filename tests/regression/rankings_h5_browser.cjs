@@ -1,0 +1,84 @@
+const fs = require('node:fs'), path = require('node:path'), http = require('node:http'), assert = require('node:assert/strict');
+const { chromium } = require('playwright');
+const { transform } = require('./theme_component_harness.cjs');
+const root = path.resolve(__dirname, '../..'), h5 = path.join(root, '.build/ranking-review/h5');
+const presentationModule = { exports: require('./ranking_shared_loader.cjs').loadShared('rankingPresentation') };
+const board = { id: 9, name: '厨房好物精选榜', description: '近30天真实成交与用户好评，发现值得推荐的品质好物', entity_type: 'product', page_id: 50, page_url: '/pages/annex/special/index?theme_id=50', top_n: 10, window_days: 30 };
+const boardComponent = { name: 'marketingRanking', timestamp: 1000, rankingId: 9, limit: 10, showTitle: true, showDescription: true, showMore: false, isHide: false };
+boardComponent.appearance = presentationModule.exports.presetPresentation('gold');
+const detailComponent = { name: 'marketingRankInfo', timestamp: 1000, limit: 2, isHide: false, marginConfig: { val: 60, isAll: false } };
+const theme = component => ({ title: board.name, name: board.name, is_show: 1, actions_mode: 'components', navigation_mode: 'page', value: { 1000: component } });
+const server = http.createServer((req, res) => {
+  const url = new URL(req.url, 'http://local');
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/statics/')) return http.get('http://127.0.0.1:8011' + req.url, response => { res.writeHead(response.statusCode, response.headers); response.pipe(res); });
+  let file = path.resolve(h5, '.' + decodeURIComponent(url.pathname));
+  if (!file.startsWith(h5 + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) file = path.join(h5, 'index.html');
+  res.setHeader('Content-Type', { '.js': 'application/javascript', '.css': 'text/css', '.html': 'text/html', '.png': 'image/png', '.svg': 'image/svg+xml' }[path.extname(file)] || 'application/octet-stream');
+  fs.createReadStream(file).pipe(res);
+});
+(async () => {
+  const product = await (await fetch('http://127.0.0.1:8011/api/product/detail/4')).json();
+  assert.equal(product.status, 200); product.data.activity = [];
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); const errors = [];
+    page.on('pageerror', e => { errors.push(e.message); console.error('H5 runtime:',e.message); });
+    await page.route('**/api/**', async route => {
+      const url = new URL(route.request().url()); let data;
+      if (url.pathname === '/api/theme_info/detail') data = theme(detailComponent);
+      else if (url.pathname === '/api/storefront/product/4/theme') data = { page: theme(detailComponent), palette: {}, shop_id: 0 };
+      else if (url.pathname === '/api/theme_info/home') data = theme(boardComponent);
+      else if (url.pathname === '/api/theme/navigation') data = [];
+      else if (url.pathname === '/api/product/detail/4') data = product.data;
+      else if (url.pathname.startsWith('/api/product/real_price/')) data = { real_price: 3999, member_price: 3999, ot_price: 4799 };
+      else if (url.pathname === '/api/cart/count') data = { count: 0, ids: [] };
+      else if (url.pathname === '/api/marketing/product_rankings/4') data = { list: [{ ...board, rank: 2 }, { ...board, id: 8, name: '优质店铺好评榜', entity_type: 'shop', rank: 1 }] };
+      else if (url.pathname === '/api/marketing/ranking/9') data = { ranking: board, calculated_at: Math.floor(Date.now() / 1000), list: [{ id: 4, name: '品质家电 · 口碑推荐', price: 3999, image: product.data.storeInfo.image, score: 100, rank: 1 }, { id: 5, name: '精选厨房好物', price: 1299, image: product.data.storeInfo.image, score: 85, rank: 2 }] };
+      else if (url.pathname === '/api/marketing/ranking/10') data = { ranking: {...board,id:10,name:'好评榜'}, calculated_at: Math.floor(Date.now()/1000), list:[{id:4,name:'好评商品',price:3999,image:product.data.storeInfo.image,rank:1,score:99}] };
+      else if (route.request().method() !== 'GET') data = {};
+      else return route.continue();
+      return route.fulfill({ json: { status: 200, msg: '成功', data } });
+    });
+    const base = 'http://127.0.0.1:' + server.address().port;
+    await page.goto(base + '/pages/goods_details/index?id=4');
+    await page.locator('.rank-info').first().waitFor({timeout:15000}).catch(async error=>{console.error((await page.locator('body').innerText()).slice(0,1200));await page.screenshot({path:path.join(root,'.build/ranking-review/h5-failure.png')});throw error;});
+    assert.equal(await page.locator('.rank-info').count(), 1);
+    await page.getByText('·第2名', { exact: true }).waitFor();
+    await page.locator('.rank-info').first().click();
+    await page.waitForURL('**/pages/annex/special/index?theme_id=50');
+    await page.locator('.marketing-ranking .ranking-row').first().waitFor();
+    assert.equal(await page.locator('.marketing-ranking .ranking-row').count(), 2);
+    const bounds = await page.locator('.marketing-ranking').boundingBox(); assert(bounds.width > 300 && bounds.height > 200);
+    for (const preset of ['gold','hot','review']) {
+      await page.evaluate(appearance=>{const vm=getCurrentPages().at(-1).$vm;vm.$set(vm.currentDiyData.value['1000'],'appearance',appearance);},presentationModule.exports.presetPresentation(preset));
+      const variant={gold:'commerce',hot:'retail',review:'shop'}[preset];
+      await page.locator('.marketing-ranking .rp-structure-'+variant).first().waitFor();
+      assert.equal(await page.locator('.marketing-ranking .rp-card').count(),2);
+    }
+    await page.evaluate(()=>{const vm=getCurrentPages().at(-1).$vm;const p=vm.currentDiyData.value['1000'].appearance;p.header.titleColor='#123456';p.ranks.top1.card.borderWidth=4;p.ranks.top1.card.borderColor='#345678';p.content.imageWidth=110;});
+    await page.waitForFunction(()=>getComputedStyle(document.querySelector('.marketing-ranking .rp-title')).color==='rgb(18, 52, 86)');
+    assert(Math.abs(await page.locator('.marketing-ranking .rp-card[data-rank="1"]').evaluate(el=>parseFloat(getComputedStyle(el).borderTopWidth))-4*390/375)<1);
+    assert(Math.abs(await page.locator('.marketing-ranking .rp-card[data-rank="1"] .rp-image').evaluate(el=>parseFloat(getComputedStyle(el).width))-110*390/375)<1);
+    await page.screenshot({ path: path.join(root, '.build/ranking-review/ranking-mobile.png'), fullPage: true });
+    const canvas=require('./ranking_shared_loader.cjs').loadShared('rankingCanvas').canvasPreset('tmall_product');canvas.tabs=[{label:'热销榜',rankingId:9},{label:'好评榜',rankingId:10}];
+    await page.evaluate(canvas=>{const vm=getCurrentPages().at(-1).$vm;vm.$set(vm.currentDiyData.value['1000'].appearance,'canvas',canvas);},canvas);
+    await page.locator('.ranking-canvas [data-node-id="商品名称"]').first().waitFor();
+    await page.waitForFunction(()=>document.querySelector('.ranking-canvas').dataset.fontsReady==='true');
+    await page.waitForFunction(()=>[...document.fonts].filter(font=>font.family.includes('RankingCanvas')&&font.status==='loaded').length>=2);
+    await page.waitForFunction(()=>[...document.querySelectorAll('.ranking-canvas img')].every(img=>img.complete&&img.naturalWidth));
+    await page.waitForFunction(()=>{const root=document.querySelector('.ranking-canvas').getBoundingClientRect(),node=document.querySelector('[data-node-id="榜头主标题"]').getBoundingClientRect();return Math.abs(node.left-root.left-24*root.width/375)<1;});
+    const canvasRoot=await page.locator('.ranking-canvas').boundingBox(),titleRect=await page.locator('[data-node-id="榜头主标题"]').boundingBox();assert(Math.abs(titleRect.width-327*canvasRoot.width/375)<1);
+    await page.evaluate(()=>{const scene=getCurrentPages().at(-1).$vm.currentDiyData.value['1000'].appearance.canvas;Object.assign(scene.card.nodes.find(n=>n.id==='商品卡片背景').style,{borderWidth:4,borderColor:'#ff0000'});Object.assign(scene.card.nodes.find(n=>n.id==='实物商品图').style,{borderWidth:3,borderColor:'#00ff00'});scene.header.nodes.find(n=>n.id==='更多按钮').visible=false;});
+    await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-border-id="商品卡片背景"]')).borderTopColor==='rgb(255, 0, 0)');
+    assert.equal(await page.locator('[data-border-id="更多按钮"]').count(),0);
+    const imageOutline=await page.locator('[data-border-id="实物商品图"]').first().boundingBox(),imageNode=await page.locator('[data-node-id="实物商品图"]').first().boundingBox();for(const key of ['x','y','width','height'])assert(Math.abs(imageOutline[key]-imageNode[key])<.1,'H5 image outline matches its element');
+    const shot=require('pngjs').PNG.sync.read(await page.locator('.ranking-canvas').screenshot({path:path.join(root,'.build/ranking-review/h5-canvas-borders.png')}));const y=Math.round((203+100)*canvasRoot.width/375),x=shot.width-2,index=(y*shot.width+x)*4;assert.deepEqual([...shot.data.subarray(index,index+3)],[255,0,0],'H5 row border covers its white content image');
+    await page.getByText('好评榜',{exact:true}).click();await page.locator('[data-node-id="榜头主标题"]').getByText('好评榜',{exact:true}).waitFor();await page.locator('[data-node-id="商品名称"]').getByText('好评商品',{exact:true}).waitFor();
+    await page.getByText('热销榜',{exact:true}).click();await page.locator('[data-node-id="商品名称"]').getByText('品质家电 · 口碑推荐',{exact:true}).waitFor();
+    await page.locator('[data-node-id="购买按钮"]').first().click();await page.waitForURL('**/pages/goods_details/index?id=4');await page.locator('.rank-info').first().waitFor();
+    console.log('PASS: real H5 fixed-canvas coordinates, tab API data switching and bound product actions');
+    assert.deepEqual(errors, []);
+    console.log('PASS: production H5 detail badges → decorated page → product detail; all 3 presets, live color/border/image property changes, responsive layout and no runtime errors');
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => { server.closeAllConnections(); server.close(); });

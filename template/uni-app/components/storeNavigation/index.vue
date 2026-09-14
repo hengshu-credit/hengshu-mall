@@ -1,6 +1,6 @@
 <template>
-  <view class="store-navigation" :style="colorStyle">
-    <pageFooter v-if="routeAllowsNavigation" :managed="true" :configData="navigation" :activePath="routeFullPath" :collapsed="collapsed || keyboardOpen" />
+  <view class="store-navigation" :style="navigationStyle">
+    <pageFooter v-if="routeAllowsNavigation" :managed="true" :configData="effectiveNavigation" :activePath="routeFullPath" :collapsed="collapsed || keyboardOpen" />
   </view>
 </template>
 
@@ -17,17 +17,24 @@ export default {
     return { navigation: {}, routePath: '', routeFullPath: '', activePage: null, collapsed: false, keyboardOpen: false };
   },
   computed: {
+    effectiveNavigation() {
+      const page = this.activePage;
+      return page && page.decorationNavigation !== undefined ? page.decorationNavigation : this.navigation;
+    },
+    navigationStyle() { return this.colorStyle + ';' + (this.activePage && this.activePage.merchantStyle || ''); },
     routeAllowsNavigation() {
-      if (this.navigation.mainNavigation) return navigationVisible(this.navigation, this.routePath);
+      if (this.effectiveNavigation.mainNavigation) return navigationVisible(this.effectiveNavigation, this.routePath);
       return ['/pages/index/index', '/pages/order_addcart/order_addcart', '/pages/user/index'].includes(this.routePath) ||
         (this.routePath === '/pages/goods/goods_list/index' && !!(this.activePage && this.activePage.showEmptyCategoryNavigation));
     },
     enabled() {
-      return this.routeAllowsNavigation && !this.navigation.isHide && !!(this.navigation.effectConfig && Number(this.navigation.effectConfig.tabVal)) &&
-        Array.isArray(this.navigation.menuList) && this.navigation.menuList.length > 0;
+      const navigation = this.effectiveNavigation;
+      return this.routeAllowsNavigation && !navigation.isHide && !!(navigation.effectConfig && Number(navigation.effectConfig.tabVal)) &&
+        Array.isArray(navigation.menuList) && navigation.menuList.length > 0;
     },
   },
   watch: {
+    effectiveNavigation: { deep: true, handler() { this.collapsed = false; this.$nextTick(this.scheduleLayout); } },
     routeAllowsNavigation(allowed) {
       if (allowed && this.routePath === '/pages/goods/goods_list/index') {
         this.collapsed = false;
@@ -153,13 +160,13 @@ export default {
     },
     onScroll(event) {
       if (!this.enabled || Date.now() < this._ignoreScrollUntil) return;
-      if (this.navigation.scrollMode !== 'smart') { this.collapsed = false; return; }
+      if (this.effectiveNavigation.scrollMode !== 'smart') { this.collapsed = false; return; }
       const element = event.target === document ? document.scrollingElement : event.target;
       if (!element || !element.closest || element.closest('.store-navigation, .aside, .longTab, .product-window, .cartList')) return;
       const page = this.currentPage();
       if (element !== document.scrollingElement && (!page || !page.contains(element))) return;
       const top = Math.max(0, element.scrollTop);
-      const position = navigationScroll(this.navigation, this._positions.get(element), top);
+      const position = navigationScroll(this.effectiveNavigation, this._positions.get(element), top);
       this._positions.set(element, position);
       this.collapsed = position.collapsed;
     },

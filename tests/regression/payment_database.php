@@ -6,7 +6,7 @@ if (getenv('CRMEB_AUDIT_DATABASE') !== 'crmeb_audit') {
 }
 $db = new think\DbManager;
 $db->setConfig(['default' => 'mysql', 'connections' => ['mysql' => [
-    'type' => 'mysql', 'hostname' => '127.0.0.1', 'hostport' => 3306,
+    'type' => 'mysql', 'hostname' => '127.0.0.1', 'hostport' => (int)(getenv('CRMEB_AUDIT_PORT') ?: 3306),
     'database' => 'crmeb_audit', 'username' => 'root', 'password' => 'audit-only-password',
     'charset' => 'utf8mb4', 'prefix' => '', 'fields_strict' => true,
 ]]]);
@@ -59,7 +59,7 @@ class PaymentDispatch extends app\services\order\OrderPaymentDispatchServices {
     protected function publish(string $step, array $order) {
         if (getenv('AUDIT_FAIL_PUBLISH')) return false;
         // Simulate a worker on another connection: uncommitted orders must not escape.
-        $worker = new PDO('mysql:host=127.0.0.1;dbname=crmeb_audit', 'root', 'audit-only-password');
+        $worker = new PDO('mysql:host=127.0.0.1;port='.(getenv('CRMEB_AUDIT_PORT')?:3306).';dbname=crmeb_audit', 'root', 'audit-only-password');
         $query = $worker->prepare('SELECT paid FROM audit_orders WHERE id = ?');
         $query->execute([$order['id']]);
         if ((int)$query->fetchColumn() !== 1) throw new RuntimeException('Worker observed unpaid order');
@@ -96,6 +96,7 @@ $orders = new PaymentOrders($orderDao);
 $container->instances[app\services\order\StoreOrderCreateServices::class] = new class {
     public function getNewOrderId($prefix) { return $prefix . '-fixture-' . uniqid(); }
 };
+require __DIR__.'/payment_outbox_fixture.php';
 if (($argv[1] ?? '') === 'worker') {
     try {
         switch ($argv[2]) {
@@ -120,7 +121,7 @@ foreach (['is_cancel', 'is_del', 'is_system_del', 'is_channel'] as $field) {
 }
 function seed() {
     global $db;
-    foreach (['audit_balances', 'audit_orders', 'audit_effects', 'audit_money', 'audit_dispatch_status'] as $table) $db->table($table)->where('1=1')->delete();
+    foreach (['audit_balances', 'audit_orders', 'audit_effects', 'audit_money', 'audit_dispatch_status','audit_commerce_tasks'] as $table) $db->table($table)->where('1=1')->delete();
     $db->table('audit_balances')->insertAll([['uid' => 101, 'now_money' => '100.00'], ['uid' => 202, 'now_money' => '100.00']]);
     $db->table('audit_orders')->insertAll([
         ['id' => 1, 'order_id' => 'audit-order-1', 'uid' => 101, 'pay_uid' => 101, 'pay_price' => '60.00'],
@@ -216,6 +217,7 @@ assertCase('ordinary payment requires the order owner', $rejected, ['rejected' =
 seed(); $stale = $orderDao->getOne(['id' => 1])->toArray(); putenv('AUDIT_FAIL_PUBLISH=1');
 try { $yue->yueOrderPay($stale, 101); } catch (Throwable $e) {}
 $pendingBefore = $db->table('audit_dispatch_status')->count(); putenv('AUDIT_FAIL_PUBLISH');
+dueHistoricalTasks();
 $retried = $yue->yueOrderPay($stale, 101);
 $pendingAfter = $db->table('audit_dispatch_status')->count();
 $ledgerCount = $db->table('audit_money')->count();

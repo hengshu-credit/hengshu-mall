@@ -24,6 +24,11 @@ export default {
   component: LayoutMain,
   children: [
     {
+      path: 'ranking/list', name: `${pre}rankingList`,
+      meta: { auth: ['marketing-ranking-list'], title: '排行榜' },
+      component: () => import('@/pages/marketing/ranking/index'),
+    },
+    {
       path: 'style/list', name: `${pre}styleList`,
       meta: { auth: ['marketing-style-list'], title: '营销样式' },
       component: () => import('@/pages/marketing/style/index'),

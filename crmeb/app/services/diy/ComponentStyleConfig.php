@@ -19,7 +19,7 @@ class ComponentStyleConfig
             if (is_string($node) && (strlen($node) > 1000 || preg_match('/[\x00-\x1F<>]/', $node))) throw new AdminException('组件样式内容不正确');
             if ($key === 'tabVal' && (!is_numeric($node) || $node < 0 || $node > 3)) throw new AdminException('组件样式选项不正确');
             if ($key === 'val' && is_numeric($node) && ($node < -100 || $node > 1000)) throw new AdminException('组件样式尺寸超出范围');
-            if ($key === 'item' && is_string($node) && !preg_match('/^(?:transparent|#[0-9a-f]{3,8}|rgba?\([0-9.,\s]+\))$/iD', $node)) throw new AdminException('组件颜色格式不正确');
+            if ($key === 'item' && is_string($node) && !ThemeColorConfig::valid($node)) throw new AdminException('组件颜色格式不正确');
             if ($key === 'url' && $node !== '' && (!is_string($node) || preg_match('/[\s"\\\\]/', $node) || !preg_match('#^(?:/(?!/)|https?://)[^\s]+$#D', $node))) throw new AdminException('组件背景图片地址不正确');
         };
         $walk($value);

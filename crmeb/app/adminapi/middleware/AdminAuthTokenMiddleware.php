@@ -56,6 +56,9 @@ class AdminAuthTokenMiddleware implements MiddlewareInterface
             return $adminInfo;
         });
 
+        // Every authenticated admin route enforces permissions, even if a route group omitted the role middleware.
+        if (!empty($adminInfo['level'])) app()->make(\app\services\system\admin\SystemRoleServices::class)->verifyAuth($request);
+
         return $next($request);
     }
 }

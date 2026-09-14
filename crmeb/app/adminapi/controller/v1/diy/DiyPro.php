@@ -109,19 +109,46 @@ class DiyPro extends AuthController
 
     public function getProduct()
     {
+        if ($this->request->get('preview_kind', '') !== '') {
+            return $this->storefrontPreview(app()->make(\app\services\merchant\MerchantStorefrontServices::class));
+        }
         $where = $this->request->getMore([
             ['cate_id', []], //搜索分类
             ['salesOrder', ''], //销量排序
             ['priceOrder', ''], //价格排序
             ['store_label_id', []], //标签ID
             ['ids', ''], //商品ID
+            [['seller_shop_id', 'd'], 0],
         ]);
+        foreach (['cate_id','store_label_id'] as $key) if (is_string($where[$key])) $where[$key] = array_filter(array_map('intval', explode(',', $where[$key])));
+        $where['storefront_preview'] = true;
         $where['is_show'] = 1;
         $where['is_del'] = 0;
         if (is_string($where['ids']) && $where['ids'] != '') $where['ids'] = explode(',', $where['ids']);
         [$page, $limit] = $this->services->getPageValue();
         $list = app()->make(StoreProductServices::class)->getSearchList($where, $page, $limit, ['id,store_name,cate_id,image,IFNULL(sales, 0) + IFNULL(ficti, 0) as sales,price,stock,activity,ot_price,spec_type,recommend_image,unit_name,is_vip,vip_price']);
+        $list = \app\services\merchant\MerchantStorefrontServices::decorateProducts($list);
         return app('json')->success($list);
+    }
+
+    public function storefrontPreview(\app\services\merchant\MerchantStorefrontServices $storefront)
+    {
+        $filters = $this->request->getMore([
+            [['shop_id','d'],0], [['category_id','d'],0], ['keyword',''], ['sort','default'], ['recommend',''], ['type','sales'],
+            ['ids',[]], [['type_id','d'],0],
+        ]);
+        if (is_string($filters['ids'])) $filters['ids'] = explode(',', $filters['ids']);
+        $limit = (int)$this->request->get('limit',20);
+        switch ($this->request->get('preview_kind','products')) {
+            case 'shop': $data = $storefront->shop((int)$filters['shop_id']); break;
+            case 'shops': $data = $storefront->shops($filters,1,$limit); break;
+            case 'categories': $data = $filters['shop_id'] ? $storefront->categories((int)$filters['shop_id']) : app()->make(\app\services\product\product\StoreCategoryServices::class)->getCategory(['is_show'=>1]); break;
+            case 'follow': $data = (new \app\services\merchant\MerchantFollowServices())->state(0,(int)$filters['shop_id']); break;
+            case 'ranking': $data = $storefront->ranking($filters,(int)$this->request->get('top',20)); break;
+            case 'products': $data = $storefront->products($filters,1,$limit); break;
+            default: return app('json')->fail('不支持的预览内容');
+        }
+        return app('json')->success($data);
     }
 
     public function updateName($id = 0)

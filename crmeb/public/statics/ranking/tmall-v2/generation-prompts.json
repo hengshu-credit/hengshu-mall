@@ -1,0 +1,19 @@
+{
+  "mode": "built-in image_gen",
+  "reference": "User-provided Tmall ranking screenshot",
+  "assets": [
+    {
+      "key": "metal-arch",
+      "prompt": "Use case: ui-mockup. Asset type: a single isolated transparent decorative UI element, NOT an app screenshot. Reference image is ONLY a style and shape reference: closely study the sculpted metallic-gold arch around the Tmall ranking title in the upper LEFT screenshot. Generate that decorative arch alone as a high-quality 3D champagne-gold folded metal ribbon. A broad open-bottom arch with two high rounded ear-like shoulders and a shallow concave dip in its top center; long subtly tapering upright left and right ends. It must have convincing brushed gold metal, ribbon twists, beveled edges, strong but restrained bright specular highlights and dark gold reflected edges. Front-facing, symmetric, very shallow 3D depth, no perspective tilt. Empty center and empty bottom, ample transparent interior for editable title text. Landscape approximately 2.2:1 canvas; arch should occupy nearly all the canvas with only 5% transparent padding. Genuinely transparent RGBA background, not black or white and no checkerboard baked in. NO words, NO letters, NO digits, NO logo text, NO product photos, NO other UI elements, NO rectangular card, NO watermark. This asset will be overlaid on a separately rendered dark header; preserve clean antialiased alpha at the outer edge."
+    },
+    {
+      "key": "dark-header",
+      "prompt": "Use case: ui-mockup. Asset type: a background texture for a mobile Tmall-style ranking header, NOT a full interface. Reference screenshot only guides its dark warm luxury mood. Generate a very dark near-black burgundy-brown background with softly defocused warm amber bokeh at the extreme upper left and upper right, subtle soft fabric-like gradients and faint warm photographic glow. It must be understated and mostly very dark, especially the center and lower half, so white Chinese title text and a gold arch can be overlaid separately. Landscape canvas approximately 2.35:1. No recognizable objects, no arch, no gold frame, no metal badge, no text or numbers, no logo, no phone UI, no people, no products. The bottom edge should fade smoothly to solid #111111. The visible content is only the understated near-black background texture, not a mockup."
+    },
+    {
+      "key": "gold-medal-final",
+      "prompt": "Generate ONE small blank GOLD RANKING SHIELD as a transparent PNG cutout with a true alpha channel. Transparent background. Front view. Shape: a compact tall shield with flat top, subtly rounded corners, tapering lower corners and a pointed V bottom, aspect ratio width:height 0.78. Thin double beveled champagne-gold metallic rim, very light warm ivory center, tiny delicate embossed laurel sprigs along the bottom-left and bottom-right interior. Central area empty. Photoreal metallic gold highlights, delicate premium e-commerce UI texture, restrained contrast. No words or numbers. No rectangular canvas decoration. The shield floats alone; every pixel outside the shield is transparent. Keep the silhouette clean and occupy 94 percent of the image height. The attached screenshot's tiny TOP1 badge is the design reference; create only the empty badge, not the page."
+    }
+  ],
+  "notes": "The first gold badge and its attempted background extraction were discarded because they had an opaque checkerboard. The final badge was freshly generated with actual alpha. Gold/silver/bronze variants are separate configurable CSS color treatments of the same alpha-preserving master."
+}

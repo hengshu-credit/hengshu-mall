@@ -1,6 +1,6 @@
 <template>
   <view class="page-design" :class="bgClass">
-    <view v-if="!errorNetwork" :style="colorStyle">
+    <view v-if="!errorNetwork" :style="themeStyle || colorStyle">
       <!-- #ifdef MP -->
       <view
         class="fixed z-1000"
@@ -18,10 +18,15 @@
         </view>
       </view>
       <!-- #endif -->
+      <view class="index">
+        <!-- 自定义样式 -->
+        <block v-for="(item, index) in styleConfig" :key="item.id || item.timestamp || index">
+          <view :id="item.id">
       <!-- 轮播搜索 -->
       <homeComb
-        v-if="showHomeComb"
-        :dataConfig="homeCombData"
+        v-if="item.name === 'homeComb'"
+        :dataConfig="item"
+        :shopId="shopId" :shopCategories="shopData.categories || []"
         :belongIndex="belongIndex"
         @bindSortId="bindSortId"
         :isScrolled="isScrolled"
@@ -30,26 +35,27 @@
 
       <!-- 顶部搜索框 -->
       <headerSerch
-        v-if="isHeaderSerch"
-        :dataConfig="headerSerchCombData"
-        :product="productData || {}" @action="$emit('pageAction', $event)"
+        v-if="item.name === 'headerSerch'"
+        :dataConfig="item"
+        :shopId="shopId"
+        :product="pageProduct" @action="$emit('pageAction', $event)"
         :belongIndex="belongIndex"
         @storeTap="storeTap"
       ></headerSerch>
 
       <tabNav
-        v-if="showCateNav"
-        :dataConfig="cateNavData"
+        v-if="item.name === 'tabNav'"
+        :dataConfig="item"
+        :shopId="shopId" :shopCategories="shopData.categories || []"
         @bindHeight="bindHeight"
         @bindSortId="bindSortId"
-        :isFixed="isFixed && !cateNavData.stickyConfig.tabVal"
+        :isFixed="isFixed && !item.stickyConfig.tabVal"
       ></tabNav>
 
-      <view class="index">
-        <!-- 自定义样式 -->
-        <block v-for="(item, index) in styleConfig" :key="index">
-          <view :id="item.id">
-            <page-title v-if="item.name === 'pageTitleBar'" :dataConfig="item" :product="productData || {}" @action="$emit('pageAction', $event)" />
+
+            <marketing-rank-info v-if="item.name === 'productRank' || (productId && item.name === 'productRanking')" :dataConfig="item" :productId="productId || productData.id" />
+            <merchant-modules v-else-if="merchantModuleNames.includes(item.name)" :dataConfig="item" :shopId="shopId" :shopData="shopData" :productData="productData" />
+            <page-title v-if="item.name === 'pageTitleBar'" :dataConfig="item" :product="pageProduct" @action="$emit('pageAction', $event)" />
             <userInfor
               v-if="item.name == 'userInfor'"
               :dataConfig="item"
@@ -100,7 +106,8 @@
                 item.name == 'goodList' || item.name == 'goodRecommend'
               "
               :dataConfig="item"
-              :list="goodList"
+              :list="item.name === 'goodRecommend' && !hasProductSelection(item) ? goodList : undefined"
+              :shopId="shopId"
             ></goodList>
             <!-- <homeGoodRecommend
               v-else-if="
@@ -116,7 +123,7 @@
               :dataConfig="item"
             ></liveBroadcast>
             <!-- #endif -->
-            <menus v-else-if="item.name == 'menus'" :dataConfig="item"></menus>
+            <menus v-else-if="item.name == 'menus'" :dataConfig="item" :shopId="shopId || Number(productData.seller_shop_id) || 0"></menus>
             <!-- 实时消息 -->
             <news v-else-if="item.name == 'news'" :dataConfig="item"></news>
             <!-- 图片库 -->
@@ -129,6 +136,7 @@
               ref="promotionLists"
               v-else-if="item.name == 'promotionList'"
               :dataConfig="item"
+              :shopId="shopId"
               :productVideoStatus="productVideoStatus"
               :positionTop="positionTop"
             ></promotionList>
@@ -159,7 +167,6 @@
               v-else-if="item.name == 'pointsMall'"
               :dataConfig="item"
             ></pointsMall>
-            <!-- #ifndef APP -->
             <richText
               v-else-if="item.name == 'richText'"
               :dataConfig="item"
@@ -168,7 +175,6 @@
               v-else-if="item.name == 'videos'"
               :dataConfig="item"
             ></videos>
-            <!-- #endif -->
             <signIn
               v-else-if="item.name == 'signIn'"
               :dataConfig="item"
@@ -181,6 +187,8 @@
               v-else-if="item.name == 'follow'"
               :dataConfig="item"
             ></follow>
+            <marketingRanking v-else-if="item.name == 'marketingRanking'" :dataConfig="item" />
+            <marketingRankInfo v-else-if="item.name == 'marketingRankInfo'" :dataConfig="item" :productId="productId" />
             <!-- 商品详情 -->
             <productInfo
               v-else-if="item.name == 'productInfo'"
@@ -230,6 +238,7 @@
             <customComponent
               v-else-if="item.name == 'customComponent'"
               :dataConfig="item"
+              :shopId="shopId"
               @changeLogin="changeLogin"
             ></customComponent>
           </view>
@@ -242,6 +251,7 @@
         <pageFooter
           v-if="footerConfigData"
           :configData="footerConfigData"
+          :pageScoped="diyData.navigation_mode === 'page' || !!shopId"
           @newDataStatus="newDataStatus" @heightChange="$emit('navigationHeight', $event)"
         ></pageFooter>
       </view>
@@ -294,15 +304,20 @@ import signIn from "./signIn.vue";
 import hotspot from "./hotspot.vue";
 import follow from "./follow.vue";
 import productInfo from "./productInfo.vue";
+import marketingRanking from "./marketingRanking.vue";
+import marketingRankInfo from "./marketingRankInfo.vue";
 import homePaidVip from "./homePaidVip.vue";
 import homeProductService from "./homeProductService.vue";
 import homeReviews from "./homeReviews.vue";
 import productDesc from "./productDesc.vue";
 import customComponent from "./customComponent.vue";
+import MerchantModules from './merchantModules.vue';
+import {merchantModuleNames} from '../../../shared/merchantDecoration';
 
 export default {
   name: "PageDesign",
   components: {
+    MerchantModules,
     pageTitle,
     pageFooter,
     homeComb,
@@ -336,6 +351,8 @@ export default {
     hotspot,
     follow,
     productInfo,
+    marketingRanking,
+    marketingRankInfo,
     homePaidVip,
     homeProductService,
     homeReviews,
@@ -344,6 +361,9 @@ export default {
   },
   mixins: [colors],
   props: {
+    themeStyle: {type:String,default:''},
+    shopId: {type:Number,default:0},
+    shopData: {type:Object,default:()=>({})},
     // DIY配置数据
     diyData: {
       type: Object,
@@ -448,6 +468,7 @@ export default {
   },
   data() {
     return {
+      merchantModuleNames,
       styleConfig: [],
       homeCombData: {},
       headerSerchCombData: {},
@@ -468,6 +489,7 @@ export default {
     };
   },
   computed: {
+    pageProduct() { return this.shopId ? {...this.productData,seller_shop_id:this.shopId} : this.productData || {}; },
     // #ifdef MP
     appletStyle() {
       return {
@@ -520,6 +542,10 @@ export default {
     },
   },
   methods: {
+    hasProductSelection(item) {
+      return !!((item.goodsList && item.goodsList.list || []).length ||
+        [3, 4].includes(Number(item.typeConfig && item.typeConfig.activeValue)));
+    },
     reconnect() {
       this.$emit("reconnect");
     },
@@ -550,13 +576,12 @@ export default {
     },
     setDiyData(data) {
       if (!data) return;
-      if (data.is_bg_color) {
-        this.bgColor = data.color_picker;
-      }
-      if (data.is_bg_pic) {
-        this.bgPic = data.bg_pic;
-        this.bgTabVal = data.bg_tab_val;
-      }
+      this.bgColor = data.is_bg_color ? data.color_picker || '' : '';
+      this.bgPic = data.is_bg_pic ? data.bg_pic || '' : '';
+      this.bgTabVal = data.is_bg_pic ? data.bg_tab_val || 0 : 0;
+      this.styleConfig = [];
+      this.isFooter = false;
+      this.pdHeight = 0;
 
       let temp = [];
       // 重置状态
@@ -567,35 +592,40 @@ export default {
       if (data.value) {
         let lastArr = this.objToArr(data.value);
         lastArr.forEach((item) => {
+          if (!item || item.isHide === true || item.isHide === 1 || item.isHide === '1') return;
           if (["pageFoot", "mainNavigation"].includes(item.name)) {
             this.footerConfigData = item;
           }
-          if (item.name === "homeComb" && !item.isHide) {
+          if (item.name === "homeComb") {
             this.showHomeComb = true;
             this.homeCombData = item;
             if (item.searchConfig && item.searchConfig.tabVal) {
               this.positionTop = uni.getWindowInfo().statusBarHeight + 43;
             }
           }
-          if (item.name == "headerSerch" && !item.isHide) {
+          if (item.name == "headerSerch") {
             this.isHeaderSerch = true;
             this.headerSerchCombData = item;
           }
-          if (item.name == "tabNav" && !item.isHide) {
+          if (item.name == "tabNav") {
             this.showCateNav = true;
             this.cateNavData = item;
           }
-          if (!item.isHide) {
-            temp.push(item);
-          }
+          temp.push(item);
         });
 
         // 排序
-        temp.sort((a, b) => a.timestamp - b.timestamp);
+        temp.sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
         this.styleConfig = temp;
       }
     },
     bindSortId(data) {
+      if (this.shopId) {
+        const categoryId=Number(data.classPage && data.classPage.id || data.classPage || 0);
+        if(categoryId)uni.navigateTo({url:'/pages/merchant/products?shop_id='+this.shopId+'&category_id='+categoryId});
+        else { const microId=Number(data.microPage && data.microPage.id || data.microPage || 0); if(microId)uni.navigateTo({url:'/pages/annex/special/index?theme_id='+microId}); }
+        return;
+      }
       this.$emit("bindSortId", data);
     },
     bindHeight(data) {

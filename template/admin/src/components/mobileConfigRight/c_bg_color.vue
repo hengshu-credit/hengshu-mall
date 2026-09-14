@@ -4,8 +4,7 @@
       <el-col class="c_label">{{ configData.title }}</el-col>
       <el-col class="color-box">
         <div class="color-item" v-for="(color, key) in configData.color" :key="key">
-          <el-color-picker v-model="color.item" @change="changeColor($event, color)" show-alpha=""></el-color-picker>
-          <el-input class="input" v-model="color.item" />
+          <theme-color-picker v-model="color.item" :allow-theme="allowTheme" />
           <span class="white-space-nowrap" @click="resetBgA(color, index, key)">重置</span>
         </div>
         <div class="iconfont iconlianjie" v-if="configData.color.length > 1"></div>
@@ -15,9 +14,11 @@
 </template>
 
 <script>
+import ThemeColorPicker from '@/components/themeActions/ThemeColorPicker';
 export default {
-  name: 'c_bg_color',
+  name: 'c_bg_color',components:{ThemeColorPicker},
   props: {
+    allowTheme:Boolean,
     configObj: {
       type: Object,
     },

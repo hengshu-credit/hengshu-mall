@@ -25,8 +25,11 @@ class StoreProductDao extends BaseDao
 {
     public function search(array $where = [], bool $search = true)
     {
+        $storefrontPreview = !empty($where['storefront_preview']);
+        unset($where['storefront_preview']);
         $query = parent::search($where, $search);
-        if (app('http')->getName() === 'api') return \app\services\merchant\MerchantProducts::constrain($query);
+        if (!empty($where['seller_shop_id'])) $query->where('seller_shop_id', (int)$where['seller_shop_id']);
+        if ($storefrontPreview || app('http')->getName() === 'api') return \app\services\merchant\MerchantProducts::constrain($query);
         return $query;
     }
 
@@ -387,6 +390,8 @@ class StoreProductDao extends BaseDao
     public function getThemeProduct($where, $order, $limit)
     {
         $model = $this->getModel()->with('cateName')->where('is_del', 0)->where('is_show', 1);
+        if (!empty($where['seller_shop_id'])) $model->where('seller_shop_id',(int)$where['seller_shop_id']);
+        if (!empty($where['storefront_preview']) || app('http')->getName() === 'api') $model = \app\services\merchant\MerchantProducts::constrain($model);
         if ($where['ids'] != '') {
             $ids = explode(',', $where['ids']);
             $list = $model->whereIn('id', $ids)->order($order)->limit($limit)->select()->toArray();

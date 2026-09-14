@@ -76,6 +76,7 @@ class SystemMenusServices extends BaseServices
     public function getMenusList($rouleId, int $level)
     {
         MerchantInstaller::menus();
+        \app\services\activity\ranking\RankingInstaller::install();
         MarketingStyleInstaller::install();
         FullReductionInstaller::install();
         ProductBrandInstaller::install();
@@ -99,6 +100,7 @@ class SystemMenusServices extends BaseServices
     public function getList(array $where, array $field = ['*'])
     {
         MerchantInstaller::menus();
+        \app\services\activity\ranking\RankingInstaller::install();
         MarketingStyleInstaller::install();
         FullReductionInstaller::install();
         ProductBrandInstaller::install();
@@ -256,6 +258,7 @@ class SystemMenusServices extends BaseServices
      */
     public function getMenus($roles, $check = []): array
     {
+        \app\services\activity\ranking\RankingInstaller::install();
         MarketingStyleInstaller::install();
         FullReductionInstaller::install();
         ProductBrandInstaller::install();

@@ -21,7 +21,7 @@ export const sections = [
 ];
 export function emptyMerchant(types = []) {
   const selected = types.find((item) => item.status);
-  const data = { name: '', type_id: selected ? selected.id : 0, tag_ids: [], subject_kind: 'company', logo: '', description: '', remark: '', document_ids: [] };
+  const data = { shop_page_id: 0, name: '', type_id: selected ? selected.id : 0, tag_ids: [], subject_kind: 'company', logo: '', description: '', remark: '', document_ids: [] };
   sections.forEach((section) => section.fields.forEach(([key]) => { data[key] = ''; }));
   return data;
 }

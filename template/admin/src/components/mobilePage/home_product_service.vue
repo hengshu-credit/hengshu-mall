@@ -5,7 +5,8 @@
       <div class="item" v-if="checkList.includes(0)">
         <div class="label" :style="{ color: titleColor }">活动</div>
         <div class="content">
-          <div class="tags">
+          <div v-if="liveProductPreview" class="tags"><span v-for="(name,index) in previewActivities" :key="index" class="tag" :style="tagStyle">{{name}}</span><span v-if="!previewActivities.length" :style="{color:contentColor}">暂无活动</span></div>
+          <div v-else class="tags">
             <span class="tag" :style="tagStyle"
               ><span class="mb-iconfont icon-ic_user1"></span>拼团活动<span
                 class="iconfont iconyou"
@@ -25,14 +26,14 @@
               ></span
             ></span>
           </div>
-          <span class="iconfont iconyou" :style="{ color: contentColor }"></span>
+          <span v-if="!liveProductPreview || previewActivities.length" class="iconfont iconyou" :style="{ color: contentColor }"></span>
         </div>
       </div>
       <!-- 选择 -->
       <div class="item" v-if="checkList.includes(1)">
         <div class="label" :style="{ color: titleColor }">选择</div>
         <div class="content">
-          <span :style="{ color: contentColor }">黑色,80ml</span>
+          <span :style="{ color: contentColor }">{{liveProductPreview ? (previewSpecs[0]||{}).suk || '默认规格' : '默认规格'}}</span>
           <span class="iconfont iconyou" :style="{ color: contentColor }"></span>
         </div>
       </div>
@@ -40,16 +41,16 @@
       <div class="item" v-if="checkList.includes(2)">
         <div class="label" :style="{ color: titleColor }">参数</div>
         <div class="content">
-          <span :style="{ color: contentColor }">充绒量85% · 聚酯纤维面料</span>
-          <span class="iconfont iconyou" :style="{ color: contentColor }"></span>
+          <span :style="{ color: contentColor }">{{parameterSummary || '暂无商品参数'}}</span>
+          <span v-if="!liveProductPreview || parameterSummary" class="iconfont iconyou" :style="{ color: contentColor }"></span>
         </div>
       </div>
       <!-- 服务 -->
       <div class="item" v-if="checkList.includes(3)">
         <div class="label" :style="{ color: titleColor }">服务</div>
         <div class="content">
-          <span :style="{ color: contentColor }">正品保障 · 七天无理由退换货 · 退货运费险...</span>
-          <span class="iconfont iconyou" :style="{ color: contentColor }"></span>
+          <span :style="{ color: contentColor }">{{protectionSummary || '暂无服务保障'}}</span>
+          <span v-if="!liveProductPreview || protectionSummary" class="iconfont iconyou" :style="{ color: contentColor }"></span>
         </div>
       </div>
     </div>
@@ -58,8 +59,11 @@
 
 <script>
 import { mapState } from 'vuex';
+import productPreview from '@/mixins/productPreview';
+import {serviceSummary,serviceActivities} from '../../../../shared/productService';
 import { serviceSelection } from '../../../../shared/productService';
 export default {
+  mixins:[productPreview],
   name: 'home_product_service',
   cname: '商品服务',
   configName: 'c_product_service',
@@ -77,6 +81,9 @@ export default {
     },
   },
   computed: {
+    parameterSummary(){return serviceSummary(this.previewStore.params_list,'value');},
+    protectionSummary(){return serviceSummary(this.previewStore.protection_list,'title');},
+    previewActivities(){return (this.previewDetail.coupons&&this.previewDetail.coupons.length?['优惠券']:[]).concat((this.previewDetail.activity||[]).map(a=>serviceActivities[Number(a.type)]).filter(Boolean).map(a=>a.label));},
     ...mapState('mobildConfig', ['defaultArray']),
     isHide() {
       return this.configObj ? this.configObj.isHide : true;

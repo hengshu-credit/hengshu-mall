@@ -62,7 +62,7 @@
                 borderRadius: imgRadius,
               }"
             >
-              <img src="../../assets/images/shan.png" />
+              <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
             </div>
             <div
               class="bottom"
@@ -93,7 +93,7 @@
               borderRadius: imgRadius,
             }"
           >
-            <img src="../../assets/images/shan.png" />
+            <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
           </div>
           <div class="money acea-row row-middle">
             <img src="../../assets/images/points.png" /><span
@@ -135,7 +135,7 @@
               borderRadius: imgRadius,
             }"
           >
-            <img src="../../assets/images/shan.png" />
+            <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
           </div>
           <div
             class="name"

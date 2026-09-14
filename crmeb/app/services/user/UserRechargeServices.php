@@ -212,103 +212,8 @@ class UserRechargeServices extends BaseServices
      */
     public function refund_update(int $id, string $refund_price)
     {
-        $UserRecharge = $this->getRecharge($id);
-        if (!$UserRecharge) {
-            throw new AdminException('数据不存在');
-        }
-        if ($UserRecharge['price'] == $UserRecharge['refund_price']) {
-            throw new AdminException('已退完支付金额，不能再退款了');
-        }
-        if ($UserRecharge['recharge_type'] == 'balance') {
-            throw new AdminException('佣金转入余额，不能退款');
-        }
-        $data['refund_price'] = $UserRecharge['price'];
-        $refund_data['pay_price'] = $UserRecharge['price'];
-        $refund_data['refund_price'] = $UserRecharge['price'];
-        if ($refund_price == 1) {
-            $number = bcadd($UserRecharge['price'], $UserRecharge['give_price'], 2);
-        } else {
-            $number = $UserRecharge['price'];
-        }
-
-        try {
-            $recharge_type = $UserRecharge['recharge_type'];
-            if ($recharge_type == 'weixin') {
-                $refund_data['wechat'] = true;
-            } else {
-                $refund_data['trade_no'] = $UserRecharge['trade_no'];
-                $refund_data['order_id'] = $UserRecharge['order_id'];
-                /** @var WechatUserServices $wechatUserServices */
-                $wechatUserServices = app()->make(WechatUserServices::class);
-                $refund_data['open_id'] = $wechatUserServices->uidToOpenid((int)$UserRecharge['uid'], 'routine') ?? '';
-                $refund_data['pay_new_weixin_open'] = sys_config('pay_new_weixin_open');
-                /** @var StoreOrderCreateServices $storeOrderCreateServices */
-                $storeOrderCreateServices = app()->make(StoreOrderCreateServices::class);
-                $refund_data['refund_no'] = $storeOrderCreateServices->getNewOrderId('tk');
-            }
-            if ($recharge_type == 'allinpay') {
-                $drivers = 'allin_pay';
-                $trade_no = $UserRecharge['trade_no'];
-            } elseif (sys_config('pay_wechat_type')) {
-                $drivers = 'v3_wechat_pay';
-                $trade_no = $UserRecharge['trade_no'];
-            } else {
-                $drivers = 'wechat_pay';
-                $trade_no = $UserRecharge['order_id'];
-            }
-            /** @var Pay $pay */
-            $pay = app()->make(Pay::class, [$drivers]);
-            $pay->refund($trade_no, $refund_data);
-        } catch (\Exception $e) {
-            throw new AdminException($e->getMessage());
-        }
-        if (!$this->dao->update($id, $data)) {
-            throw new AdminException('修改失败');
-        }
-
-        //修改用户余额
-        /** @var UserServices $userServices */
-        $userServices = app()->make(UserServices::class);
-        $userInfo = $userServices->getUserInfo($UserRecharge['uid']);
-        if ($userInfo['now_money'] > $number) {
-            $now_money = bcsub((string)$userInfo['now_money'], $number, 2);
-        } else {
-            $number = $userInfo['now_money'];
-            $now_money = 0;
-        }
-        $userServices->update((int)$UserRecharge['uid'], ['now_money' => $now_money], 'uid');
-
-        //写入资金流水
-        /** @var CapitalFlowServices $capitalFlowServices */
-        $capitalFlowServices = app()->make(CapitalFlowServices::class);
-        $UserRecharge['nickname'] = $userInfo['nickname'];
-        $UserRecharge['phone'] = $userInfo['phone'];
-        $capitalFlowServices->setFlow($UserRecharge, 'refund_recharge');
-
-        //保存余额记录
-        /** @var UserMoneyServices $userMoneyServices */
-        $userMoneyServices = app()->make(UserMoneyServices::class);
-        $userMoneyServices->income('user_recharge_refund', $UserRecharge['uid'], $number, $now_money, $id);
-
-        //提醒推送
-        event('NoticeListener', [['user_type' => strtolower($userInfo['user_type']), 'data' => $data, 'UserRecharge' => $UserRecharge, 'now_money' => $refund_price], 'recharge_order_refund_status']);
-
-        //自定义通知-充值退款
-        $UserRecharge['now_money'] = $now_money;
-        $UserRecharge['time'] = date('Y-m-d H:i:s');
-        event('NoticeListener', [$UserRecharge['uid'], $UserRecharge, 'recharge_refund']);
-
-        //自定义事件-后台充值退款
-        event('CustomEventListener', ['admin_recharge_refund', [
-            'uid' => $UserRecharge['uid'],
-            'refund_price' => $UserRecharge['price'],
-            'now_money' => $now_money,
-            'nickname' => $UserRecharge['price'],
-            'phone' => $UserRecharge['phone'],
-            'refund_time' => date('Y-m-d H:i:s')
-        ]]);
-
-        return true;
+        if (!in_array($refund_price, ['0','1'], true)) throw new AdminException('请选择是否回收赠送金额');
+        return app()->make(\app\services\pay\RechargeRefundServices::class)->request($id, $refund_price === '1');
     }
 
     /**
@@ -347,11 +252,21 @@ class UserRechargeServices extends BaseServices
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public function importNowMoney(int $uid, $price)
+    public function importNowMoney(int $uid, $price, string $operationKey = '')
+    {
+        if (!is_scalar($price) || !preg_match('/^\d{1,8}(?:\.\d{1,2})?$/D',(string)$price) || bccomp((string)$price,'0',2)<=0) throw new ApiException('转入金额不正确');
+        if ($operationKey!=='' && !preg_match('/^[a-zA-Z0-9_-]{16,80}$/D',$operationKey)) throw new ApiException('操作编号不正确');
+        $key='brokerage:'.$uid.':'.($operationKey ?: bin2hex(random_bytes(20)));
+        return app()->make(\app\services\system\CommerceOperationServices::class)->once($key,'brokerage_transfer',$uid,(string)$price,function()use($uid,$price){
+            return $this->transferBrokerage($uid,(string)$price);
+        });
+    }
+
+    protected function transferBrokerage(int $uid, string $price): int
     {
         /** @var UserServices $userServices */
         $userServices = app()->make(UserServices::class);
-        $user = $userServices->getUserInfo($uid);
+        $user = $userServices->getOneForUpdate(['uid'=>$uid]);
         if (!$user) {
             throw new ApiException('参数错误');
         }
@@ -359,7 +274,7 @@ class UserRechargeServices extends BaseServices
         $frozenPrices = app()->make(UserBrokerageServices::class);
         $broken_commission = $frozenPrices->getUserFrozenPrice($uid);
         $commissionCount = bcsub((string)$user['brokerage_price'], (string)$broken_commission, 2);
-        if ($price > $commissionCount) {
+        if (bccomp($price,$commissionCount,2)>0) {
             throw new ApiException('转入金额不能大于可提现佣金');
         }
         $edit_data = [];
@@ -387,7 +302,7 @@ class UserRechargeServices extends BaseServices
         //余额记录
         /** @var UserMoneyServices $userMoneyServices */
         $userMoneyServices = app()->make(UserMoneyServices::class);
-        $userMoneyServices->income('brokerage_to_nowMoney', $uid, $price, $edit_data['now_money'], $re['id']);
+        if (!$userMoneyServices->income('brokerage_to_nowMoney', $uid, $price, $edit_data['now_money'], $re['id'])) throw new ApiException('写入余额流水失败');
 
         //写入提现记录
         $extractInfo = [
@@ -401,13 +316,13 @@ class UserRechargeServices extends BaseServices
         ];
         /** @var UserExtractServices $userExtract */
         $userExtract = app()->make(UserExtractServices::class);
-        $userExtract->save($extractInfo);
+        if (!$userExtract->save($extractInfo)) throw new ApiException('写入佣金转出记录失败');
 
         //佣金提现记录
         /** @var UserBrokerageServices $userBrokerageServices */
         $userBrokerageServices = app()->make(UserBrokerageServices::class);
-        $userBrokerageServices->income('brokerage_to_nowMoney', $uid, $price, $edit_data['brokerage_price'], $re['id']);
-        return true;
+        if (!$userBrokerageServices->income('brokerage_to_nowMoney', $uid, $price, $edit_data['brokerage_price'], $re['id'])) throw new ApiException('写入佣金流水失败');
+        return (int)$re['id'];
     }
 
     /**
@@ -423,7 +338,7 @@ class UserRechargeServices extends BaseServices
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public function recharge(int $uid, $price, $recharId, $type, $from, bool $renten = false)
+    public function recharge(int $uid, $price, $recharId, $type, $from, bool $renten = false, string $operationKey = '')
     {
         /** @var UserServices $userServices */
         $userServices = app()->make(UserServices::class);
@@ -469,7 +384,7 @@ class UserRechargeServices extends BaseServices
                 }
                 return ['msg' => '', 'type' => $from, 'data' => $order_info];
             case 1: //佣金转入余额
-                $this->importNowMoney($uid, $price);
+                $this->importNowMoney($uid, $price, $operationKey);
                 return ['msg' => '转入余额成功', 'type' => $from, 'data' => []];
             default:
                 throw new ApiException('参数错误');
@@ -487,13 +402,24 @@ class UserRechargeServices extends BaseServices
      */
     public function rechargeSuccess($orderId, array $other = [])
     {
-        $order = $this->dao->getOne(['order_id' => $orderId, 'paid' => 0]);
+        return $this->transaction(function()use($orderId,$other) {
+            $order=$this->dao->getOneForUpdate(['order_id'=>$orderId]);
+            if (!$order) throw new ApiException('订单不存在');
+            $tasks=app()->make(\app\services\system\CommerceTaskServices::class);
+            $tasks->afterCommit('recharge',(int)$order['id']);
+            if ($order['paid']) return true;
+            return $this->completeRecharge($order->toArray(),$other);
+        });
+    }
+
+    protected function completeRecharge(array $order, array $other): bool
+    {
         if (!$order) {
             throw new ApiException('订单不存在');
         }
         /** @var UserServices $userServices */
         $userServices = app()->make(UserServices::class);
-        $user = $userServices->getUserInfo((int)$order['uid']);
+        $user = $userServices->getOneForUpdate(['uid'=>(int)$order['uid']]);
         if (!$user) {
             throw new ApiException('用户不存在');
         }
@@ -504,7 +430,7 @@ class UserRechargeServices extends BaseServices
         $now_money = bcadd((string)$user['now_money'], (string)$price, 2);
         /** @var UserMoneyServices $userMoneyServices */
         $userMoneyServices = app()->make(UserMoneyServices::class);
-        $userMoneyServices->income('user_recharge', $user['uid'], ['number' => $price, 'price' => $order['price'], 'give_price' => $order['give_price']], $now_money, $order['id']);
+        if (!$userMoneyServices->income('user_recharge', $user['uid'], ['number' => $price, 'price' => $order['price'], 'give_price' => $order['give_price']], $now_money, $order['id'])) throw new ApiException('写入充值流水失败');
         if (!$userServices->update((int)$order['uid'], ['now_money' => $now_money], 'uid')) {
             throw new ApiException('修改用户信息失败');
         }
@@ -513,33 +439,35 @@ class UserRechargeServices extends BaseServices
         $capitalFlowServices = app()->make(CapitalFlowServices::class);
         $order['nickname'] = $user['nickname'];
         $order['phone'] = $user['phone'];
+        $order['recharge_type'] = $other['pay_type'];
         $capitalFlowServices->setFlow($order, 'recharge');
-
-        //提醒推送
-        event('NoticeListener', [['order' => $order, 'now_money' => $now_money], 'recharge_success']);
-
-        //自定义消息-订单拒绝退款
         $order['now_money'] = $now_money;
         $order['time'] = date('Y-m-d H:i:s');
-        event('CustomNoticeListener', [$order['uid'], $order, 'recharge_success']);
-
         $order['pay_type'] = $other['pay_type'];
-        // 小程序订单服务
-        event('OrderShippingListener', ['recharge', $order, 3, '', '']);
+        $tasks=app()->make(\app\services\system\CommerceTaskServices::class);
+        foreach(['notice','custom_notice','shipping','custom_event'] as $step) $tasks->stage('recharge',(int)$order['id'],$step,$order);
+        return true;
+    }
 
-        //自定义事件-用户充值
-        event('CustomEventListener', ['user_recharge', [
+    public function deliverPaidTask(string $step, array $order, string $key): bool
+    {
+        $order['delivery_key']=$key;
+        if ($step==='notice') event('NoticeListener', [['order'=>$order,'now_money'=>$order['now_money']], 'recharge_success']);
+        elseif ($step==='custom_notice') event('CustomNoticeListener', [$order['uid'],$order,'recharge_success']);
+        elseif ($step==='shipping') event('OrderShippingListener', ['recharge',$order,3,'','']);
+        elseif ($step==='custom_event') event('CustomEventListener', ['user_recharge', [
             'uid' => $order['uid'],
             'id' => (int)$order['id'],
-            'order_id' => $orderId,
+            'order_id' => $order['order_id'],
             'nickname' => $order['nickname'],
             'phone' => $order['phone'],
             'price' => $order['price'],
             'give_price' => $order['give_price'],
             'now_money' => $order['now_money'],
-            'recharge_time' => date('Y-m-d H:i:s'),
+            'recharge_time' => $order['time'],
+            'delivery_key' => $key,
         ]]);
-
+        else throw new \RuntimeException('Unknown recharge delivery step');
         return true;
     }
 

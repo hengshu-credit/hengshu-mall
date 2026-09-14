@@ -19,7 +19,17 @@
 </template>
 
 <script>
-import toolCom from '@/components/mobileConfigRight/index.js';
+import c_bg_color from '@/components/mobileConfigRight/c_bg_color';
+import c_common_style from '@/components/mobileConfigRight/c_common_style';
+import c_hot_word from '@/components/mobileConfigRight/c_hot_word';
+import c_input_item from '@/components/mobileConfigRight/c_input_item';
+import c_input_number from '@/components/mobileConfigRight/c_input_number';
+import c_radio from '@/components/mobileConfigRight/c_radio';
+import c_set_up from '@/components/mobileConfigRight/c_set_up';
+import c_slider from '@/components/mobileConfigRight/c_slider';
+import c_title from '@/components/mobileConfigRight/c_title';
+import c_upload_img from '@/components/mobileConfigRight/c_upload_img';
+const toolCom = { c_bg_color, c_common_style, c_hot_word, c_input_item, c_input_number, c_radio, c_set_up, c_slider, c_title, c_upload_img };
 import rightBtn from '@/components/rightBtn/index.vue';
 import HeaderActionsSettings from '@/components/themeActions/HeaderActionsSettings';
 import { headerActions } from '../../../../shared/pageActions';

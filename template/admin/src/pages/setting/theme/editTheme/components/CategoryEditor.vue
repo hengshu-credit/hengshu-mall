@@ -3,7 +3,7 @@
     <aside class="module-panel">
       <h3>基础组件</h3>
       <div class="module-grid">
-        <button @click="selectModule('search')" :class="{ active: panel === 'search' }">
+        <button @click="addModule('search')" :class="{ active: panel === 'search' }">
           <component-library-icon name="#iconzujian-sousuokuang" />搜索框
         </button>
         <button
@@ -15,36 +15,31 @@
         >
           <component-library-icon :name="['#iconzujian-shangpinfenlei','#iconzujian-shangpinliebiao','#iconzujian-shangpinxuanxiangka'][layout.value - 1]" />分类组件{{ layout.value }}
         </button>
-        <button @click="selectModule('navigation')" :class="{ active: panel === 'navigation' }">
+        <button @click="addModule('navigation')" :class="{ active: panel === 'navigation' }">
           <component-library-icon name="#iconzujian-dibucaidan" />导航栏
         </button>
-        <button @click="selectModule('checkout')" :class="{active:panel === 'checkout'}"><component-library-icon name="#iconzujian-dibucaidan1" />分类结算栏</button>
-        <button @click="selectModule('page')" :class="{ active: panel === 'page' }">
-          <component-library-icon name="#iconzujian-zidingyi" />页面设置
-        </button>
-        <button @click="selectModule('title')" :class="{ active: panel === 'title' }"><component-library-icon name="#iconzujian-biaoti" />页面标题</button>
+        <button @click="addModule('checkout')" :class="{active:panel === 'checkout'}"><component-library-icon name="#iconzujian-dibucaidan1" />分类结算栏</button>
+        <button @click="addModule('title')" :class="{ active: panel === 'title' }"><component-library-icon name="#iconzujian-biaoti" />页面标题</button>
       </div>
-      <p>分类组件1/2/3切换布局，各自保留样式。选择画布中的组件可调整内容与样式，也可通过右侧操作栏隐藏或删除。</p>
+      <p>分类组件1/2/3切换布局，各自保留样式。选择画布中的组件可调整内容与样式，支持复制搜索框、拖拽排序及上移下移。页面标题、分类主体、结算栏和导航栏只能各添加一个。</p>
     </aside>
     <main class="canvas">
       <div class="editor-canvas-stage">
       <div class="category-canvas-page" :style="previewStyle">
         <div class="canvas-status"><img src="@/assets/images/electric.png" alt="" /></div>
-        <editor-module-frame v-if="config.show_title" class="canvas-module canvas-title-module" name="页面标题" :selected="panel === 'title'" :hidden="!!config.title_component.isHide" @select="panel = 'title'; settingsTab = 'content'" @toggle="config.title_component.isHide = !config.title_component.isHide" @remove="config.show_title = 0; panel = 'page'">
+        <editor-module-frame v-if="config.show_title" class="canvas-module canvas-title-module" name="页面标题" :selected="panel === 'title'" :hidden="!!config.title_component.isHide" @select="panel = 'title'; settingsTab = 'content'" @toggle="config.title_component.isHide = !config.title_component.isHide" @remove="config.show_title = 0; panel = 'page'" @copy="singleModule('title')" moveHint="页面标题固定在顶部">
           <page-title-preview class="canvas-page-title" :dataConfig="config.title_component" />
         </editor-module-frame>
-        <div class="category-canvas-scroll" data-editor-scroll>
-          <editor-module-frame v-if="config.show_search" class="canvas-module" name="搜索框" :selected="panel === 'search'" :hidden="!!config.search_component.isHide" @select="panel = 'search'; settingsTab = 'content'" @toggle="config.search_component.isHide = !config.search_component.isHide" @remove="removeSearch">
-            <search-preview :dataConfig="config.search_component" :colorStyle="{theme:themeColor}" />
+        <draggable v-model="contentModules" class="category-canvas-scroll" data-editor-scroll :animation="200" handle=".module-name" @start="dragging = true" @end="dragging = false">
+          <editor-module-frame v-for="(module, index) in contentModules" :key="module.id" class="canvas-module" :class="{'category-body-module': module.type === 'category'}" :name="module.type === 'search' ? '搜索框' : '分类组件' + centerVersion" :selected="panel === module.type && selectedContent === module.id" :hidden="module.type === 'search' ? !!module.config.isHide : !!config.category_hidden" :canMoveUp="index > 0" :canMoveDown="index < contentModules.length - 1" @select="selectContent(module)" @toggle="toggleContent(module)" @remove="removeContent(module)" @copy="copyContent(module)" @move="moveContent(module, $event)" :style="module.type === 'category' ? {...categoryStyle.outer, display: 'flex'} : {}">
+            <search-preview v-if="module.type === 'search'" :dataConfig="module.config" :colorStyle="{theme:themeColor}" />
+            <div v-else class="category-body-surface" :style="categoryStyle.inner"><category-preview :config="config" :showMerchantName="showMerchantName" /></div>
           </editor-module-frame>
-          <editor-module-frame v-if="config.show_category" class="canvas-module category-body-module" :name="'分类组件' + centerVersion" :selected="panel === 'category'" :hidden="!!config.category_hidden" @select="panel = 'category'; settingsTab = 'content'" @toggle="config.category_hidden = config.category_hidden ? 0 : 1" @remove="config.show_category = 0; panel = 'page'" :style="{...categoryStyle.outer, display: 'flex'}">
-            <div class="category-body-surface" :style="categoryStyle.inner"><category-preview :config="config" /></div>
-          </editor-module-frame>
-        </div>
-        <editor-module-frame v-if="config.checkout && config.checkout.name" class="canvas-module category-checkout-module" name="分类结算栏" :selected="panel === 'checkout'" :hidden="!!config.checkout.isHide" @select="selectModule('checkout')" @toggle="config.checkout.isHide = !config.checkout.isHide" @remove="removeCheckout">
+        </draggable>
+        <editor-module-frame v-if="config.checkout && config.checkout.name" class="canvas-module category-checkout-module" name="分类结算栏" :selected="panel === 'checkout'" :hidden="!!config.checkout.isHide" @select="selectModule('checkout')" @toggle="config.checkout.isHide = !config.checkout.isHide" @remove="removeCheckout" @copy="singleModule('checkout')" moveHint="结算栏固定在底部">
           <checkout-preview :config="config.checkout" :selected="checkoutSelected" :themeColor="themeColor" />
         </editor-module-frame>
-        <editor-module-frame v-if="hasNavigation" class="canvas-module" name="导航栏" :selected="panel === 'navigation'" :hidden="!!config.navigation.isHide" @select="selectModule('navigation')" @toggle="config.navigation.isHide = !config.navigation.isHide" @remove="removeNavigation">
+        <editor-module-frame v-if="hasNavigation" class="canvas-module" name="导航栏" :selected="panel === 'navigation'" :hidden="!!config.navigation.isHide" @select="selectModule('navigation')" @toggle="config.navigation.isHide = !config.navigation.isHide" @remove="removeNavigation" @copy="singleModule('navigation')" moveHint="导航栏固定在底部">
           <navigation-preview :config="config.navigation" :themeColor="themeColor" />
         </editor-module-frame>
       </div>
@@ -54,7 +49,7 @@
     <aside class="settings-panel">
       <navigation-settings v-if="panel === 'navigation' && hasNavigation" :configObj="config.navigation" />
       <page-title-settings v-else-if="panel === 'title'" :dataConfig="config.title_component" />
-      <search-settings v-else-if="panel === 'search'" :dataConfig="config.search_component" />
+      <search-settings v-else-if="panel === 'search'" :dataConfig="selectedSearch" :key="selectedContent" />
       <checkout-settings v-else-if="panel === 'checkout' && config.checkout.name" :config="config.checkout" @preview-state="checkoutSelected = $event" />
       <template v-else>
         <div class="settings-heading">
@@ -79,7 +74,7 @@
               :productOptions="productOptions"
               :contentColors="contentColors"
               @image="chooseImage"
-              @link="$refs.linkaddres.modals = true" /><common-style v-else :configObj="config.category_style"
+              @link="$refs.linkaddres.modals = true" /><common-style v-else :configObj="config.category_style" hide-radius
           /></template>
         </div>
       </template>
@@ -96,6 +91,9 @@
   </div>
 </template>
 <script>
+import draggable from 'vuedraggable';
+import { pageContentModules } from '../../../../../../../shared/pageModuleOrder';
+import { searchBoxComponent } from '../../../../../../../shared/searchBoxComponent';
 import { themeInfo, themeSave } from '@/api/diy';
 import setting from '@/setting';
 import uploadPictures from '@/components/uploadPictures';
@@ -105,6 +103,7 @@ import {
   categoryPageDefaults,
   categoryPageStyle,
   categoryLayoutPreset,
+  categoryBodyStyle,
 } from '../../../../../../../shared/categoryPageConfig';
 import { commonStyleDefaults, componentStyle } from '../../../../../../../shared/componentStyle';
 import { navigationComponent } from '../../../../../../../shared/navigationComponent';
@@ -129,6 +128,7 @@ const fields = (pairs) => pairs.map(([key, label]) => ({ key, label }));
 export default {
   name: 'CategoryEditor',
   components: {
+    draggable,
     uploadPictures,
     linkaddress,
     NavigationSettings,
@@ -151,7 +151,11 @@ export default {
       mediaOpen: false,
       imageField: '',
       themeColor: '#E93323',
+      showMerchantName: false,
       panel: 'category',
+      selectedContent: 'category',
+      dragging: false,
+      moduleSequence: 0,
       settingsTab: 'content',
       legacyNavigation: null,
       previewCategory: 0,
@@ -234,6 +238,11 @@ export default {
     };
   },
   computed: {
+    contentModules: {
+      get() { return pageContentModules(this.config, 'category'); },
+      set(modules) { this.config.content_order = modules.map(item => item.id); },
+    },
+    selectedSearch() { return this.selectedContent === 'search' ? this.config.search_component : (this.config.extra_modules.find(item => item.id === this.selectedContent) || {}).config; },
     centerVersion() {
       return this.config.status;
     },
@@ -241,7 +250,7 @@ export default {
       return !!(this.config.navigation && this.config.navigation.menuList);
     },
     categoryStyle() {
-      return componentStyle(this.config.category_style || {});
+      return componentStyle(categoryBodyStyle(this.config.category_style));
     },
     previewStyle() {
       return categoryPageStyle(this.config, this.themeColor);
@@ -284,9 +293,44 @@ export default {
     this.getInfo();
   },
   methods: {
+    singleModule(key) { this.$message.warning(({title:'页面标题',category:'分类组件',checkout:'分类结算栏',navigation:'导航栏'})[key] + '只能添加一个'); },
+    addModule(key) {
+      if (key === 'search') {
+        if (this.config.show_search) return this.copyContent({type:'search', id:this.selectedContent, config:searchBoxComponent()});
+      } else if ((key === 'navigation' && this.hasNavigation) || (key === 'checkout' && this.config.checkout && this.config.checkout.name) || (key === 'title' && this.config.show_title)) {
+        this.singleModule(key);
+        return this.selectModule(key);
+      }
+      this.selectModule(key);
+    },
+    selectContent(module) { if(this.dragging)return; this.selectedContent = module.id; this.panel = module.type; this.settingsTab = 'content'; },
+    toggleContent(module) { if(module.type === 'search') module.config.isHide = !module.config.isHide; else this.config.category_hidden = Number(!this.config.category_hidden); },
+    removeContent(module) {
+      if (module.id === 'search') this.config.show_search = 0;
+      else if (module.id === 'category') this.config.show_category = 0;
+      else this.config.extra_modules = this.config.extra_modules.filter(item => item.id !== module.id);
+      this.config.content_order = this.config.content_order.filter(id => id !== module.id);
+      this.panel = 'page';
+    },
+    copyContent(module) {
+      if (module.type !== 'search') return this.singleModule('category');
+      const id = 'search_' + Date.now() + '_' + (++this.moduleSequence);
+      const copy = {id, config:searchBoxComponent({...JSON.parse(JSON.stringify(module.config)), id, timestamp:Date.now() * 1000 + this.moduleSequence})};
+      const order = this.contentModules.map(item => item.id);
+      order.splice(Math.max(0, order.indexOf(module.id) + 1), 0, id);
+      this.config.extra_modules.push(copy);
+      this.config.content_order = order;
+      this.selectContent({...copy, type:'search'});
+    },
+    moveContent(module, step) {
+      const modules = this.contentModules.slice(), index = modules.findIndex(item => item.id === module.id), next = index + step;
+      if(next < 0 || next >= modules.length)return;
+      modules.splice(next, 0, modules.splice(index, 1)[0]); this.contentModules = modules; this.selectContent(module);
+    },
     chooseVersion(version) {
+      if (this.config.show_category) this.$message.warning('分类组件只能添加一个，已切换当前组件的布局');
       this.config.show_category = 1;
-      this.config.category_hidden = 0;
+      this.selectedContent = 'category';
       const globalKeys = [
         'show_title', 'title_hidden', 'show_category', 'category_hidden', 'search_hidden',
         'show_search',
@@ -319,9 +363,9 @@ export default {
       this.settingsTab = 'content';
     },
     selectModule(panel) {
-      if (panel === 'title') { this.config.show_title = 1; this.config.title_component.isHide = false; }
+      if (panel === 'title') this.config.show_title = 1;
       if (panel === 'checkout' && !(this.config.checkout && this.config.checkout.name)) this.$set(this.config,'checkout',checkoutComponent());
-      if (panel === 'search') { this.config.show_search = 1; this.config.search_component.isHide = false; }
+      if (panel === 'search') { this.config.show_search = 1; this.selectedContent = 'search'; }
       if (panel === 'navigation' && !this.hasNavigation) {
         this.config.navigation = navigationComponent(this.legacyNavigation || {});
         this.config.navigation.isHide = false;
@@ -397,6 +441,7 @@ export default {
         this.$set(this.config, 'category_style', this.config.category_style || commonStyleDefaults());
         this.$set(this.config, 'layout_configs', this.config.layout_configs || {});
         this.themeColor = theme.data.theme_color || '#E93323';
+        this.showMerchantName = !!theme.data.show_merchant_name;
         if (this.config.status > 1) this.layoutChoices[this.config.status] = this.config.product_layout;
         await this.$nextTick();
         this.setDirty(false);
@@ -417,6 +462,7 @@ export default {
       const snapshot = normalizeCategoryPage(this.config);
       try {
         const result = await themeSave(this.$route.query.id || 0, {
+          page_type: this.$route.query.page_type || 'theme',
           type: 'category',
           value: snapshot,
           tid: Number(this.$route.query.tid) || 0,
@@ -437,7 +483,7 @@ export default {
       }
     },
     async saveAndClose() {
-      if (await this.saveOnly()) this.$router.push(`${setting.routePre}/setting/my_theme`);
+      if (await this.saveOnly()) this.$router.push(`${setting.routePre}/setting/${this.$route.query.page_type === 'merchant' ? 'merchant_theme' : 'my_theme'}`);
     },
     preview() {
       this.$el.querySelector('.category-canvas-page').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -589,7 +635,7 @@ export default {
 <style scoped>.category-search-preview{display:flex;align-items:center;gap:6px}.category-search-preview .search{flex:1;min-width:40px;margin:10px 6px}.category-checkout-module{margin-top:auto}.category-canvas-page{display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:520px;max-height:740px}.category-canvas-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;margin-left:-110px;margin-right:-52px;padding:2px 52px 2px 110px;scrollbar-width:none}.category-canvas-scroll::-webkit-scrollbar{display:none}.category-canvas-page>.canvas-module{flex-shrink:0}.canvas-status{flex-shrink:0}</style>
 
 <style scoped>
-.category-canvas-scroll{display:flex;flex-direction:column;padding-top:0;padding-bottom:0}
+.category-canvas-scroll ::v-deep .module-name{cursor:grab}.category-canvas-scroll{display:flex;flex-direction:column;padding-top:0;padding-bottom:0}
 .category-body-module{flex:1;display:flex;flex-direction:column}
 .category-body-surface{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
 .category-body-surface ::v-deep .preview-body{flex:1;min-height:0}

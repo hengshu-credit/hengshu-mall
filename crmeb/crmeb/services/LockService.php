@@ -25,11 +25,14 @@ class LockService
      */
     public function exec($key, $fn, int $ex = 6)
     {
+        $token = bin2hex(random_bytes(24));
+        $acquired = false;
         try {
-            $this->lock($key, $key, $ex);
+            $this->lock($key, $token, $ex);
+            $acquired = true;
             return $fn();
         } finally {
-            $this->unlock($key, $key);
+            if ($acquired) $this->unlock($key, $token);
         }
     }
 
@@ -40,11 +43,12 @@ class LockService
 
     public function lock($key, $value = '1', $ex = 6)
     {
-        if ($this->tryLock($key, $value, $ex)) {
-            return true;
-        }
-        usleep(200);
-        $this->lock($key, $value, $ex);
+        $deadline = microtime(true) + min(6, max(1, (int)$ex));
+        do {
+            if ($this->tryLock($key, $value, max(1, (int)$ex))) return true;
+            usleep(random_int(10000, 30000));
+        } while (microtime(true) < $deadline);
+        throw new \crmeb\exceptions\ApiException('操作处理中，请稍后重试');
     }
 
     public function unlock($key, $value = '1')

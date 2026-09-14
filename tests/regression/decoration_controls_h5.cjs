@@ -1,0 +1,41 @@
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
+const {chromium}=require('playwright');
+const root=path.resolve(__dirname,'../..'),out=path.join(root,'.build/decoration-controls'),dist=path.resolve(process.env.CRMEB_DECORATION_H5_OUTPUT||path.join(out,'h5'));
+const saved=JSON.parse(fs.readFileSync(path.join(out,'saved-configs.json'),'utf8'));
+const fixture=JSON.parse(fs.readFileSync(path.join(root,'.build/ranking-review/sync-configs.json'),'utf8'));
+const rank=saved.rank;rank.borderConfig.tabVal=1;rank.borderConfig.widthConfig.val=4;rank.borderConfig.colorConfig.color[0].item='var(--view-theme)';rank.componentBgConfig.colorConfig.color.forEach(c=>c.item='transparent');
+const recommend=saved.recommend;recommend.groups[1].linkType='url';recommend.groups[1].link='https://example.com/offers?a=1&b=2#top';
+const topic={title:'推荐链接核验',page_title_mode:'component',is_show:1,value:{1000:{...recommend,timestamp:1000}}};
+const detail={...fixture[52].detail,value:{1000:{...rank,timestamp:1000}}};
+const server=http.createServer((req,res)=>{let p=path.resolve(dist,'.'+new URL(req.url,'http://local').pathname);if(!p.startsWith(dist+path.sep)||!fs.existsSync(p)||!fs.statSync(p).isFile())p=path.join(dist,'index.html');res.setHeader('Content-Type',({'.html':'text/html','.js':'application/javascript','.css':'text/css','.png':'image/png','.woff':'font/woff','.ttf':'font/ttf'})[path.extname(p)]||'application/octet-stream');fs.createReadStream(p).pipe(res);});
+(async()=>{await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const browser=await chromium.launch({channel:'chrome',headless:true});try{
+ const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('https://example.com/**',r=>r.fulfill({contentType:'text/html',body:'<p>URL destination verified</p>'}));
+ await page.route('**/api/**',route=>{
+  const u=new URL(route.request().url());let data={};
+  if(route.request().resourceType()==='script'||u.pathname==='/api/get_script')return route.fulfill({contentType:'application/javascript',body:''});
+  if(u.pathname==='/api/theme_info/home')data=topic;
+  else if(u.pathname==='/api/theme_info/detail')data=detail;
+  else if(u.pathname==='/api/storefront/product/4/theme')data={page:detail,palette:{theme_color:'#155eef'},shop_id:7};
+  else if(u.pathname==='/api/theme_info/theme')data={theme_color:'#155eef',gradient_color:'#66aaff',sub_color:'#ee9900'};
+  else if(u.pathname==='/api/product/detail/4')data=fixture.product;
+  else if(u.pathname.startsWith('/api/product/real_price/'))data={real_price:3999,member_price:3999,ot_price:4799};
+  else if(u.pathname==='/api/marketing/product_rankings/4')data={list:[{id:91,name:'数码商品热销榜',rank:2,entity_type:'product',page_url:'/pages/annex/special/index?theme_id=501'}]};
+  else if(u.pathname==='/api/storefront/products')data={list:[],count:0};
+  else if(u.pathname==='/api/cart/count')data={count:0,ids:[]};
+  else if(u.pathname==='/api/v2/new_coupon')data={show:false,list:[]};
+  else if(u.pathname==='/api/theme/navigation')data=[];
+  return route.fulfill({json:{status:200,data}});
+ });
+ const base='http://127.0.0.1:'+server.address().port;
+ await page.goto(base+'/pages/goods_details/index?id=4');await page.locator('.rank-info').waitFor({timeout:20000});
+ const styles=await page.locator('.rank-info').evaluate(el=>{const surface=el.closest('.component-surface'),css=getComputedStyle(surface),arrow=el.querySelector('.rp-detail-arrow');return {radius:parseFloat(css.borderTopLeftRadius),border:parseFloat(css.borderTopWidth),borderColor:css.borderTopColor,bg:css.backgroundImage,arrowColor:getComputedStyle(arrow).color,arrowBg:getComputedStyle(arrow).backgroundColor,arrowClass:arrow.className};});
+ assert(Math.abs(styles.radius-28*390/375)<1);assert(Math.abs(styles.border-4*390/375)<1);assert.equal(styles.borderColor,'rgb(21, 94, 239)');assert.equal(styles.arrowColor,styles.borderColor);assert.equal(styles.arrowBg,'rgba(0, 0, 0, 0)');assert(styles.arrowClass.includes('icon-you2'));assert(!styles.bg.includes('255, 255, 255'));
+ await page.screenshot({path:path.join(out,'h5-rank-style.png')});
+ await page.goto(base+'/pages/annex/special/index?theme_id=99');await page.locator('.recommend-card').first().waitFor({timeout:15000});
+ await page.locator('.recommend-card').first().click();await page.waitForURL('**/pages/merchant/category?id=7');
+ await page.goto(base+'/pages/annex/special/index?theme_id=99');await page.locator('.recommend-card').nth(1).click();await page.waitForURL('**/pages/annex/web_view/index?url=*');
+ await page.frameLocator('iframe').getByText('URL destination verified',{exact:true}).waitFor();assert.equal(await page.locator('iframe').getAttribute('src'),'https://example.com/offers?a=1&b=2#top');
+ // The page uses the same web-view URL destination as existing header actions.
+ assert.deepEqual(errors,[]);console.log('PASS H5: saved background/rounded border/theme colors, parameter chevron, selected shop page and full external URL navigation');
+ }finally{await browser.close();server.closeAllConnections();server.close();}})().catch(e=>{console.error(e);server.closeAllConnections();server.close();process.exitCode=1;});

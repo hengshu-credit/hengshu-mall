@@ -3,15 +3,14 @@
     <slot />
     <span class="module-selection" data-editor-chrome aria-hidden="true"></span>
     <span class="module-name" data-editor-chrome>{{name}}</span>
-    <div class="module-tools" data-editor-chrome>
-      <button v-if="canHide" @click.stop="$emit('toggle')" :aria-label="(hidden ? '显示' : '隐藏')+name"><i class="iconfont" :class="hidden ? 'iconyincang' : 'iconxianshi'"></i></button>
-      <button v-if="canDelete" @click.stop="$emit('remove')" :aria-label="'删除'+name"><i class="iconfont iconshanchu3"></i></button>
-      <button v-if="!canHide && !canDelete" @click.stop="$emit('select')" :aria-label="'配置'+name"><i class="el-icon-edit"></i></button>
-    </div>
+    <component-toolbar class="module-tools" :name="name" :hidden="hidden" :canHide="canHide" :canDelete="canDelete"
+      :canMoveUp="canMoveUp" :canMoveDown="canMoveDown" :moveHint="moveHint"
+      @toggle="$emit('toggle')" @remove="$emit('remove')" @copy="$emit('copy')" @move="$emit('move', $event)" @select="$emit('select')" />
   </div>
 </template>
 <script>
-export default {props:{name:String,selected:Boolean,hidden:Boolean,canHide:{type:Boolean,default:true},canDelete:{type:Boolean,default:true}}};
+import ComponentToolbar from './ComponentToolbar';
+export default {components:{ComponentToolbar},props:{name:String,selected:Boolean,hidden:Boolean,canHide:{type:Boolean,default:true},canDelete:{type:Boolean,default:true},canMoveUp:Boolean,canMoveDown:Boolean,moveHint:String}};
 </script>
 <style scoped lang="scss">
 .editor-module-frame {
@@ -29,9 +28,7 @@ export default {props:{name:String,selected:Boolean,hidden:Boolean,canHide:{type
     &::before{content:'';position:absolute;right:-5px;top:11px;width:10px;height:10px;transform:rotate(45deg);background:inherit}
   }
   &.selected .module-name{background:var(--prev-color-primary-light-3,var(--prev-color-primary));color:#fff}
-  .module-tools{display:none;position:absolute;left:calc(100% + 8px);top:0;width:36px;padding:0;border-radius:4px;background:var(--prev-color-primary);color:#fff;z-index:10000;
-    button{display:block;width:100%;border:0;padding:2px 0;height:20px;line-height:18px;background:transparent;color:inherit;font-size:16px;cursor:pointer;&:hover{background:rgba(255,255,255,.15)}}
-  }
+  .module-tools{display:none}
   &.selected .module-tools{display:block}
   &.hidden::before{content:'已隐藏';position:absolute;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);color:#fff;pointer-events:none}
 }

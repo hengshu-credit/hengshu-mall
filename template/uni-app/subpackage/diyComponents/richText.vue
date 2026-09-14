@@ -3,17 +3,11 @@
   <view v-show="!isSortType">
     <common-wrapper :config="configData">
       <view class="richText" v-if="description" :style="[richTextStyle]">
-        <!-- #ifndef APP-PLUS -->
         <jyf-parser
           :html="description"
           ref="article"
           :tag-style="tagStyle"
         ></jyf-parser>
-        <!-- #endif -->
-        <!-- #ifdef APP-PLUS -->
-        <!-- eslint-disable-next-line vue/no-v-text-v-html-on-component -->
-        <view v-html="description"></view>
-        <!-- #endif -->
       </view>
     </common-wrapper>
   </view>

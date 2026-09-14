@@ -1,5 +1,6 @@
 <template>
   <div class="preview-body">
+    <p v-if="previewError" class="preview-empty">{{previewError}}</p>
     <div class="side-nav">
       <div
         v-if="centerVersion === 1 && config.show_recommend"
@@ -50,7 +51,7 @@
           <div class="category-product" v-for="item in previewProducts" :key="item.id">
             <div class="product-image" :style="{ borderRadius: config.image_radius / 2 + 'px' }">
               <img
-                :src="assetUrl(item.image)"
+                :src="assetUrl(item.image || pictures[0])"
                 :alt="item.store_name"
                 :style="{ objectFit: config.image_fit }"
               />
@@ -62,6 +63,7 @@
               <div v-if="config.show_product_name" class="product-title" :style="{ WebkitLineClamp: config.name_lines }">
                 {{item.store_name}}
               </div>
+              <div v-if="showMerchantName && item.seller_shop_id && item.merchant_name" style="font-size:11px;color:#888;margin:4px 0">{{item.merchant_name}} ›</div>
               <div class="product-bottom">
                 <strong class="product-price">¥ {{Number(item.price || 0).toFixed(2)}}</strong
                 ><span v-if="config.buy_button_style" class="category-buy" :class="'style-' + config.buy_button_style"
@@ -82,14 +84,15 @@
 </template>
 <script>
 import { productListApi } from '@/api/product';
-import { getProductList } from '@/api/diy';
+import { getProductList, getStorefrontPreview } from '@/api/diy';
 import setting from '@/setting';
 export default {
-  props: { config: Object },
+  inject: {decorationPreview:{default:null}},
+  props: { config: Object, showMerchantName:{type:Boolean,default:false} },
   data() {
     return {
       previewCategory: 0,
-      catalog: [], products: [], productsLoading: false, subCategory: 0, tabsExpanded: false,
+      catalog: [], products: [], productsLoading: false, subCategory: 0, tabsExpanded: false, previewError:'',
       pictures: [require('@/assets/images/product-diy.png')],
       sampleCategories: ['家居', '女装', '男装', '母婴', '运动', '数码', '食品'],
       sampleNames: ['全部商品', '床上用品', '生活好物', '数码配件', '电器', '精选礼品'],
@@ -104,22 +107,31 @@ export default {
     };
   },
   computed: {
-    categories() { return this.catalog.length ? this.catalog : this.sampleCategories.map((cate_name,id)=>({id,cate_name})); },
+    previewScope() { return this.decorationPreview ? this.decorationPreview() : null; },
+    categories() { return this.previewScope || this.catalog.length ? this.catalog : this.sampleCategories.map((cate_name,id)=>({id,cate_name})); },
     currentCategory() { return this.categories[this.previewCategory] || {}; },
     subCategories() { return this.currentCategory.children || this.currentCategory._child || []; },
     secondaryCategories() { return [{id:0,cate_name:'全部商品'}, ...this.subCategories.filter(item => Number(item.id) !== 0)]; },
-    categoryTiles() { return this.catalog.length ? [{...this.currentCategory,cate_name:'全部商品'},...this.subCategories] : this.sampleNames.map((cate_name,id)=>({id,cate_name})); },
-    previewProducts() { return this.catalog.length ? this.products : Array.from({length:6},(_,id)=>({id,store_name:'品质生活精选商品示意，展示商品名称',price:99,image:this.pictures[id % this.pictures.length]})); },
+    categoryTiles() { return this.categories.length ? [{...this.currentCategory,cate_name:'全部商品'},...this.subCategories] : []; },
+    previewProducts() { return this.previewScope || this.catalog.length ? this.products : Array.from({length:6},(_,id)=>({id,store_name:'品质生活精选商品示意，展示商品名称',price:99,image:this.pictures[id % this.pictures.length]})); },
     centerVersion() {
       return this.config.status;
     },
   },
-  watch: { previewCategory() { this.subCategory=0;this.tabsExpanded=false;this.$nextTick(()=>{if(this.$refs.subTabs)this.$refs.subTabs.scrollLeft=0;});this.loadProducts(); }, 'config.status'() { this.tabsExpanded=false;this.loadProducts(); } },
+  watch: { previewScope:{deep:true,handler(){this.loadCategories();}}, previewCategory() { this.subCategory=0;this.tabsExpanded=false;this.$nextTick(()=>{if(this.$refs.subTabs)this.$refs.subTabs.scrollLeft=0;});this.loadProducts(); }, 'config.status'() { this.tabsExpanded=false;this.loadProducts(); } },
   async created() {
+    if(this.previewScope){this.loadCategories();return;}
     try { const res=await productListApi({is_show:1});if(this._isDestroyed)return;this.catalog=Array.isArray(res.data.list)?res.data.list:[];this.loadProducts(); } catch (_) { /* A blank catalogue still has a usable layout example. */ }
   },
   beforeDestroy() { this._previewRequest=(this._previewRequest||0)+1; },
   methods: {
+    async loadCategories() {
+      const seq=this._categoryRequest=(this._categoryRequest||0)+1;
+      this._previewRequest=(this._previewRequest||0)+1;this.catalog=[];this.products=[];this.previewCategory=0;this.subCategory=0;this.previewError='';
+      if(this.previewScope.requiresShop&&!this.previewScope.shopId){this.previewError='请选择预览店铺';return;}
+      try { const res=await getStorefrontPreview({kind:'categories',shop_id:this.previewScope.shopId});if(this._isDestroyed||seq!==this._categoryRequest)return;this.catalog=Array.isArray(res.data)?res.data:[];this.loadProducts(); }
+      catch(error){if(seq===this._categoryRequest)this.previewError=error.msg||'分类预览读取失败';}
+    },
     assetUrl(url) { return url && /^\/(?:uploads|statics)\//.test(url) ? setting.apiBaseURL.replace(/\/(adminapi|api)\/?$/, '').replace(/\/$/, '')+url : url; },
     selectSubCategory(id) {
       this.subCategory=id;this.tabsExpanded=false;this.loadProducts();
@@ -131,7 +143,7 @@ export default {
     async loadProducts() {
       if(!this.catalog.length || this.config.status === 1)return;
       const request=this._previewRequest=(this._previewRequest||0)+1;this.productsLoading=true;
-      try { const res=await getProductList({cate_id:this.subCategory||this.currentCategory.id,page:1,limit:6,type:0});if(!this._isDestroyed&&request===this._previewRequest)this.products=Array.isArray(res.data.list)?res.data.list:[]; }
+      try { const res=this.previewScope ? await getStorefrontPreview({kind:'products',shop_id:this.previewScope.shopId,category_id:this.subCategory||this.currentCategory.id,limit:6}) : await getProductList({cate_id:this.subCategory||this.currentCategory.id,page:1,limit:6,type:0});if(!this._isDestroyed&&request===this._previewRequest)this.products=Array.isArray(res.data.list)?res.data.list:[]; }
       catch (_) { if(request===this._previewRequest)this.products=[]; }
       finally { if(request===this._previewRequest)this.productsLoading=false; }
     },

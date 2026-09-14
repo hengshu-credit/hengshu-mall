@@ -4,8 +4,8 @@ require dirname(__DIR__, 2) . '/crmeb/vendor/autoload.php';
 class PaymentBoundaryRedis extends Redis {
     public $result = false;
     public $commands = [];
-    public function rPush($key, ...$values) { $this->commands[] = ['rpush', $key, $values]; return $this->result; }
-    public function zAdd($key, $score_or_options, ...$values) { $this->commands[] = ['zadd', $key, $values]; return $this->result; }
+    public function rPush($key, $value = null, ...$values) { $this->commands[] = ['rpush', $key, array_merge([$value], $values)]; return $this->result; }
+    public function zAdd($key, $score_or_options, $value = null, ...$values) { $this->commands[] = ['zadd', $key, array_merge([$value], $values)]; return $this->result; }
 }
 $redis = new PaymentBoundaryRedis;
 $original = new think\queue\connector\Redis($redis, 'payment-fixture');

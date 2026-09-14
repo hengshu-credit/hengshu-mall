@@ -1,11 +1,18 @@
 <template>
-  <div class="diy-page">
+  <div class="diy-page" :style="decorationThemeVariables">
     <!-- 旧 Header 已迁移至新编辑模块顶部，移除该块 -->
     <el-card :bordered="false" shadow="never">
       <div class="diy-wrapper" :style="'height:' + clientHeight + 'px;'">
         <!-- 左侧 -->
         <div class="left">
           <div class="wrapper" :style="'height:' + clientHeight + 'px;'">
+            <div style="padding:12px 16px"><span>预览终端 </span><el-select v-model="previewPlatform" size="small" @change="arraySort"><el-option label="APP" value="app" /><el-option label="H5" value="h5" /><el-option label="微信小程序" value="mp-weixin" /></el-select></div>
+            <div v-if="pageType === 'shop' || isMerchantTheme" class="shop-category-setting" style="padding:16px">
+              <template v-if="!isMerchantTheme"><b>店铺分类页</b>
+              <el-radio-group v-model="shopCategoryStyle" size="mini" style="margin:12px 0" @change="setDirty && setDirty(true)"><el-radio-button v-for="n in [1,2,3]" :key="n" :label="n">样式{{n}}</el-radio-button></el-radio-group>
+              <p style="font-size:12px;line-height:1.7;color:#909399">仅选择布局样式，其他设置跟随商城主题的分类页面。</p></template>
+              <template v-if="!isMerchantTheme"><p style="margin-top:12px">预览店铺</p><merchant-select v-model="previewShopId" clearable :emptyValue="0" /></template>
+            </div>
             <div class="list" v-for="(item, index) in leftMenu" :key="index">
               <div class="tips" @click="item.isOpen = !item.isOpen">
                 {{ item.title }}
@@ -52,16 +59,6 @@
             <div class="contxt">
               <div class="overflowy">
                 <div class="picture"><img src="@/assets/images/electric.png" /></div>
-                <div
-                  v-if="pageType == 'home' && !hasPageTitle"
-                  class="page-title"
-                  :class="{ on: activeIndex == -100 }"
-                  @click="showTitle"
-                >
-                  {{ titleTxt }}
-                  <div class="delete-box"></div>
-                  <div class="handle"></div>
-                </div>
               </div>
               <div class="scrollCon" :style="'height:' + rollHeight + 'px;'">
                 <div style="width: 460px; margin: 0 auto">
@@ -87,7 +84,7 @@
                   >
                     <draggable
                       class="dragArea list-group"
-                      :list="mConfig"
+                      v-model="flowComponents"
                       group="people"
                       @change="log"
                       filter=".top"
@@ -97,51 +94,38 @@
                       <div
                         class="mConfig-item"
                         :class="{
-                          on: activeIndex == key,
+                          on: activeIndex == mConfig.indexOf(item),
                           top: item.name == 'search_box' || item.name == 'nav_bar',
                           hide: defaultArrays[item.num].isHide,
                         }"
-                        v-for="(item, key) in mConfig"
-                        v-if="!isDockComponent(item)"
-                        :key="key"
-                        @click.stop="bindconfig(item, key)"
+                        v-for="(item, key) in flowComponents"
+                        :key="item.id"
+                        @click.capture="selectPreview($event, item, mConfig.indexOf(item))"
+                        @click.stop
                         :style="
                           colorTxt
                             ? 'background-color:' + colorPickerTxt + ';'
                             : 'background-color: rgba(255,255,255, 0);'
                         "
                       >
-                        <component
+                        <div v-if="!componentSupported(defaultArrays[item.num].name)" style="padding:20px;color:#909399;font-size:12px">{{item.cname}}仅支持微信小程序，当前终端不展示</div>
+                        <component v-else
                           :is="item.name"
                           ref="getComponentData"
                           :configData="propsObj"
-                          :index="key"
+                          :index="mConfig.indexOf(item)"
                           :num="item.num"
                           :colorStyle="colorStyle"
                         ></component>
                         <div class="delete-box">
-                          <div class="handleType">
-                            <div
-                              class="iconfont"
-                              :class="defaultArrays[item.num].isHide ? 'iconyincang' : 'iconxianshi'"
-                              @click.stop="bindHide(item)"
-                            ></div>
-                            <div class="iconfont iconshanchu3" @click.stop="bindDelete(item, key)"></div>
-                            <div class="iconfont icona-fuzhi1" @click.stop="bindAddDom(item, 0, key)"></div>
-                            <div
-                              class="iconfont iconshang"
-                              :class="key === 0 ? 'on' : ''"
-                              @click.stop="movePage(item, key, 1)"
-                            ></div>
-                            <div
-                              class="iconfont iconxia"
-                              :class="key === mConfig.length - 1 ? 'on' : ''"
-                              @click.stop="movePage(item, key, 0)"
-                            ></div>
-                          </div>
+                          <component-toolbar :name="item.cname" :hidden="!!defaultArrays[item.num].isHide"
+                            :canMoveUp="key > 0" :canMoveDown="key < flowComponents.length - 1"
+                            @toggle="bindHide(item)" @remove="bindDelete(item, mConfig.indexOf(item))"
+                            @copy="bindAddDom(item, 0, mConfig.indexOf(item))"
+                            @move="movePage(item, mConfig.indexOf(item), $event === -1 ? 1 : 0)" />
                         </div>
                         <div class="handle"></div>
-                        <div class="delete-name" :class="{ on: activeIndex == key }">
+                        <div class="delete-name" :class="{ on: activeIndex == mConfig.indexOf(item) }">
                           <span
                             v-if="
                               item.name == 'home_custom_component' &&
@@ -161,12 +145,12 @@
               <div class="editor-bottom-dock">
                 <div v-for="entry in dockedComponents" :key="entry.item.num" class="mConfig-item dock-component"
                   :class="{on:activeIndex === entry.index,hide:defaultArrays[entry.item.num].isHide}"
-                  @click.stop="bindconfig(entry.item,entry.index)">
+                  @click.capture="selectPreview($event,entry.item,entry.index)" @click.stop>
                   <component :is="entry.item.name" :num="entry.item.num" :index="entry.index" :colorStyle="colorStyle" />
-                  <div class="delete-box"><div class="handleType">
-                    <div class="iconfont iconxianshi" @click.stop="bindHide(entry.item)"></div>
-                    <div class="iconfont iconshanchu3" @click.stop="bindDelete(entry.item,entry.index)"></div>
-                  </div></div><div class="handle"></div><div class="delete-name"><span>{{entry.item.cname}}</span></div>
+                  <div class="delete-box">
+                    <component-toolbar :name="entry.item.cname" :hidden="!!defaultArrays[entry.item.num].isHide" moveHint="该组件固定在页面底部"
+                      @toggle="bindHide(entry.item)" @remove="bindDelete(entry.item, entry.index)" @copy="bindAddDom(entry.item, 0, entry.index)" />
+                  </div><div class="handle"></div><div class="delete-name"><span>{{entry.item.cname}}</span></div>
                 </div>
               </div>
               <div class="defaultData" v-if="pageId !== 0">
@@ -234,6 +218,8 @@ import {
 } from '@/api/diy';
 import { fileUpload } from '@/api/setting';
 import vuedraggable from 'vuedraggable';
+import ComponentToolbar from '@/components/themeActions/ComponentToolbar';
+import MerchantSelect from '@/components/merchantSelect';
 import mPage from '@/components/mobilePage/index.js';
 import mConfig from '@/components/mobileConfig/index.js';
 import home_bottom_menu from '@/components/mobilePage/home_bottom_menu.vue';
@@ -245,11 +231,19 @@ import theme from '@/mixins/theme';
 import Setting from '@/setting';
 import QRCode from 'qrcodejs2';
 import { navigationComponent } from '../../../../../shared/navigationComponent';
+import { defaultShopPage, merchantModuleNames, merchantComponent } from '../../../../../shared/merchantDecoration';
+import { pageTitleComponent, defaultMicroPage, microPageWithTitle } from '../../../../../shared/pageTitleComponent';
+import { rankingComponent } from '../../../../../shared/rankingComponent';
+import {editorThemeColors} from '../../../../../shared/themeColors';
+import {decorationSupported} from '../../../../../shared/decorationCapabilities';
 
 export default {
-  inject: ['reload', 'setDirty'],
+  provide(){return {decorationTheme:()=>this.colorStyle, decorationPreview:()=>this.previewContext};},
+  inject: {reload:{default:null},setDirty:{default:()=>{}},parentDecorationPreview:{from:'decorationPreview',default:null}},
   name: 'index.vue',
   components: {
+    MerchantSelect,
+    ComponentToolbar,
     footPage,
     html2canvas,
     draggable: vuedraggable,
@@ -265,7 +259,13 @@ export default {
     },
   },
   computed: {
-    hasPageTitle() { return Object.values(this.$store.state.mobildConfig.defaultArray).some(item => item.name === 'pageTitleBar' && !item.isHide); },
+    previewContext() { return this.parentDecorationPreview ? this.parentDecorationPreview() : {shopId:Number(this.previewShopId)||0,requiresShop:this.pageType === 'shop'}; },
+    decorationThemeVariables(){return editorThemeColors(this.colorStyle);},
+    isMerchantTheme() { return this.$route.query.page_type === 'merchant'; },
+    flowComponents: {
+      get() { return this.mConfig.filter(item => !this.isDockComponent(item)); },
+      set(items) { this.mConfig = [...items, ...this.mConfig.filter(item => this.isDockComponent(item))]; },
+    },
     dockedComponents() { return this.mConfig.map((item,index)=>({item,index})).filter(entry=>this.isDockComponent(entry.item)).sort((a,b)=>(a.item.name==='main_navigation'?1:0)-(b.item.name==='main_navigation'?1:0)); },
     ...mapState({
       titleTxt: (state) => state.mobildConfig.pageTitle || '首页',
@@ -289,7 +289,7 @@ export default {
       },
     },
     isMicroPage() {
-      return this.$route.query.page_type == 'micro';
+      return ['micro', 'shop'].includes(this.$route.query.page_type);
     },
   },
   mixins: [theme],
@@ -311,6 +311,9 @@ export default {
       pageId: '',
       pageName: '',
       pageType: '',
+      shopCategoryStyle: 1,
+      previewShopId: 0,
+      previewPlatform: 'app',
       category: [],
       tabList: [
         {
@@ -354,7 +357,7 @@ export default {
     this.$nextTick(() => {
       this.$store.commit('mobildConfig/FOOTER', { title: '是否自定义', name: imgList });
       this.arraySort();
-      if (this.pageId != 0 || this.$route.query.tid) {
+      if (this.pageId != 0 || this.$route.query.tid || this.isMicroPage || this.pageType === 'shop' || this.isMerchantTheme) {
         this.getDefaultConfig();
       } else if (this.pageType == 'home') {
         this.showTitle();
@@ -400,6 +403,13 @@ export default {
     },
   },
   methods: {
+    componentSupported(name) { return decorationSupported(name,this.previewPlatform); },
+    selectPreview(event,item,index) {
+      // Content components may stop their own link/button clicks. Selection belongs
+      // to the editor, while toolbar actions retain their existing behavior.
+      if(event.target.closest('[data-editor-chrome],.delete-box'))return;
+      this.bindconfig(item,index);
+    },
     isDockComponent(item) { return ['main_navigation','home_bottom_menu'].includes(item.name); },
     exportView() {
       let that = this;
@@ -549,6 +559,7 @@ export default {
       }
     },
     preview() {
+      if ((this.pageType === 'shop' || this.isMerchantTheme) && (!Number(this.pageId) || !this.previewContext.shopId)) return this.$message.warning('请先保存页面，并选择用于预览的店铺');
       this.modal = true;
       this.creatQrCode(this.pageId, this.diyStatus);
       this.routineCode(this.pageId);
@@ -566,7 +577,7 @@ export default {
     //生成二维码
     creatQrCode(id, status) {
       this.$refs.qrCodeUrl.innerHTML = '';
-      let url = `${this.BaseURL}pages/index/index?theme_id=${this.$route.query.id}`;
+      let url = (this.pageType === 'shop' || this.isMerchantTheme) ? `${this.BaseURL}pages/merchant/shop?id=${this.previewContext.shopId}&shop_page_id=${this.pageId}` : `${this.BaseURL}pages/index/index?theme_id=${this.$route.query.id}`;
       // if (status) {
       //   url = `${this.BaseURL}pages/index/index`;
       // } else {
@@ -634,6 +645,7 @@ export default {
       }
     },
     onMove(e) {
+      if (!e.relatedContext.element) return true;
       if (e.relatedContext.element.name == 'search_box') return false;
       if (e.relatedContext.element.name == 'nav_bar') return false;
       if (e.relatedContext.element.name == 'home_comb') return false;
@@ -666,7 +678,7 @@ export default {
           this.$message.error(err.msg);
         });
     },
-    // 页面标题点击
+    // 页面设置独立于可添加、删除的页面标题组件。
     showTitle() {
       this.activeIndex = -100;
       let obj = {};
@@ -745,7 +757,7 @@ export default {
       // 从左向右拖拽排序
       if (evt.added) {
         let data = evt.added.element;
-        if (['main_navigation','home_bottom_menu'].includes(data.name) && this.mConfig.filter(item => item.name === data.name).length > 1) { this.mConfig.splice(evt.added.newIndex, 1); return this.$message.warning('每种底部组件只能添加一次'); }
+        if (['main_navigation','home_bottom_menu','page_title_bar','search_box','nav_bar','home_comb','home_service'].includes(data.name) && this.mConfig.filter(item => item.name === data.name).length > 1) { this.mConfig.splice(evt.added.newIndex, 1); return this.$message.warning(data.cname + '只能添加一个'); }
         let obj = {};
         let timestamp = new Date().getTime() * 1000;
         data.num = timestamp;
@@ -778,38 +790,18 @@ export default {
     },
     //点击上下移动；
     movePage(item, index, type) {
-      if (type) {
-        if (index == 0) {
-          return;
-        }
-      } else {
-        if (index == this.mConfig.length - 1) {
-          return;
-        }
-      }
-      if (item.name == 'search_box' || item.name == 'nav_bar' || item.name == 'home_comb') {
-        return this.$message.warning('该组件禁止移动');
-      }
-      if (type) {
-        if (
-          this.mConfig[index - 1].name == 'search_box' ||
-          this.mConfig[index - 1].name == 'nav_bar' ||
-          this.mConfig[index - 1].name == 'home_comb'
-        ) {
-          return this.$message.warning('搜索框或选项卡或轮播搜索必须为顶部');
-        }
-        this.swapArray(this.mConfig, index - 1, index);
-      } else {
-        this.swapArray(this.mConfig, index, index + 1);
-      }
+      const flow = this.flowComponents, flowIndex = flow.indexOf(item);
+      if (this.isDockComponent(item)) return this.$message.info('该组件固定在页面底部');
+      if ((type && flowIndex === 0) || (!type && flowIndex === flow.length - 1)) return;
+      if (['search_box','nav_bar','home_comb'].includes(item.name)) return this.$message.warning('该组件固定在页面顶部');
+      const neighbor = flow[flowIndex + (type ? -1 : 1)];
+      if (type && ['search_box','nav_bar','home_comb'].includes(neighbor.name)) return this.$message.warning('搜索框或选项卡或轮播搜索必须为顶部');
+      const nextIndex = this.mConfig.indexOf(neighbor);
+      this.swapArray(this.mConfig, index, nextIndex);
       let obj = {};
       this.rConfig = [];
       obj.oldIndex = index;
-      if (type) {
-        obj.newIndex = index - 1;
-      } else {
-        obj.newIndex = index + 1;
-      }
+      obj.newIndex = nextIndex;
       this.mConfig.forEach((el, index) => {
         el.num = new Date().getTime() * 1000 + index;
       });
@@ -817,18 +809,15 @@ export default {
       this.rConfig.push(tempItem);
       obj.element = item;
       obj.list = this.mConfig;
-      if (type) {
-        this.activeIndex = index - 1;
-      } else {
-        this.activeIndex = index + 1;
-      }
+      this.activeIndex = nextIndex;
 
       this.$store.commit('mobildConfig/SETCONFIGNAME', item.name);
       this.$store.commit('mobildConfig/defaultArraySort', obj);
     },
     // 组件添加
     addDomCon(item, type, index) {
-      if (['main_navigation','home_bottom_menu'].includes(item.name) && this.mConfig.some(component => component.name === item.name)) return this.$message.warning('每种底部组件只能添加一次');
+      item = {...item};
+      if (['main_navigation','home_bottom_menu','page_title_bar'].includes(item.name) && this.mConfig.some(component => component.name === item.name)) return this.$message.warning(item.cname + '只能添加一个');
       if (item.name == 'search_box') {
         if (this.isSearch) return this.$message.error('该组件只能添加一次');
         if (this.isComb) return this.$message.error('轮播搜索不能和搜索组件与选项卡组件同时存在');
@@ -850,6 +839,10 @@ export default {
       }
       let obj = {};
       let timestamp = new Date().getTime() * 1000;
+      if (item.defaultName === 'productRank' && type) {
+        const productIndex = this.mConfig.findIndex(component => component.defaultName === 'productInfo');
+        if (productIndex >= 0) this.activeIndex = productIndex;
+      }
       item.num = `${timestamp}`;
       item.id = `id${timestamp}`;
       this.activeConfigName = item.name;
@@ -902,7 +895,7 @@ export default {
     bindAddDom(item, type, index) {
       // 复制
       if (type == 0) {
-        if (['main_navigation','home_bottom_menu'].includes(item.name)) return this.$message.warning('每种底部组件只能添加一次');
+        if (['main_navigation','home_bottom_menu','page_title_bar','search_box','nav_bar','home_comb','home_service'].includes(item.name)) return this.$message.warning(item.cname + '只能添加一个');
         let defaultArray = this.$store.state.mobildConfig.defaultArray;
         let configData = JSON.parse(JSON.stringify(defaultArray[item.num]));
 
@@ -915,7 +908,9 @@ export default {
         });
 
         // 先调用 addDomCon 添加一个新组件，然后立即用 configData 覆盖它
+        const previousCount = this.mConfig.length;
         this.addDomCon(baseItem, type, index);
+        if (this.mConfig.length === previousCount) return;
 
         // 获取刚添加的组件（在 index+1 位置，因为 addDomCon 是 splice(index+1, 0, ...)）
         let newIndex = index + 1;
@@ -934,6 +929,7 @@ export default {
 
         // 提交更新
         this.$store.commit('mobildConfig/UPDATEARR', { num: newItem.num, val: newConfig });
+        this.bindconfig(newItem, newIndex);
       } else {
         let i = item;
         this.lConfig.forEach((j) => {
@@ -1038,6 +1034,9 @@ export default {
         isOpen: true,
       };
       this.lConfig.map((el, index) => {
+        if(!this.componentSupported(el.defaultName))return;
+        if (this.pageType === 'detail' && ['productRanking','marketingRankInfo'].includes(el.defaultName)) return;
+        if (this.pageType === 'detail' && el.defaultName === 'productRank') { basis.list.push(el); return; }
         if (el.type == 0 && (el.name !== 'home_bottom_menu' || this.pageType === 'detail')) {
           basis.list.push(el);
         }
@@ -1048,7 +1047,7 @@ export default {
           tool.list.push(el);
         }
         if (el.type == 3) {
-          if (this.pageType !== 'home' && this.pageType !== 'user') {
+          if (this.pageType === 'detail') {
             if (el.name === 'home_product_info' || el.cname === '商品信息') {
               goods.list.unshift(el);
             } else {
@@ -1057,12 +1056,13 @@ export default {
           }
         }
         if (el.type == 4) {
-          if (this.pageType !== 'home' && this.pageType !== 'detail') user.list.push(el);
+          if (this.pageType === 'user') user.list.push(el);
         }
+        if (el.type == 5 && (this.pageType === 'shop' || (this.isMerchantTheme && this.pageType === 'home') || (this.pageType === 'detail' && ['shopInfo','shopFollow'].includes(el.defaultName)))) basis.list.push(el);
       });
       tempArr.push(basis, marketing);
-      if (this.pageType !== 'home' && this.pageType !== 'user') tempArr.push(goods);
-      if (this.pageType !== 'home' && this.pageType !== 'detail') tempArr.push(user);
+      if (this.pageType === 'detail') tempArr.push(goods);
+      if (this.pageType === 'user') tempArr.push(user);
       tempArr.push(tool);
       this.leftMenu = tempArr;
     },
@@ -1079,7 +1079,7 @@ export default {
     // },
     diySaveDate(val, num, title, save) {
       let pageData = {};
-      if (['home', 'detail', 'user'].includes(this.pageType)) {
+      if (['home', 'detail', 'user', 'shop'].includes(this.pageType)) {
         pageData = {
           type: this.pageType,
           navigation_mode: 'page',
@@ -1101,8 +1101,10 @@ export default {
         type: this.pageType,
         value: pageData,
       };
-      if (this.$route.query.page_type === 'micro') {
-        requestData.page_type = 'micro';
+      if (this.pageType === 'shop') pageData.shop_category_style = this.shopCategoryStyle;
+      if (this.isMicroPage || this.pageType === 'shop' || (this.isMerchantTheme && this.pageType === 'home')) pageData.page_title_mode = 'component';
+      if (['micro','shop','merchant'].includes(this.$route.query.page_type)) {
+        requestData.page_type = this.$route.query.page_type;
       }
       if (title) {
         requestData.title = title;
@@ -1111,6 +1113,7 @@ export default {
         requestData.tid = this.$route.query.tid;
       }
       const snapshot = JSON.stringify(this.$store.state.mobildConfig.defaultArray);
+      const savedShopCategoryStyle = this.shopCategoryStyle;
       return themeSave(title ? 0 : this.pageId, requestData)
         .then((res) => {
           if (this.pageId != res.data.id && !title) {
@@ -1125,7 +1128,7 @@ export default {
           if (num == 2) {
             this.relLoading = false;
             setTimeout(() => {
-              let page = this.isMicroPage
+              let page = this.isMerchantTheme ? this.$routeProStr + '/setting/merchant_theme' : this.isMicroPage
                 ? this.$routeProStr + '/setting/theme/micro_page'
                 : this.$routeProStr + '/setting/my_theme';
               window.location.replace(page);
@@ -1134,7 +1137,7 @@ export default {
             this.loading = false;
           }
           if (this.setDirty) {
-            this.setDirty(snapshot !== JSON.stringify(this.$store.state.mobildConfig.defaultArray));
+            this.setDirty(snapshot !== JSON.stringify(this.$store.state.mobildConfig.defaultArray) || (this.pageType === 'shop' && savedShopCategoryStyle !== this.shopCategoryStyle));
           }
           this.relLoading = false;
           this.loading = false;
@@ -1191,11 +1194,17 @@ export default {
       if (id == 0 && this.$route.query.tid) {
         id = this.$route.query.tid;
       }
-      themeInfo(id, this.pageType).then((res) => {
+      const request = !Number(id) && this.$route.query.page_type === 'micro'
+        ? Promise.resolve({ data: defaultMicroPage() })
+        : !Number(id) && (this.pageType === 'shop' || (this.isMerchantTheme && this.pageType === 'home')) ? Promise.resolve({data: defaultShopPage()}) : themeInfo(id, this.pageType);
+      request.then((res) => {
         if (this._isDestroyed) return;
         let obj = {};
         let tempARR = [];
         let data = res.data;
+        if (this.$route.query.page_type === 'micro') data = microPageWithTitle(data || {});
+        if ((this.pageType === 'shop' || (this.isMerchantTheme && this.pageType === 'home')) && (!data || !data.value)) data = defaultShopPage();
+        this.shopCategoryStyle = Number(data.shop_category_style) || 1;
         this.$store.commit('mobildConfig/titleUpdata', data.title);
         this.$store.commit('mobildConfig/nameUpdata', data.name);
         this.$store.commit('mobildConfig/showUpdata', data.is_show);
@@ -1206,12 +1215,16 @@ export default {
         this.$store.commit('mobildConfig/picurlUpdata', data.bg_pic || '');
         this.diyStatus = data.status;
         let newArr = this.objToArr(data.value || {});
+        if (this.pageType === 'detail') newArr = newArr.map(item => item.name === 'productRanking' ? {...item,name:'productRank',cname:'排行榜'} : item);
         if (this.pageType === 'detail' && data.actions_mode !== 'components' && !newArr.some(item=>item.name==='bottomMenu')) {
           const timestamp = Date.now()*1000+newArr.length+1;
           newArr.push({...JSON.parse(JSON.stringify(this.$store.state.mobildConfig.bottomMenu)),timestamp,cname:'商品操作栏'});
         }
         // Move legacy home footers into the same optional component list as every page.
         newArr = newArr.map((item, index) => item.name === 'pageFoot' || item.name === 'mainNavigation' ? navigationComponent(item, item.timestamp || Date.now() * 1000 + index) : item);
+        newArr = newArr.map(item => merchantModuleNames.includes(item.name) ? merchantComponent(item.name, item, item.timestamp) : item);
+        newArr = newArr.map(item => item.name === 'pageTitleBar' ? pageTitleComponent(item, item.timestamp) : item);
+        newArr = newArr.map(item => item.name === 'productRank' ? {...rankingComponent('productRank',item,item.timestamp),cname:'排行榜'} : item);
 
         function sortNumber(a, b) {
           return a.timestamp - b.timestamp;
@@ -1254,6 +1267,10 @@ export default {
         });
         // Replace the object so loaded component fields are reactive in Vue 2.
         this.$store.commit('mobildConfig/DEFAULTARRAY', obj);
+        if (!Number(id) && this.$route.query.page_type === 'micro') {
+          const index = this.mConfig.findIndex(item => item.defaultName === 'pageTitleBar');
+          if (index >= 0) this.bindconfig(this.mConfig[index], index);
+        }
         if (this.$route.query.component === 'main_navigation') {
           const index = this.mConfig.findIndex(item => item.defaultName === 'mainNavigation');
           if (index >= 0) this.bindconfig(this.mConfig[index], index);
@@ -1318,7 +1335,8 @@ export default {
   },
 };
 </script>
-<style>
+<style lang="scss">
+@import '../../../styles/productPlaceholder.scss';
 .el-main {
   padding: 0px !important;
 }
@@ -1739,64 +1757,6 @@ export default {
       }
     }
 
-    .page-title {
-      position: relative;
-      height: 35px;
-      line-height: 35px;
-      background: #fff;
-      font-size: 15px;
-      color: #333333;
-      text-align: center;
-      width: 375px;
-      margin: 0 auto;
-
-      .delete-box {
-        display: none;
-        position: absolute;
-        left: -2px;
-        top: 0;
-        width: 379px;
-        height: 100%;
-        border: 2px dashed var(--prev-color-primary);
-        padding: 10px 0;
-
-        span {
-          position: absolute;
-          right: 0;
-          bottom: 0;
-          width: 32px;
-          height: 16px;
-          line-height: 16px;
-          display: inline-block;
-          text-align: center;
-          font-size: 10px;
-          color: #fff;
-          background: rgba(0, 0, 0, 0.4);
-          margin-left: 2px;
-          cursor: pointer;
-          z-index: 11;
-        }
-      }
-
-      &:hover,
-      &.on {
-        /* cursor: move; */
-        .delete-box {
-          /* display: block; */
-        }
-      }
-
-      &.on {
-        cursor: move;
-
-        .delete-box {
-          display: block;
-          border: 2px solid var(--prev-color-primary);
-          box-shadow: 0 0 10px 0 rgba(24, 144, 255, 0.3);
-        }
-      }
-    }
-
     .scroll-box {
       flex: 1;
       background-color: #fff;
@@ -1881,31 +1841,7 @@ export default {
           border: 2px dashed var(--prev-color-primary);
 
           /* padding: 10px 0; */
-          .handleType {
-            position: absolute;
-            right: -43px;
-            top: 0;
-            width: 36px;
-            border-radius: 4px;
-            background-color: var(--prev-color-primary);
-            cursor: pointer;
-            color: #fff;
-            font-weight: bold;
-            text-align: center;
-            padding: 4px 0;
-            .el-tooltip {
-              background-color: inherit;
-              color: inherit;
-            }
-            .iconfont {
-              padding: 5px 0;
-              color: #fff;
 
-              &.on {
-                opacity: 0.4;
-              }
-            }
-          }
         }
 
         &.on {
@@ -2043,6 +1979,4 @@ export default {
 .dock-component .delete-name{position:absolute;top:8px;left:-100px;width:86px;padding:8px 0;text-align:center;background:#fff;border-radius:3px;color:#666;font-size:13px}
 .dock-component .delete-box{display:none;position:absolute;inset:0;pointer-events:none;z-index:3}
 .dock-component.on .delete-box,.dock-component:hover .delete-box{display:block}
-.dock-component .handleType{position:absolute;left:calc(100% + 8px);top:0;width:32px;border-radius:4px;background:var(--prev-color-primary);pointer-events:auto;text-align:center;color:#fff}
-.dock-component .handleType .iconfont{padding:6px 0;color:#fff}
 </style>

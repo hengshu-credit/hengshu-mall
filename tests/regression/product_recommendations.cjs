@@ -1,12 +1,21 @@
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
+const path = require('node:path');
+const root = path.resolve(__dirname,'../..');
+process.env.CRMEB_AUDIT_PORT='18126';
+process.env.CRMEB_AUDIT_H5=path.join(root,'.build/storefront-hardening/h5');
+process.env.CRMEB_AUDIT_OFFLINE='1';
+const {createServer}=require('./storefront_audit_fixture.cjs');
 
-// Run against the local H5 service with product 4's configured recommendations.
+// Current production H5 with isolated recommendation data; no running mall or hardcoded catalog product is required.
 // Catches a lost recommendation list between the detail page and its DIY widgets.
 (async () => {
+  const fixture=await createServer();
+  const recommended={...fixture.catalog[0],id:2,store_name:'回归推荐商品'};
+  fixture.product.good_list=[recommended]; fixture.catalog.push(recommended);
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
-    for (const delayed of ['product/detail/4', 'theme_info/detail']) {
+    for (const delayed of ['product/detail/1', 'theme_info/detail']) {
       const context = await browser.newContext({
         viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
       });
@@ -20,12 +29,12 @@ const { chromium } = require('playwright');
           await route.fulfill({ response });
         });
         const detail = page.waitForResponse(response =>
-          new URL(response.url()).pathname === '/api/product/detail/4');
-        await page.goto('http://localhost:8011/pages/goods_details/index?id=4');
+          new URL(response.url()).pathname === '/api/product/detail/1');
+        await page.goto(fixture.origin+'/pages/goods_details/index?id=1');
         const payload = await (await detail).json();
         assert.equal(payload.status, 200);
         const recommendations = payload.data.good_list;
-        assert.ok(recommendations.length, 'Product 4 must have configured recommendations');
+        assert.ok(recommendations.length, 'Isolated product must have configured recommendations');
         await page.waitForLoadState('networkidle');
         const list = page.locator('.goodList .list').first();
         console.log(JSON.stringify({ delayed, expectedIds: recommendations.map(item => item.id),
@@ -50,7 +59,7 @@ const { chromium } = require('playwright');
           assert.ok((await list.innerText()).includes(item.store_name),
             `Recommendation ${item.id} must be displayed`);
         }
-        const target = recommendations.find(item => item.id !== 4);
+        const target = recommendations.find(item => item.id !== 1);
         assert.ok(target, 'Fixture needs another product to verify navigation');
         await page.unrouteAll({ behavior: 'wait' });
         await list.getByText(target.store_name, { exact: true }).first().click();
@@ -64,5 +73,6 @@ const { chromium } = require('playwright');
     }
   } finally {
     await browser.close();
+    await new Promise(resolve=>fixture.server.close(resolve));
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });

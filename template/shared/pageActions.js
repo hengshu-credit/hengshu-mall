@@ -38,3 +38,13 @@ export function actionLink(action) {
   const target = action.type === 'link' ? action.link : (ACTIONS.find(item => item.type === action.type) || {}).link;
   return typeof target === 'string' && /^\/pages\/[a-zA-Z0-9_/-]+(?:\?[^\s<>"\\]*)?$/.test(target) ? target : '';
 }
+// H5 routing may encode the query again; APP may already provide a decoded value.
+// Stop as soon as the URL is valid so percent-encoded URL parameters stay intact.
+export function decodedExternalLink(input) {
+  let value=typeof input==='string'?input:'';
+  for(let i=0;i<3;i++){
+    const valid=actionLink({type:'url',link:value});if(valid)return valid;
+    try{const decoded=decodeURIComponent(value);if(decoded===value)break;value=decoded;}catch(_){break;}
+  }
+  return '';
+}

@@ -1,0 +1,12 @@
+import request from '@/utils/request.js';
+export const getShops = data => request.get('storefront/shops', data, {noAuth:true});
+export const getShop = id => request.get('storefront/shop/' + Number(id), {}, {noAuth:true});
+export const getShopCategories = id => request.get('storefront/shop/' + Number(id) + '/categories', {}, {noAuth:true});
+export const getShopProducts = data => request.get('storefront/products', data, {noAuth:true});
+export const getRanking = data => request.get('storefront/ranking', data, {noAuth:true});
+export const getProductRank = (id, data) => request.get('storefront/product/' + Number(id) + '/rank', data, {noAuth:true});
+export const getMerchantTheme = (id,type,data={}) => request.get('storefront/shop/'+Number(id)+'/theme/'+type,data,{noAuth:true});
+export const getMerchantProductTheme = (id,data={}) => request.get('storefront/product/'+Number(id)+'/theme',data,{noAuth:true});
+export const getShopFollow = id => request.get('storefront/shop/'+Number(id)+'/follow',{}, {noAuth:true});
+export const setShopFollow = (id,follow) => request.post('merchant/shop/'+Number(id)+'/follow',{follow});
+export const getFollowedShops = data => request.get('merchant/followed',data);

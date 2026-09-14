@@ -548,6 +548,7 @@ abstract class BaseDao
      */
     public function decStockIncSales(array $where, int $num, string $stock = 'stock', string $sales = 'sales')
     {
+        if ($num <= 0) return false;
         $isQuota = false;
         if (isset($where['type']) && $where['type']) {
             $isQuota = true;
@@ -558,7 +559,8 @@ abstract class BaseDao
         $field = $isQuota ? 'stock,quota' : 'stock';
         $product = $this->getModel()->where($where)->field($field)->find();
         if ($product) {
-            return $this->getModel()->where($where)->when($isQuota, function ($query) use ($num) {
+            return $this->getModel()->where($where)->where($stock, '>=', $num)->when($isQuota, function ($query) use ($num) {
+                $query->where('quota', '>=', $num);
                 $query->dec('quota', $num);
             })->dec($stock, $num)->inc($sales, $num)->update();
         }

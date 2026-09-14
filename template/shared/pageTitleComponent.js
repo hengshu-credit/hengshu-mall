@@ -11,6 +11,25 @@ export function pageTitleComponent(value = {}, timestamp = Date.now() * 1000) {
   };
 }
 
+// Convert the old topic-page heading once. The mode also records an intentional
+// deletion, so an empty component list never recreates the title on reload.
+export function microPageWithTitle(page = {}) {
+  const result = { ...page, page_title_mode: 'component', value: { ...(page.value || {}) } };
+  const items = Object.values(result.value);
+  if (page.page_title_mode === 'component' || items.some(item => item.name === 'pageTitleBar')) return result;
+  const timestamps = items.map(item => Number(item.timestamp)).filter(Number.isFinite);
+  let timestamp = Math.min(1000, ...timestamps) - 1;
+  while (Object.prototype.hasOwnProperty.call(result.value, timestamp)) timestamp--;
+  const title = String(page.title || '页面标题').trim().slice(0, 30) || '页面标题';
+  result.value[timestamp] = pageTitleComponent({ title }, timestamp);
+  return result;
+}
+
+export function defaultMicroPage() {
+  return microPageWithTitle({ type: 'home', title: '专题页', name: '专题页', is_show: 1,
+    navigation_mode: 'page', actions_mode: 'components', value: {} });
+}
+
 // Read earlier category/cart themes into the same component used by every DIY page.
 export function pageTitleFromPage(page, fallback, defaultActions = {}) {
   if (page.title_component && page.title_component.name === 'pageTitleBar') return pageTitleComponent(page.title_component);

@@ -8,7 +8,7 @@ class MerchantData
     public const SUBJECT = ['subject_kind', 'subject_name', 'identity_number', 'representative', 'representative_title', 'representative_phone', 'registered_address', 'business_scope', 'registration_authority', 'established_date', 'valid_until'];
     public const SENSITIVE = ['identity_number', 'bank_account'];
     public const CORE = ['subject_kind', 'subject_name', 'identity_number', 'representative', 'registered_address', 'valid_until', 'bank_name', 'bank_branch', 'bank_account', 'bank_holder', 'bank_kind', 'document_ids'];
-    public const LABELS = ['name'=>'商户名称','type_id'=>'商户类型','tag_ids'=>'商户标签','logo'=>'Logo','description'=>'简介','remark'=>'备注','subject_kind'=>'主体类别','subject_name'=>'主体名称','identity_number'=>'身份号码／信用代码','representative'=>'法定代表人／经营者','representative_title'=>'职务','representative_phone'=>'代表人联系电话','registered_address'=>'注册地址','business_address'=>'经营地址','contact_name'=>'联系人','contact_phone'=>'联系电话','contact_email'=>'邮箱','contact_address'=>'联系地址','postal_code'=>'邮编','service_phone'=>'客服电话','business_scope'=>'经营范围','registration_authority'=>'登记机关','established_date'=>'成立日期','valid_until'=>'证件有效期','bank_name'=>'开户银行','bank_branch'=>'开户支行','bank_account'=>'银行账号','bank_holder'=>'账户户名','bank_kind'=>'账户类型','document_ids'=>'电子合同／资质附件','state'=>'经营状态','audit_status'=>'审核状态'];
+    public const LABELS = ['shop_page_id'=>'店铺页面','name'=>'商户名称','type_id'=>'商户类型','tag_ids'=>'商户标签','logo'=>'Logo','description'=>'简介','remark'=>'备注','subject_kind'=>'主体类别','subject_name'=>'主体名称','identity_number'=>'身份号码／信用代码','representative'=>'法定代表人／经营者','representative_title'=>'职务','representative_phone'=>'代表人联系电话','registered_address'=>'注册地址','business_address'=>'经营地址','contact_name'=>'联系人','contact_phone'=>'联系电话','contact_email'=>'邮箱','contact_address'=>'联系地址','postal_code'=>'邮编','service_phone'=>'客服电话','business_scope'=>'经营范围','registration_authority'=>'登记机关','established_date'=>'成立日期','valid_until'=>'证件有效期','bank_name'=>'开户银行','bank_branch'=>'开户支行','bank_account'=>'银行账号','bank_holder'=>'账户户名','bank_kind'=>'账户类型','document_ids'=>'电子合同／资质附件','state'=>'经营状态','audit_status'=>'审核状态'];
 
     public static function ids($value): array
     {
@@ -27,7 +27,7 @@ class MerchantData
         foreach (self::LABELS as $field => $label) {
             if (in_array($field, ['state', 'audit_status'], true)) continue;
             if (!array_key_exists($field, $input)) {
-                if (!array_key_exists($field, $data)) $data[$field] = in_array($field, ['tag_ids', 'document_ids']) ? [] : ($field === 'type_id' ? 0 : '');
+                if (!array_key_exists($field, $data)) $data[$field] = in_array($field, ['tag_ids', 'document_ids']) ? [] : (in_array($field, ['type_id','shop_page_id']) ? 0 : '');
                 continue;
             }
             $value = $input[$field];
@@ -36,7 +36,10 @@ class MerchantData
                 throw new AdminException('没有修改敏感资料的权限');
             }
             if (in_array($field, ['tag_ids', 'document_ids'], true)) $data[$field] = self::ids($value);
-            elseif ($field === 'type_id') {
+            elseif ($field === 'shop_page_id') {
+                if (is_bool($value) || filter_var($value, FILTER_VALIDATE_INT) === false || (int)$value < 0) throw new AdminException('店铺页面编号不正确');
+                $data[$field] = (int)$value;
+            } elseif ($field === 'type_id') {
                 if (is_bool($value) || filter_var($value, FILTER_VALIDATE_INT) === false || (int)$value < 1) throw new AdminException('请选择商户类型');
                 $data[$field] = (int)$value;
             } else {

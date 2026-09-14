@@ -285,6 +285,18 @@ class OtherOrderServices extends BaseServices
      */
     public function paySuccess(array $orderInfo, string $paytype = PayServices::WEIXIN_PAY, array $other = [])
     {
+        return $this->transaction(function()use($orderInfo,$paytype,$other){
+            $current=$this->dao->getOneForUpdate(['id'=>$orderInfo['id']]);
+            if (!$current) throw new \crmeb\exceptions\ApiException('订单不存在');
+            app()->make(\app\services\system\CommerceTaskServices::class)->afterCommit('member',(int)$current['id']);
+            if ($current['paid']) return true;
+            app()->make(UserServices::class)->getOneForUpdate(['uid'=>$current['uid']]);
+            return $this->completeMemberPayment($current->toArray(),$paytype,$other);
+        });
+    }
+
+    protected function completeMemberPayment(array $orderInfo, string $paytype, array $other): bool
+    {
         /** @var OtherOrderStatusServices $statusService */
         $statusService = app()->make(OtherOrderStatusServices::class);
         /** @var UserServices $userServices */
@@ -305,13 +317,14 @@ class OtherOrderServices extends BaseServices
                 $res1 = true;
                 break;
         }
-        if ($paytype == PayServices::ALIAPY_PAY && isset($other['trade_no'])) {
+        if (isset($other['trade_no'])) {
             $updata['trade_no'] = $other['trade_no'];
         }
         $updata['paid'] = 1;
         $updata['pay_type'] = $paytype;
         $updata['pay_time'] = time();
         $orderInfo['pay_time'] = $updata['pay_time'];
+        $orderInfo['pay_type'] = $paytype;
         $res2 = $this->dao->update($orderInfo['id'], $updata);
         $res3 = $statusService->save([
             'oid' => $orderInfo['id'],
@@ -323,8 +336,6 @@ class OtherOrderServices extends BaseServices
 
         $now_money = $userServices->value(['uid' => $orderInfo['uid']], 'now_money');
         $res4 = $userBillServices->income($type, $orderInfo['uid'], $orderInfo['pay_price'], $now_money, $orderInfo['id']);
-        //支付成功后发送消息
-        OtherOrderJob::dispatch([$orderInfo]);
         $orderInfo['is_channel'] = 2;
         $orderInfo['total_num'] = 1;
 
@@ -337,6 +348,7 @@ class OtherOrderServices extends BaseServices
             $capitalFlowServices->setFlow($orderInfo, $type);
         }
         $res = $res1 && $res2 && $res3 && $res4;
+        if (!$res) throw new \crmeb\exceptions\ApiException('会员支付入账失败');
         //购买付费会员返佣设置
         if (sys_config('member_brokerage', 0) == 1 && sys_config('brokerage_func_status', 0) == 1) {
             $spread_one = sys_config('is_self_brokerage') ? $orderInfo['uid'] : $userServices->getSpreadUid($orderInfo['uid']);
@@ -348,9 +360,18 @@ class OtherOrderServices extends BaseServices
         }
 
         $orderInfo['pay_type'] = $paytype;
-        // 小程序订单服务
-        event('OrderShippingListener', [$type == 'pay_member' ? 'member' : 'offline_scan', $orderInfo, 3, '', '']);
-        return false !== $res;
+        $tasks=app()->make(\app\services\system\CommerceTaskServices::class);
+        $orderInfo['shipping_kind']=$type==='pay_member'?'member':'offline_scan';
+        foreach(['order','shipping'] as $step) $tasks->stage('member',(int)$orderInfo['id'],$step,$orderInfo);
+        return true;
+    }
+
+    public function deliverPaidTask(string $step, array $order, string $key): bool
+    {
+        $order['delivery_key']=$key;
+        if ($step==='order') return OtherOrderJob::dispatch([$order]) !== false;
+        if ($step==='shipping') {event('OrderShippingListener',[$order['shipping_kind'],$order,3,'','']);return true;}
+        throw new \RuntimeException('Unknown member delivery step');
     }
 
     /**
@@ -364,7 +385,8 @@ class OtherOrderServices extends BaseServices
     {
         /** @var UserServices $userServices */
         $userServices = app()->make(UserServices::class);
-        $userInfo = $userServices->get($uid);
+        $userInfo = $userServices->getOneForUpdate(['uid'=>$uid]);
+        if (!$userInfo) throw new \crmeb\exceptions\ApiException('返佣账户不存在');
         // 上级推广员返佣之后的金额
         $balance = bcadd($userInfo['brokerage_price'], $price, 2);
         // 添加用户佣金
@@ -376,13 +398,13 @@ class OtherOrderServices extends BaseServices
             // 添加佣金记录
             /** @var UserBrokerageServices $userBrokerageServices */
             $userBrokerageServices = app()->make(UserBrokerageServices::class);
-            $userBrokerageServices->income($type, $uid, [
+            if (!$userBrokerageServices->income($type, $uid, [
                 'nickname' => $userInfo['nickname'],
                 'pay_price' => floatval($orderInfo['pay_price']),
                 'number' => floatval($price),
                 'frozen_time' => $frozen_time
-            ], $balance, $orderInfo['id']);
-        }
+            ], $balance, $orderInfo['id'])) throw new \crmeb\exceptions\ApiException('写入会员返佣流水失败');
+        } else throw new \crmeb\exceptions\ApiException('会员返佣失败');
     }
 
     /**

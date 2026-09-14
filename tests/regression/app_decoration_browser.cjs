@@ -1,0 +1,45 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const {chromium}=require('playwright');
+const {createServer,defaults}=require('./app_decoration_fixture.cjs');
+const {root}=require('./theme_component_harness.cjs');
+(async()=>{
+ const {server,data}=await createServer();const browser=await chromium.launch({channel:'chrome',headless:true});
+ try{
+  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const errors=[];
+  page.on('pageerror',error=>{errors.push(error.message);console.error('PAGE ERROR',error.message);});
+  page.on('console',message=>{if(message.type()==='error' && message.text().includes('[system]')){errors.push(message.text());console.error(message.text().slice(0,400));}});
+  await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
+  await page.goto('http://127.0.0.1:18023/pages/index/index');
+  await page.getByText('装修中的安卓富文本内容',{exact:true}).waitFor();
+  await page.locator('.goodList .title-text').filter({hasText:'猜你喜欢'}).waitFor();
+  await page.getByText('测试商品1',{exact:true}).first().click();
+  await page.waitForURL('**/pages/goods_details/index?id=1');
+  await page.locator('.product-con .product-info-diy').waitFor();
+  assert.equal(await page.locator('.detail-state').count(),0);
+  await page.screenshot({path:path.join(root,'.build/app-decoration-fix/detail-h5.png')});
+  await page.evaluate(()=>{getApp().$store.commit('LOGIN',{token:'fixture',time:0});getApp().$store.commit('SETUID',1);getApp().$router.push({type:'switchTab',path:'/pages/order_addcart/order_addcart'});});
+  await page.waitForFunction(()=>document.querySelectorAll('.cart-shop').length===2);
+  assert.equal(await page.locator('.cart-shop').first().locator('.item').count(),2);
+  await page.waitForFunction(()=>document.querySelector('.cart-checkout-dock .money').textContent.includes('121.20'));
+  assert.match(await page.locator('.cart-shop-total').first().textContent(),/80.80/);
+  await page.locator('.cart-shop-header checkbox-group, .cart-shop-header uni-checkbox-group').first().click();
+  await page.waitForFunction(()=>document.querySelector('.cart-shop-total').textContent.includes('0.00'));
+  await page.screenshot({path:path.join(root,'.build/app-decoration-fix/cart-h5.png')});
+  await page.evaluate(()=>getApp().$router.push({type:'switchTab',path:'/pages/user/index'}));
+  await page.waitForURL('**/pages/user/index');
+  assert.equal(await page.getByText('已关注店铺',{exact:true}).count(),0);
+  const menus=defaults('home_menu.vue');menus.menuConfig.list=menus.menuConfig.list.slice(0,1);
+  menus.menuConfig.list[0].info[0].value='已关注店铺';menus.menuConfig.list[0].info[1].value='/pages/merchant/followed';
+  data.user.value={menus};
+  await page.evaluate(()=>getApp().$router.push({type:'switchTab',path:'/pages/order_addcart/order_addcart'}));
+  await page.waitForURL('**/pages/order_addcart/order_addcart');
+  await page.evaluate(()=>getApp().$router.push({type:'switchTab',path:'/pages/user/index'}));
+  await page.getByText('已关注店铺',{exact:true}).click();
+  await page.waitForURL('**/pages/merchant/followed');await page.locator('.shop-main').click();
+  await page.waitForURL('**/pages/merchant/shop?id=8');
+  await page.getByText('已进入商品对应店铺',{exact:true}).waitFor();
+  await page.screenshot({path:path.join(root,'.build/app-decoration-fix/shop-h5.png')});
+  assert.deepEqual(errors,[]);
+  console.log('PASS rendered H5: configured title/rich text, product navigation with 404 theme fallback, grouped cart selection and no unconfigured followed entry');
+ }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
+})().catch(error=>{console.error(error);process.exitCode=1;});

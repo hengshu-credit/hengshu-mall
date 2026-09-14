@@ -7,10 +7,11 @@ const babel = require(path.join(modules, '@babel/core'));
 const compiler = require(path.join(modules, 'vue-template-compiler'));
 const styles = require(path.join(modules, '@vue/component-compiler-utils'));
 const transform = source => babel.transformSync(source, { babelrc: false, configFile: false, plugins: [require(path.join(modules, '@babel/plugin-transform-modules-commonjs'))] }).code;
-function bundle(entry, extra = []) {
+function bundle(entry, extra = [], externals = []) {
   const records = {}, css = [];
   function load(file) {
     file = file.replace(/\\/g, '/');
+    if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file += '/index';
     if (!fs.existsSync(file)) file += fs.existsSync(file + '.vue') ? '.vue' : '.js';
     if (records[file]) return file;
     const source = fs.readFileSync(file, 'utf8');
@@ -27,7 +28,7 @@ function bundle(entry, extra = []) {
     }
     for (const match of record.code.matchAll(/require\(["']([^"']+)["']\)/g)) {
       const name = match[1];
-      if (/\.(png|svg|jpe?g)$/.test(name) || /^@\/(api|setting|components\/(uploadPictures|linkaddress))/.test(name)) continue;
+      if (externals.includes(name) || /\.(png|svg|jpe?g)$/.test(name) || /^@\/(api|setting|components\/(uploadPictures|linkaddress))/.test(name)) continue;
       if (name.startsWith('.') || name.startsWith('@/')) record.dependencies[name] = load(name.startsWith('@/') ? path.join(root, 'template/admin/src', name.slice(2)) : path.resolve(path.dirname(file), name));
     }
     return file;

@@ -41,6 +41,10 @@ class CartPageConfig
         if (!is_numeric($radius)||$radius<0||$radius>40) throw new AdminException('购物车按钮圆角超出范围');
         $result['button_radius']=(int)$radius;
         foreach (['service_style','list_style','checkout_style'] as $key) if (isset($value[$key])) $result[$key]=ComponentStyleConfig::validate($value[$key]);
+        if (isset($value['navigation_source'])) {
+            if (!in_array($value['navigation_source'], ['home','custom','none'], true)) throw new AdminException('请选择购物车导航来源');
+            $result['navigation_source'] = $value['navigation_source'];
+        }
         if (($value['navigation_mode']??'')==='page') {
             $result['navigation_mode']='page';
             $nav=$value['navigation']??[];
@@ -50,6 +54,7 @@ class CartPageConfig
         if (isset($value['title_component'])) {
             $result = array_replace($result, PageActionsConfig::titlePageFields(PageActionsConfig::title($value['title_component'])));
         }
+        if (isset($value['extra_modules']) || isset($value['content_order'])) $result = array_replace($result, PageModuleConfig::validate($value, 'cart'));
         return $result;
     }
 }

@@ -1,7 +1,7 @@
 <template>
 	<view class='productSort copy-data category-decorated' :class="decorationClasses" :style="[decorationStyle, {height:pageHeight}]">
-		<view v-if="categoryAppearance.show_search" class="category-search-shell">
-          <header-serch :dataConfig="categoryAppearance.search_component" :special="1" />
+		<view v-for="module in categorySearchModules" :key="module.id" class="category-search-shell" :style="{order:module.order}">
+          <header-serch :dataConfig="module.config" :shopId="shopId" :special="1" />
         </view>
         <view v-show="categoryAppearance.show_category && !categoryAppearance.category_hidden" class="category-module-shell" :style="categoryOuterStyle">
 		<view class="scroll-box" :style="categoryModuleStyle">
@@ -27,7 +27,7 @@
                     <view v-if="categoryAppearance.show_recommend" id="category-recommend" class="recommend-section">
                       <view class="title"><view class="name">{{ $t(categoryAppearance.recommend_text) }}</view></view>
                       <view class="list acea-row" :style="{display:'grid',gridTemplateColumns:'repeat('+categoryAppearance.columns+',minmax(0,1fr))'}">
-                        <navigator v-for="item in productList.slice(0,12)" :key="item.id" class="item acea-row row-column row-middle" :url="'/pages/goods/goods_list/index?cid='+item.id" style="width:100%">
+                        <navigator v-for="item in productList.slice(0,12)" :key="item.id" class="item acea-row row-column row-middle" :url="categoryProductUrl(item.id,item.cate_name)" style="width:100%">
                           <view class="picture" :style="{borderRadius:categoryAppearance.image_radius+'rpx',overflow:'hidden'}"><image :src="item.pic || defimg" :mode="categoryAppearance.image_fit === 'contain' ? 'aspectFit' : 'aspectFill'" :style="{borderRadius:categoryAppearance.image_radius+'rpx'}" /></view>
                           <view v-if="categoryAppearance.show_category_name" class="name line1">{{ $t(item.cate_name) }}</view>
                         </navigator>
@@ -42,7 +42,7 @@
 							</view>
 							<view class='list acea-row' :style="{display:'grid',gridTemplateColumns:'repeat('+categoryAppearance.columns+',minmax(0,1fr))'}">
 								<navigator hover-class='none'
-									:url='"/pages/goods/goods_list/index?cid="+item.id+"&title="+item.cate_name'
+									:url="categoryProductUrl(item.id,item.cate_name)"
 									class='item acea-row row-column row-middle' style="width:100%">
 									<view class='picture' :style="{borderRadius:categoryAppearance.image_radius+'rpx',overflow:'hidden'}">
 										<image :src="item.pic || defimg" :mode="categoryAppearance.image_fit === 'contain' ? 'aspectFit' : 'aspectFill'" :style="{borderRadius:categoryAppearance.image_radius+'rpx'}" lazy-load></image>
@@ -51,7 +51,7 @@
 								</navigator>
 								<block v-for="(itemn,indexn) in item.children" :key="indexn">
 									<navigator hover-class='none'
-										:url='"/pages/goods/goods_list/index?sid="+itemn.id+"&title="+itemn.cate_name'
+										:url="categoryProductUrl(itemn.id,itemn.cate_name,true)"
 										class='item acea-row row-column row-middle' style="width:100%">
 										<view class='picture' :style="{borderRadius:categoryAppearance.image_radius+'rpx',overflow:'hidden'}">
 											<image :src="itemn.pic" :mode="categoryAppearance.image_fit === 'contain' ? 'aspectFit' : 'aspectFill'" :style="{borderRadius:categoryAppearance.image_radius+'rpx'}" lazy-load></image>
@@ -201,10 +201,10 @@ import categoryData from '@/mixins/categoryData.js';
 			},
 			getAllCategory: function(type) {
 				let that = this;
-				if (type || !uni.getStorageSync('CAT1_DATA')) {
+				if (type || this.shopId || !uni.getStorageSync('CAT1_DATA')) {
 					this.loadCategoryData().then(res => {
 						if (this._isDestroyed) return;
-						uni.setStorageSync('CAT1_DATA', res.data)
+						if (!this.shopId) uni.setStorageSync('CAT1_DATA', res.data)
 						that.productList = res.data;
 						that.$nextTick(res => {
 							that.infoScroll();

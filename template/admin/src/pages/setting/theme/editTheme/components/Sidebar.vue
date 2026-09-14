@@ -8,7 +8,7 @@
     <div class="menu-list">
       <div
         class="menu-item"
-        v-for="item in menuList"
+        v-for="item in visibleMenus"
         :key="item.key"
         :class="{ active: activeMenu === item.key }"
         @click="selectMenu(item.key)"
@@ -30,6 +30,7 @@
 export default {
   name: 'Sidebar',
   props: {
+    merchant: Boolean,
     activeMenu: {
       type: String,
       default: 'home',
@@ -42,6 +43,9 @@ export default {
       type: Boolean,
       default: false,
     },
+  },
+  computed: {
+    visibleMenus() { return this.merchant ? [{key:'home',name:'商户首页',icon:'iconic_home'},{key:'category',name:'商户分类',icon:'icona-ic_Picturearrangement'},{key:'detail',name:'商户详情',icon:'iconic_commodity'},{key:'theme',name:'商户风格',icon:'iconic_zhuti'}] : this.menuList; },
   },
   data() {
     return {

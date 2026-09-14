@@ -20,6 +20,8 @@ categoryCheck('style 3 preserves original image/text list', CategoryPageConfig::
 foreach ([1, 2, 3] as $layout) {
     $custom = CategoryPageConfig::validate(['status' => $layout, 'price_color' => '#123456', 'image_radius' => 24, 'buy_button_style' => 8]);
     categoryCheck('all three original styles support decoration', CategoryPageConfig::read(json_encode($custom)) === $custom);
+    $square=CategoryPageConfig::validate(['status'=>$layout,'image_radius'=>24,'category_style'=>['fillet'=>['type'=>1,'val'=>40,'valList'=>[['val'=>12],['val'=>24],['val'=>36],['val'=>48]]]]]);
+    categoryCheck('category body uses square corners after save/read in layout '.$layout,$square['category_style']['fillet']['val']===0&&array_column($square['category_style']['fillet']['valList'],'val')===[0,0,0,0]&&$square['image_radius']===24);
 }
 $config = CategoryPageConfig::validate(['status' => 1, 'columns' => 4, 'show_search' => 0,
     'show_title' => 0, 'page_title' => '精选分类', 'title_hidden' => 1, 'category_hidden' => 1,

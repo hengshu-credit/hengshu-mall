@@ -249,12 +249,12 @@
 					</view>
 				</view>
 				<view class='item acea-row row-between-wrapper'
-					v-if="priceGroup.levelPrice > 0 && userInfo.vip && !pinkId && !BargainId && !combinationId && !seckillId && !discountId">
+					v-if="priceGroup.levelPrice > 0">
 					<view>{{$t(`用户等级优惠`)}}：</view>
 					<view class='money'>-{{$t(`￥`)}}{{parseFloat(priceGroup.levelPrice).toFixed(2)}}</view>
 				</view>
 				<view class='item acea-row row-between-wrapper'
-					v-if="priceGroup.memberPrice > 0 && userInfo.vip && !pinkId && !BargainId && !combinationId && !seckillId && !discountId">
+					v-if="priceGroup.memberPrice > 0">
 					<view>{{$t(`付费会员优惠`)}}：</view>
 					<view class='money'>-{{$t(`￥`)}}{{parseFloat(priceGroup.memberPrice).toFixed(2)}}</view>
 				</view>
@@ -263,7 +263,8 @@
 					<view class='money'>-{{$t(`￥`)}}{{parseFloat(priceGroup.storePostageDiscount).toFixed(2)}}</view>
 				</view>
 				<view class='item acea-row row-between-wrapper' v-if="Number(full_reduction_price) > 0"><view>满减优惠：</view><view class='money'>-{{$t(`￥`)}}{{Number(full_reduction_price).toFixed(2)}}</view></view>
-				<view v-if="pricingLoading" class='item'>正在计算优惠…</view>
+				<discount-explanation mode="confirm" :context="{activities:reductionActivities,pending:pricingLoading,error:pricingError,exclusive:!!(pinkId||BargainId||combinationId||seckillId||discountId)}" />
+                <view v-if="pricingLoading" class='item'>正在计算优惠…</view>
 				<view v-if="pricingError" class='item font-color' @tap="computedPrice">{{pricingError}}，点击重试</view>
 				<view class='item acea-row row-between-wrapper' v-if="coupon_price > 0">
 					<view>{{$t(`优惠券抵扣`)}}：</view>
@@ -303,6 +304,7 @@
 	</view>
 </template>
 <script>
+import DiscountExplanation from "@/components/discountExplanation/index.vue";
 	import {
 		orderConfirm,
 		getCouponsOrderPrice,
@@ -347,6 +349,7 @@
 	import Debounce from "@/mixins/debounce";
 	export default {
 		components: {
+            DiscountExplanation,
 			payment,
 			invoicePicker,
 			couponListWindow,
@@ -440,6 +443,7 @@
 				couponTitle: this.$t(`请选择`), //优惠券
 				coupon_price: 0, //优惠券抵扣金额
 				full_reduction_price: '0.00',
+                reductionActivities: [],
 				pricingLoading: false,
 				pricingError: '',
 				pricingRequestId: 0,
@@ -558,7 +562,11 @@
 		/**
 		 * 生命周期函数--监听页面显示
 		 */
+		onHide() { this.pricingRequestId++; this.pricingLoading=false; this.pricingError='返回后请重新确认优惠'; this.reductionActivities=[]; },
+        onUnload() { this.pricingRequestId++; uni.$off('handClick'); },
 		onShow() {
+            if(this._quoteIdentity && this._quoteIdentity!==this.quoteIdentity()) { this.orderKey=''; this.cartInfo=[]; uni.reLaunch({url:'/pages/order_addcart/order_addcart'}); return; }
+            if(this.orderKey && this.pricingError && this.isLogin)this.computedPrice();
 			let _this = this
 
 			uni.$on("handClick", res => {
@@ -687,6 +695,7 @@
 						return item;
 					});
 					const result = this.invList.find(item => item.id == this.invChecked);
+                    if (!result) throw new Error('优惠计算结果缺失，请重新确认');
 					if (result) {
 						let name = '';
 						name += result.header_type === 1 ? this.$t(`个人`) : this.$t(`企业`);
@@ -777,7 +786,10 @@
 				this.payType = type
 				this.computedPrice()
 			},
+            quoteIdentity() { return this.$store && this.$store.state && this.$store.state.app ? this.$store.state.app.token || '' : ''; },
 			computedPrice() {
+                const identity=this.quoteIdentity(); this._quoteIdentity=identity;
+                this.reductionActivities=[];
 				const requestId = ++this.pricingRequestId;
 				this.pricingLoading = true;
 				this.pricingError = '';
@@ -791,19 +803,20 @@
 				}
 				if (this.is_gift) data.is_gift = this.is_gift
 				postOrderComputed(this.orderKey, data).then(res => {
-					if (requestId !== this.pricingRequestId) return;
+					if (requestId !== this.pricingRequestId || identity!==this.quoteIdentity()) return;
 					let result = res.data.result;
 					if (result) {
 						this.totalPrice = result.pay_price;
 						this.integral_price = result.deduction_price;
 						this.coupon_price = result.coupon_price;
 						this.full_reduction_price = result.full_reduction_price || '0.00';
+                        this.reductionActivities = result.full_reduction_activities || [];
 						this.integral = this.useIntegral ? result.SurplusIntegral : this.usable_integral;
 						this.$set(this.priceGroup, 'storePostage', shippingType == 1 ? 0 : result.pay_postage);
 						this.$set(this.priceGroup, 'storePostageDiscount', result.storePostageDiscount);
 					}
 				}).catch(error => {
-					if (requestId === this.pricingRequestId) this.pricingError = typeof error === 'string' ? error : (error.msg || '优惠计算失败');
+					if (requestId === this.pricingRequestId && identity===this.quoteIdentity()) this.pricingError = typeof error === 'string' ? error : (error.msg || '优惠计算失败');
 				}).finally(() => { if (requestId === this.pricingRequestId) this.pricingLoading = false; });
 			},
 			addressType(e) {
@@ -1179,7 +1192,8 @@
 				this.$refs.textarea.focus()
 			},
 			SubOrder(e) {
-				if (this.pricingLoading || this.pricingError) return this.$util.Tips({ title: this.pricingError || '请等待优惠计算完成' });
+				if (this._quoteIdentity !== undefined && this._quoteIdentity!==this.quoteIdentity()) return this.$util.Tips({title:'账号已变化，请重新确认订单'});
+                if (this.pricingLoading || this.pricingError) return this.$util.Tips({ title: this.pricingError || '请等待优惠计算完成' });
 				let that = this,
 					data = {};
 				if (!that.addressId && !that.shippingType && !that.virtual_type && !that.is_gift) return that.$util.Tips({

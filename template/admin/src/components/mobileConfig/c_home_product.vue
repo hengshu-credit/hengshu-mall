@@ -19,6 +19,7 @@
 <script>
 import toolCom from '@/components/mobileConfigRight/index.js';
 import { mapState, mapMutations, mapActions } from 'vuex';
+import {productTabsCard} from '../../../../shared/productTabs';
 import rightBtn from '@/components/rightBtn/index.vue';
 import { getProProduct } from '@/api/diy';
 export default {
@@ -287,6 +288,7 @@ export default {
   methods: {
     patchConfig(data) {
       if (!data) return data;
+      data=productTabsCard(data);
       if (!data.paddingConfig) {
         data.paddingConfig = {
           title: '内边距',
@@ -301,16 +303,6 @@ export default {
           data.paddingConfig.valList[3].val = data.prConfig.val;
         }
         if (data.bottomConfig) data.paddingConfig.valList[2].val = data.bottomConfig.val;
-      }
-      if (!data.marginConfig) {
-        data.marginConfig = {
-          title: '外边距',
-          val: 0,
-          min: 0,
-          isAll: false,
-          valList: [{ val: 0 }, { val: 0 }, { val: 0 }, { val: 0 }],
-        };
-        if (data.mbConfig) data.marginConfig.valList[0].val = data.mbConfig.val;
       }
       return data;
     },

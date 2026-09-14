@@ -10,12 +10,14 @@ function setup() {
   const script = fs.readFileSync(filename, 'utf8').split('<script>')[1].split('</script>')[0];
   const component = vm.runInNewContext(script.replace(/^import .*;$/gm, '')
     .replace('export default', 'module.exports ='), {
-    module: { exports: {} }, skuSelect: {}, productWindow: {}, commonWrapper: {},
+    module: { exports: {} }, skuSelect: {}, productWindow: {}, commonWrapper: {}, MerchantName: {}, DiscountExplanation: {},
     mapGetters: () => ({}), mapState: () => ({}),
+    ...require('./ranking_shared_loader.cjs').loadShared('decorationProducts'),
     getProductslist: () => new Promise(resolve => { completeRequest = resolve; }),
   }, { filename });
-  const state = { list: [], tempArr: [], $config: { LIMIT: 20 },
-    typeConfig: 3, goodsSort: 0, numberConfig: 12, dataConfig: { classList: { classVal: [] } } };
+  const state = { list: null, tempArr: [], productsRequest: 0, $config: { LIMIT: 20 },
+    typeConfig: 3, goodsSort: 0, numberConfig: 12, dataConfig: {typeConfig:{activeValue:3},goodsSort:{tabVal:0},numberConfig:{val:12}, classList: { classVal: [] } } };
+  state.productslist = component.methods.productslist.bind(state);
   return { component, state, complete: data => completeRequest({ data }) };
 }
 

@@ -114,7 +114,7 @@ $dispatch->failStep = 'pink_complete:1001';
 // Real cron/API entry: no surrounding payment transaction.
 $pinkService->pinkComplete([101], [1001], 101, ['id' => 1001]);
 checkDispatch('non-payment group completion finishes virtual fulfillment despite notice outage', (int)$db->table('audit_queue_orders')->value('status') === 1 && (int)$db->table('audit_queue_pinks')->value('status') === 2 && (int)$db->table('audit_queue_pinks')->value('is_tpl') === 1 && $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 1);
-$dispatch->failStep = ''; $dispatch->flush(1);
+$dispatch->failStep = ''; dueHistoricalTasks(); $dispatch->flush(1);
 checkDispatch('non-payment group notice retry does not repeat coupon fulfillment', $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 0 && app()->make(app\services\activity\coupon\StoreCouponIssueServices::class)->grants === 1);
 seedNested();
 $db->table('audit_queue_orders')->where('id', 1)->update(['paid' => 1, 'virtual_type' => 2, 'pay_type' => 'yue']);
@@ -122,7 +122,7 @@ $db->table('audit_queue_pinks')->insert(['id' => 1501, 'uid' => 101, 'nickname' 
 $dispatch->failStep = 'pink_complete:1501';
 try { $pinkService->successPinkEdit([1501]); } catch (RuntimeException $error) {}
 checkDispatch('admin direct group completion finishes virtual fulfillment before notice failure', (int)$db->table('audit_queue_orders')->value('status') === 1 && (int)$db->table('audit_queue_pinks')->value('is_tpl') === 1 && $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 1);
-$dispatch->failStep = ''; $dispatch->flush(1);
+$dispatch->failStep = ''; dueHistoricalTasks(); $dispatch->flush(1);
 checkDispatch('admin group notice retries without repeating virtual fulfillment', app()->make(app\services\activity\coupon\StoreCouponIssueServices::class)->grants === 1 && $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 0);
 seedNested();
 $db->table('audit_queue_orders')->insert(['id' => 2, 'order_id' => 'master-order', 'uid' => 202, 'paid' => 1]);

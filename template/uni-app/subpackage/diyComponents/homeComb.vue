@@ -31,7 +31,7 @@
               </view>
               <navigator
                 v-if="hotWords.length"
-                :url="'/pages/goods/goods_search/index?searchVal=' + searchVal"
+                :url="shopId ? '/pages/merchant/products?shop_id='+shopId+'&keyword='+encodeURIComponent(searchVal) : '/pages/goods/goods_search/index?searchVal=' + searchVal"
                 :class="logoConfig ? 'input' : 'uninput'"
                 hover-class="none"
                 class="skeleton-rect"
@@ -62,7 +62,7 @@
               </navigator>
               <navigator
                 v-else
-                url="/pages/goods/goods_search/index"
+                :url="shopId ? '/pages/merchant/products?shop_id='+shopId : '/pages/goods/goods_search/index'"
                 hover-class="none"
                 class="skeleton-rect input"
                 :style="[inputStyle]"
@@ -207,6 +207,7 @@ export default {
   components: { commonWrapper },
   name: "homeComb",
   props: {
+    shopId: {type:Number,default:0}, shopCategories: {type:Array,default:()=>[]},
     dataConfig: {
       type: Object,
       default: () => {},
@@ -393,7 +394,8 @@ export default {
       };
     },
     tabListConfig() {
-      let tabList = this.dataConfig.tabListConfig.list || [];
+      let tabList = [...(this.dataConfig.tabListConfig.list || [])];
+      if(this.shopId){const ids=this.shopCategories.reduce((ids,category)=>ids.concat([Number(category.id)],(category.children||[]).map(child=>Number(child.id))),[]);tabList=tabList.filter(item=>!Number(item.classPage && item.classPage.id)||ids.includes(Number(item.classPage.id)));}
       tabList.unshift({
         classPage: {
           id: 0,
@@ -488,6 +490,7 @@ export default {
     changeTab(item, index) {
       this.isCategory = false;
       if (item.text && item.text.val === "首页") {
+        if(this.shopId){this.tabClick=index;return;}
         this.tabClick = index; //设置导航点击了哪一个
         uni.switchTab({
           url: "/pages/index/index",

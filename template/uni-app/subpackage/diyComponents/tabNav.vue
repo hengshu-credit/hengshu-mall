@@ -53,6 +53,7 @@ export default {
   components: { commonWrapper },
   name: "tabNav",
   props: {
+    shopId: {type:Number,default:0}, shopCategories: {type:Array,default:()=>[]},
     dataConfig: {
       type: Object,
       default: () => {},
@@ -187,7 +188,8 @@ export default {
     //   };
     // },
     tabListConfig() {
-      let tabList = this.dataConfig.tabListConfig.list;
+      let tabList = [...(this.dataConfig.tabListConfig.list || [])];
+      if(this.shopId){const ids=this.shopCategories.reduce((ids,category)=>ids.concat([Number(category.id)],(category.children||[]).map(child=>Number(child.id))),[]);tabList=tabList.filter(item=>!Number(item.classPage && item.classPage.id)||ids.includes(Number(item.classPage.id)));}
       tabList.unshift({
         classPage: {
           id: 0,

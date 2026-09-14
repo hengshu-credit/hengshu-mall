@@ -8,9 +8,10 @@
 </view></template>
 <script>
 import { actionDisabled, actionLink, actionIcon } from '../../../shared/pageActions';
+import {merchantLink} from '../../../shared/merchantLinks';
 import { getCustomer } from '@/utils/index.js';
 import { HTTP_REQUEST_URL } from '@/config/app';
-export default { props: { buttons: { type: Array, default: () => [] }, config: { type: Object, default: () => ({}) }, product: { type: Object, default: () => ({}) } },
+export default { props: { shopId:{type:Number,default:0}, buttons: { type: Array, default: () => [] }, config: { type: Object, default: () => ({}) }, product: { type: Object, default: () => ({}) } },
   computed: {
     buttonStyle() { return { color: this.config.color || '#333', background: this.config.background || 'transparent', borderRadius: (this.config.radius || 0) * 2 + 'rpx' }; },
     iconStyle() { const size = (this.config.iconSize || 20) * 2 + 'rpx'; return { fontSize: size, width: size, height: size, lineHeight: size }; },
@@ -34,7 +35,7 @@ export default { props: { buttons: { type: Array, default: () => [] }, config: {
       const link = actionLink(action);
       if (!link) return;
       if (action.type === 'url') return uni.navigateTo({ url: '/pages/annex/web_view/index?url=' + encodeURIComponent(link) });
-      this.$util.JumpPath(link);
+      this.$util.JumpPath(merchantLink(link,this.shopId || this.product.seller_shop_id));
     },
   },
 };

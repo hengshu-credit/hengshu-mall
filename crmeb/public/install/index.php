@@ -311,6 +311,12 @@ switch ($step) {
             $sqldata .= "\n" . str_replace(';', ";\n", $fullReductionSql);
             $marketingStyleSql = preg_replace('/\R/', ' ', file_get_contents(dirname(rtrim(SITE_DIR, '/\\')) . '/upgrade/marketing_styles.sql'));
             $sqldata .= "\n" . str_replace(';', ";\n", $marketingStyleSql);
+            $rankingSql = preg_replace('/\R/', ' ', file_get_contents(dirname(rtrim(SITE_DIR, '/\\')) . '/upgrade/rankings.sql'));
+            $sqldata .= "\n" . str_replace(';', ";\n", $rankingSql);
+            $commerceSql = preg_replace('/\R/', ' ', file_get_contents(dirname(rtrim(SITE_DIR, '/\\')) . '/upgrade/commerce_reliability.sql'));
+            $sqldata .= "\n" . str_replace(';', ";\n", $commerceSql);
+            $qualitySql = preg_replace('/\R/', ' ', file_get_contents(dirname(rtrim(SITE_DIR, '/\\')) . '/upgrade/product_quality.sql'));
+            $sqldata .= "\n" . str_replace(';', ";\n", $qualitySql);
             $sqlFormat = sql_split($sqldata, $dbPrefix);
             //创建写入sql数据库文件到库中 结束
 

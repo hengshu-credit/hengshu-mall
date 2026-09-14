@@ -15,6 +15,15 @@ use think\facade\Route;
  */
 Route::group('marketing', function () {
     Route::group(function () {
+        Route::get('ranking/list', 'v1.marketing.Ranking/index')->option(['real_name'=>'排行榜列表']);
+        Route::get('ranking/info/:id', 'v1.marketing.Ranking/info')->option(['real_name'=>'排行榜配置']);
+        Route::get('ranking/options', 'v1.marketing.Ranking/options')->option(['real_name'=>'排行榜选择项']);
+        Route::post('ranking/preview', 'v1.marketing.Ranking/preview')->option(['real_name'=>'排行榜试算']);
+        Route::post('ranking/save/:id', 'v1.marketing.Ranking/save')->option(['real_name'=>'保存排行榜']);
+        Route::put('ranking/status/:id', 'v1.marketing.Ranking/status')->option(['real_name'=>'启停排行榜']);
+        Route::delete('ranking/del/:id', 'v1.marketing.Ranking/delete')->option(['real_name'=>'删除排行榜']);
+    })->option(['parent'=>'marketing','cate_name'=>'排行榜']);
+    Route::group(function () {
         Route::get('style/list', 'v1.marketing.MarketingStyle/index')->option(['real_name'=>'营销样式列表']);
         Route::get('style/info/:id', 'v1.marketing.MarketingStyle/info')->option(['real_name'=>'营销样式详情']);
         Route::get('style/options', 'v1.marketing.MarketingStyle/options')->option(['real_name'=>'营销样式使用范围']);

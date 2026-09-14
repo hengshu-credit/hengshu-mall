@@ -911,8 +911,11 @@ export default {
     padding: 9px 12px 0 12px;
     z-index: 1;
     img {
-      width: 69px;
+      width: auto;
+      max-width: 69px;
       height: 30px;
+      object-fit: contain;
+      flex-shrink: 0;
       display: inline-block;
       margin-right: 10px;
     }

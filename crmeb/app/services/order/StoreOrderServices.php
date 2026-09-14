@@ -1999,12 +1999,13 @@ HTML;
      */
     public function cancelOrder($order_id, int $uid)
     {
-        $order = $this->dao->getOne(['order_id' => $order_id, 'uid' => $uid, 'is_del' => 0]);
+        $order = $this->transaction(function()use($order_id,$uid) {
+        $order = $this->dao->getOneForUpdate(['order_id' => $order_id, 'uid' => $uid, 'is_del' => 0]);
         if (!$order) {
             throw new ApiException('订单不存在');
         }
         if ($order->is_cancel == 1) {
-            throw new ApiException('订单已取消，请勿重复操作！');
+            return null;
         }
         if ($order->paid) {
             throw new ApiException('订单已经支付无法取消');
@@ -2012,13 +2013,14 @@ HTML;
         /** @var StoreOrderRefundServices $refundServices */
         $refundServices = app()->make(StoreOrderRefundServices::class);
 
-        $this->transaction(function () use ($refundServices, $order) {
             $res = $refundServices->integralAndCouponBack($order, 'cancel') && $refundServices->regressionStock($order);
             $order->is_cancel = 1;
             if (!($res && $order->save())) {
                 throw new ApiException('取消失败');
             }
+            return $order;
         });
+        if (!$order) return true;
 
         //自定义事件-订单取消
         event('CustomEventListener', ['order_cancel', [
@@ -2243,10 +2245,12 @@ HTML;
             } else {
                 $secs = $systemValue['order_cancel_time'];
             }
-            if ($secs == 0) return true;
+            if ($secs == 0) continue;
             if (($order['add_time'] + bcmul($secs, '3600', 0)) < time()) {
                 try {
                     $this->transaction(function () use ($order, $refundServices) {
+                        $order=$this->dao->getOneForUpdate(['id'=>$order['id']]);
+                        if (!$order || $order['paid'] || $order['is_cancel']) return true;
                         //回退积分和优惠卷
                         $res = $refundServices->integralAndCouponBack($order, 'cancel');
                         //回退库存和销量
@@ -2254,7 +2258,7 @@ HTML;
                         //修改订单状态
                         $res = $res && $this->dao->update($order['id'], ['is_cancel' => 1, 'mark' => '订单未支付已超过系统预设时间']);
                         if (!$res) {
-                            Log::error('订单号' . $order['order_id'] . '自动取消订单失败');
+                            throw new ApiException('自动取消订单失败');
                         }
                         return true;
                     });

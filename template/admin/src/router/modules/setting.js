@@ -805,6 +805,10 @@ export default {
       component: () => import('@/pages/setting/theme/myTheme/index'),
     },
     {
+      path: 'merchant_theme', name: `${pre}merchantTheme`, meta: { title: '商户主题' },
+      component: () => import('@/pages/setting/theme/merchantTheme/index'),
+    },
+    {
       path: 'main_navigation',
       name: `${pre}mainNavigation`,
       meta: { title: '主导航栏' },

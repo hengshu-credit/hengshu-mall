@@ -1,5 +1,5 @@
 <template>
-  <view class="product-con" :style="colorStyle">
+  <view class="product-con" :style="colorStyle + ';' + merchantStyle">
     <view class="product-con">
       <!-- #ifndef APP-PLUS -->
       <view v-if="!hasConfiguredHeader" class="navbar" :style="{ height: navH + 'rpx', opacity: opacity }">
@@ -58,8 +58,10 @@
           <!-- #endif -->
           <PageDesign @navigationHeight="pageNavigationHeight = $event"
             @pageAction="handlePageAction"
-            v-if="detailStatus === 'ready'"
+            v-if="detailStatus === 'ready' && themeStatus === 'ready'"
             :diyData="diyData"
+            :themeStyle="merchantStyle"
+            :shopId="merchantShopId"
             :productData="storeInfo"
             :priceData="realPriceData"
             :skuList="skuArr"
@@ -67,7 +69,7 @@
             :replyCount="replyCount"
             :replyChance="replyChance"
             :productId="id"
-            :goodList="good_list"
+            :goodList="merchantShopId ? good_list.filter(item=>Number(item.seller_shop_id)===merchantShopId) : good_list"
             :couponList="couponList"
             :activity="activity"
             :attr="attr"
@@ -84,9 +86,9 @@
           ></PageDesign>
           <view v-else class="detail-state" role="status">
             <text class="iconfont icon-shangpin" aria-hidden="true"></text>
-            <view class="detail-state-title">{{ detailStatus === 'loading' ? $t(`加载中`) : $t(`暂时无法查看商品`) }}</view>
-            <view v-if="detailError" class="detail-state-message">{{ detailError }}</view>
-            <button v-if="detailStatus === 'error'" class="detail-retry" @click="getGoodsDetails">{{ $t(`重新加载`) }}</button>
+            <view class="detail-state-title">{{ detailStatus === 'loading' || themeStatus === 'loading' ? $t(`加载中`) : $t(`暂时无法查看商品`) }}</view>
+            <view v-if="detailError || themeError" class="detail-state-message">{{ detailError || themeError }}</view>
+            <button v-if="detailStatus === 'error' || themeStatus === 'error'" class="detail-retry" @click="retryDetail">{{ $t(`重新加载`) }}</button>
           </view>
         </view>
         <view :style="{ height: productActionHeight + 'px' }"></view>
@@ -278,6 +280,8 @@ import {
 } from "@/api/store.js";
 import { getUserInfo, userShare } from "@/api/user.js";
 import { getCoupons, getThemeInfo } from "@/api/api.js";
+import merchantDecoration from '@/mixins/merchantDecoration';
+import { pageNavigation } from '../../../shared/decorationContext';
 import { getCartCounts } from "@/api/order.js";
 import { toLogin } from "@/libs/login.js";
 import { mapGetters } from "vuex";
@@ -303,6 +307,8 @@ import homeList from "@/components/homeList";
 import specs from "./components/specs/index.vue";
 import serviceModal from "./components/serviceModal/index.vue";
 import PageDesign from "@/subpackage/diyComponents/pageDesign.vue";
+import {getMerchantProductTheme} from '@/api/storefront';
+import {merchantPaletteStyle} from '@/utils/merchantTheme';
 import productBottom from "@/components/productActionBar/index.vue";
 export default {
   components: {
@@ -327,13 +333,19 @@ export default {
       },
     },
   },
-  mixins: [colors, sharePoster],
+  mixins: [colors, sharePoster, merchantDecoration],
   data() {
     let that = this;
     return {
       pageNavigationHeight: 0,
       productActionHeight: 0,
       diyData: {},
+      merchantStyle: '',
+      merchantShopId: 0,
+      merchantPreviewId: 0,
+      merchantPreviewShop: 0,
+      themeStatus: 'loading',
+      themeError: '',
       detailStatus: 'idle',
       detailError: '',
       cartSubmitting: false,
@@ -419,6 +431,7 @@ export default {
     };
   },
   computed: {
+    decorationNavigation() { return this.merchantShopId ? pageNavigation(this.diyData, this.merchantShopId) : undefined; },
     hasConfiguredHeader() { return this.detailStatus === 'ready' && Object.values(this.diyData.value || {}).some(item=>['headerSerch','pageTitleBar'].includes(item.name) && !item.isHide); },
     ...mapGetters(["isLogin", "cartNum"]),
     isShowPaidVip() {
@@ -449,6 +462,8 @@ export default {
     },
   },
   onLoad(options) {
+    this.merchantPreviewId = Number(options.shop_page_id) || 0;
+    this.merchantPreviewShop = Number(options.preview_shop_id) || 0;
     let that = this;
     var pages = getCurrentPages();
     that.returnShow = pages.length === 1 ? false : true;
@@ -574,17 +589,38 @@ export default {
       this.$set(this.attr, "cartAttr", true);
       this.$set(this, "isOpen", true);
     },
-    getDiyData() {
-      let that = this;
-      let previewThemeId = uni.getStorageSync("previewThemeId");
-      let data = {};
-      if (previewThemeId) data.theme_id = previewThemeId;
-      return getThemeInfo("detail", data).then((res) => {
-        that.diyData = res.data || {};
-      }).catch(() => {
-        // Keep the detail state and default footer usable when the theme cannot load.
-        that.diyData = {};
-      });
+    async getDiyData() {
+      const previewThemeId = uni.getStorageSync('previewThemeId');
+      const data = previewThemeId ? { theme_id: previewThemeId } : {};
+      if (this.merchantPreviewId) Object.assign(data, {shop_page_id:this.merchantPreviewId, preview_shop_id:this.merchantPreviewShop});
+      this.themeStatus = 'loading';
+      this.themeError = '';
+      try {
+        let theme;
+        try {
+          const res = await getMerchantProductTheme(this.id, data);
+          if (!res.data || !res.data.page || !res.data.page.value) throw new Error('商品装修数据不完整');
+          theme = res.data;
+        } catch (error) {
+          // Older servers expose only the platform detail theme.
+          if (this.merchantPreviewId) throw error;
+          const res = await getThemeInfo('detail', data);
+          theme = { page: res.data, palette: null, shop_id: 0 };
+        }
+        if (!theme.page || !theme.page.value) throw new Error('商品装修暂时无法加载，请重试');
+        this.diyData = theme.page;
+        this.merchantStyle = merchantPaletteStyle(theme.palette);
+        this.merchantPalette = theme.palette;
+        this.merchantShopId = Number(theme.shop_id) || 0;
+        this.themeStatus = 'ready';
+      } catch (error) {
+        this.themeStatus = 'error';
+        this.themeError = typeof error === 'string' ? error : error.msg || error.message || '商品装修加载失败';
+      }
+    },
+    retryDetail() {
+      if (this.detailStatus === 'error') this.getGoodsDetails();
+      if (this.themeStatus === 'error') this.getDiyData();
     },
     handlePageAction(action) {
       if (!this.storeInfo.id) return;

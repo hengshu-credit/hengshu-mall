@@ -7,13 +7,13 @@
       <view class="conter">
         <!-- #ifndef APP-PLUS -->
         <parser
-          :html="productData.description"
+          :html="description"
           ref="article"
           :tag-style="tagStyle"
         ></parser>
         <!-- #endif -->
         <!-- #ifdef APP-PLUS -->
-        <view class="description" v-html="productData.description"></view>
+        <view class="description" v-html="description"></view>
         <!-- #endif -->
       </view>
     </common-wrapper>
@@ -23,6 +23,7 @@
 <script>
 import commonWrapper from "./commonWrapper.vue";
 import parser from "@/components/jyf-parser/jyf-parser";
+import { fullWidthDescriptionImages } from '../../../shared/productDescription';
 
 export default {
   name: "productDesc",
@@ -41,6 +42,9 @@ export default {
     },
   },
   computed: {
+    description() {
+      return fullWidthDescriptionImages(this.productData.description);
+    },
     titleShow() {
       return this.dataConfig.isShow?.tabVal == 0;
     },
@@ -55,7 +59,7 @@ export default {
   data() {
     return {
       tagStyle: {
-        img: "width:100%;display:block;",
+        img: "width:100%;max-width:100%;height:auto;display:block;",
         table: "width:100%",
         video: "width:100%",
       },

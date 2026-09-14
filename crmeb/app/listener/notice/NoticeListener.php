@@ -123,6 +123,7 @@ class NoticeListener implements ListenerInterface
                 }
             }
         } catch (\Throwable $e) {
+            \app\services\order\OrderPaymentDispatchServices::recordDeliveryFailure();
         }
     }
 

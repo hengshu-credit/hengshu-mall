@@ -20,6 +20,9 @@ import {
 } from '../libs/login';
 import store from '../store';
 import i18n from './lang.js';
+// #ifdef APP-PLUS
+import { displayMedia } from '../../shared/displayMedia';
+// #endif
 
 const pendingReads = new Map();
 const copyResponse = response => JSON.parse(JSON.stringify(response));
@@ -63,6 +66,9 @@ function baseRequest(url, method, data, {
 			data: data || {},
 			timeout,
 			success: (res) => {
+				// #ifdef APP-PLUS
+				if (res.data && res.data.status === 200) res.data.data = displayMedia(res.data.data, HTTP_REQUEST_URL);
+				// #endif
 				if (noVerify)
 					reslove(res.data, res);
 				else if (res.data.status == 200)

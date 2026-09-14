@@ -223,7 +223,9 @@ class Theme extends AuthController
             ['order', 0],
             ['sort', 0],
             ['limit', 10],
+            [['seller_shop_id','d'],0],
         ]);
+        $where['storefront_preview'] = true;
         $data = app()->make(StoreProductServices::class)->getThemeProduct($where);
         return app('json')->success($data);
     }
@@ -543,7 +545,7 @@ class Theme extends AuthController
      */
     public function getMicroPageList()
     {
-        $data = $this->services->getMicroPageList();
+        $data = $this->services->getMicroPageList($this->request->getMore([['page_type','']]));
         return app('json')->success($data);
     }
 }

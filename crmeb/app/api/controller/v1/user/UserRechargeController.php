@@ -54,7 +54,7 @@ class UserRechargeController
         $storeMinRecharge = sys_config('store_user_min_recharge');
         if (!$recharId && $price < $storeMinRecharge) return app('json')->fail('充值金额不能低于{:money}', null, ['money' => $storeMinRecharge]);
         $uid = (int)$request->uid();
-        $re = $this->services->recharge($uid, $price, $recharId, $type, $from, true);
+        $re = $this->services->recharge($uid, $price, $recharId, $type, $from, true, (string)$request->post('operation_key',''));
         if ($re) {
             $payType = $re['pay_type'] ?? '';
             unset($re['pay_type']);

@@ -5,29 +5,40 @@
       <page-title :dataConfig="cartDecoration.title_component" :managing="!footerswitch" @action="$event === 'cartManage' && manage()" />
     </view>
     <view class="shoppingCart copy-data decorated-cart" v-if="canShow">
-      <view v-if="cartDecoration.show_service && !cartDecoration.service_hidden" :style="cartStyles.service.outer">
-      <view class="labelNav acea-row row-around row-middle" :style="cartStyles.service.inner">
-        <view class="item" v-for="(label, index) in cartDecoration.service_labels" :key="index">
+      <view v-for="module in cartServiceModules" :key="module.id" :style="[module.outer, {order:module.order}]">
+      <view class="labelNav acea-row row-around row-middle" :style="module.inner">
+        <view class="item" v-for="(label, index) in module.config.service_labels" :key="index">
           <text class="iconfont icon-xuanzhong"></text>
           {{ $t(label) }}
         </view>
       </view>
       </view>
-      <view v-if="cartDecoration.show_list && !cartDecoration.list_hidden && (cartList.valid.length || cartList.invalid.length)" class="nav acea-row row-between-wrapper">
+      <view v-if="cartDecoration.show_list && !cartDecoration.list_hidden && (cartList.valid.length || cartList.invalid.length)" class="nav acea-row row-between-wrapper" :style="{order:cartListOrder}">
         <view>
           {{ $t(`购物数量`) }}
           <text class="num font-num">{{ cartCount }}</text>
         </view>
         <view class="cart-list-manage" role="button" @click="manage">{{ $t(footerswitch ? '管理' : '取消') }}</view>
       </view>
-      <view
+      <view :style="{order:cartListOrder}"
         v-if="
           (cartList.valid.length > 0 || cartList.invalid.length > 0) && canShow
         "
       >
         <view v-show="cartDecoration.show_list && !cartDecoration.list_hidden" class="list" :style="cartStyles.list.outer">
-          <checkbox-group @change="checkboxChange">
-            <block v-for="(item, index) in cartList.valid" :key="index">
+          <view class="cart-shop" v-for="shop in cartShops" :key="shop.key">
+            <view class="cart-shop-header" :style="cartStyles.list.inner">
+              <checkbox-group @change="selectShop(shop, $event)">
+                <checkbox :value="shop.key" :checked="shop.checked" :disabled="!shop.selectable.length" />
+              </checkbox-group>
+              <view class="cart-shop-name" @tap="openCartShop(shop)">
+                <text class="iconfont icon-ic_shop" />
+                <text>{{ shop.name }}</text>
+                <text v-if="shop.id" class="iconfont icon-ic_rightarrow" />
+              </view>
+            </view>
+          <checkbox-group @change="checkboxChange($event, shop)">
+            <block v-for="item in shop.items" :key="item.id">
               <view class="item acea-row row-between-wrapper" :style="cartStyles.list.inner">
                 <!-- #ifndef MP -->
                 <checkbox
@@ -50,11 +61,7 @@
                   class="picTxt acea-row row-between-wrapper"
                 >
                   <view class="pictrue">
-                    <image
-                      v-if="item.productInfo.attrInfo"
-                      :src="item.productInfo.attrInfo.image"
-                    ></image>
-                    <image v-else :src="item.productInfo.image"></image>
+                    <image :src="cartProductImage(item)" mode="aspectFill"></image>
                   </view>
                   <view class="text">
                     <view
@@ -87,21 +94,21 @@
                     class="carnum acea-row row-center-wrapper"
                     v-if="item.attrStatus"
                   >
-                    <view class="reduce" @click.stop="subCart(index)">-</view>
+                    <view class="reduce" @click.stop="subCart(cartList.valid.indexOf(item))">-</view>
                     <!-- <view class='num'>{{item.cart_num}}</view> -->
                     <view class="num">
                       <input
                         type="number"
                         v-model="item.cart_num"
                         @click.stop
-                        @input="iptCartNum(index)"
-                        @blur="blurInput(index)"
+                        @input="iptCartNum(cartList.valid.indexOf(item))"
+                        @blur="blurInput(cartList.valid.indexOf(item))"
                       />
                     </view>
                     <view
                       class="plus"
                       :class="item.numAdd && !disabledChangeNumber ? 'on' : ''"
-                      @click.stop="addCart(index)"
+                      @click.stop="addCart(cartList.valid.indexOf(item))"
                       >+</view
                     >
                   </view>
@@ -109,7 +116,13 @@
               </view>
             </block>
           </checkbox-group>
+            <view class="cart-shop-total" :style="cartStyles.list.inner" v-if="footerswitch">
+              <text>已选 {{ shop.quantity }} 件 · 店铺小计（优惠前）</text>
+              <text :style="cartStyles.price">￥{{ shop.subtotal }}</text>
+            </view>
+          </view>
         </view>
+        <discount-explanation mode="cart" :context="{activities:reductionActivities,pending:reductionLoading,error:reductionError}" />
         <view class="invalidGoods" v-if="cartList.invalid.length > 0">
           <view class="goodsNav acea-row row-between-wrapper">
             <view @click="goodsOpen">
@@ -131,11 +144,7 @@
               <view class="item acea-row row-between-wrapper">
                 <view class="invalid">{{ $t(`失效`) }}</view>
                 <view class="pictrue">
-                  <image
-                    v-if="item.productInfo.attrInfo"
-                    :src="item.productInfo.attrInfo.image"
-                  ></image>
-                  <image v-else :src="item.productInfo.image"></image>
+                  <image :src="cartProductImage(item)" mode="aspectFill"></image>
                 </view>
                 <view class="text acea-row row-column-between">
                   <view class="line1 name">{{
@@ -168,7 +177,7 @@
         </view>
       </view>
       <view
-        class="noCart"
+        class="noCart" :style="{order:cartListOrder}"
         v-if="
           cartList.valid.length == 0 && cartList.invalid.length == 0 && canShow
         "
@@ -182,7 +191,7 @@
           :hostProduct="hostProduct"
         ></recommend>
       </view>
-      <view :style="[medHeight]"></view>
+      <view :style="[medHeight,{order:1000000}]"></view>
       <view class="cart-checkout-dock" v-if="cartDecoration.show_checkout && !cartDecoration.checkout_hidden && cartList.valid.length > 0 && canShow" :style="[cartStyles.checkout.outer, componentStyle]">
       <view
         class="footer acea-row row-between-wrapper"
@@ -197,7 +206,7 @@
           </checkbox-group>
         </view>
         <view class="money acea-row row-middle" v-if="footerswitch == true">
-          <view><text :style="cartStyles.price">{{ $t(`￥`) }}{{ selectCountPrice }}</text><view v-if="Number(fullReductionPrice) > 0" class="full-reduction-saving">满减 -￥{{ fullReductionPrice }}</view><view v-if="reductionLoading" class="full-reduction-saving">优惠计算中</view><view v-if="reductionError" class="full-reduction-saving" @tap="refreshReductionQuote">优惠计算失败，点此重试</view></view>
+          <view><view class="cart-total-label">购物车合计</view><text :style="cartStyles.price">{{ $t(`￥`) }}{{ selectCountPrice }}</text><view v-if="Number(fullReductionPrice) > 0" class="full-reduction-saving">满减 -￥{{ fullReductionPrice }}</view><view v-if="reductionLoading" class="full-reduction-saving">优惠计算中</view><view v-if="reductionError" class="full-reduction-saving" @tap="refreshReductionQuote">优惠计算失败，点此重试</view></view>
           <form @submit="subOrder">
             <button class="placeOrder" :disabled="reductionLoading || !!reductionError || disabledChangeNumber" :style="cartStyles.button" formType="submit">
               {{ $t(cartDecoration.checkout_text) }}
@@ -240,6 +249,7 @@
 </template>
 
 <script>
+import DiscountExplanation from "@/components/discountExplanation/index.vue";
 // #ifdef APP-PLUS
 let sysHeight = uni.getWindowInfo().statusBarHeight + "px";
 // #endif
@@ -268,10 +278,13 @@ import colors from "@/mixins/color";
 import { HTTP_REQUEST_URL, DEBOUNCETIME } from "@/config/app";
 import { Throttle } from "@/utils/validate.js";
 import { getThemeInfo } from '@/api/api.js';
+import { pageContentModules } from '../../../shared/pageModuleOrder';
+import { componentStyle as contentComponentStyle } from '../../../shared/componentStyle';
 import { normalizeCartPage, cartPageStyles } from '../../../shared/cartPageConfig';
 
 export default {
   components: {
+    DiscountExplanation,
     PageTitle,
     pageFooter,
     recommend,
@@ -298,6 +311,7 @@ export default {
       selectValue: [], //选中的数据
       selectCountPrice: 0.0,
       fullReductionPrice: '0.00',
+      reductionActivities: [],
       reductionLoading: false,
       reductionError: '',
       reductionRequestId: 0,
@@ -345,6 +359,30 @@ export default {
   },
   computed: {
     ...mapGetters(["isLogin"]),
+    cartShops() {
+      const groups = [];
+      this.cartList.valid.forEach(item => {
+        const product = item.productInfo || {};
+        const merchant = product.merchant || item.merchant || {};
+        const id = Number(product.seller_shop_id || item.seller_shop_id || merchant.id) || 0;
+        const key = id ? 'shop-' + id : product.mer_id ? 'legacy-' + product.mer_id : 'platform';
+        let shop = groups.find(group => group.key === key);
+        if (!shop) {
+          shop = { key, id, name: id ? product.merchant_name || merchant.name || '商户店铺' : product.mer_id ? '商户归属待处理' : '平台自营', items: [], selectable: [], quantity: 0, cents: 0 };
+          groups.push(shop);
+        }
+        shop.items.push(item);
+        if (!this.footerswitch || item.attrStatus) shop.selectable.push(item);
+        if (item.checked && item.attrStatus) {
+          const quantity = Math.max(0, Math.floor(Number(item.cart_num) || 0));
+          shop.quantity += quantity;
+          shop.cents += Math.round(Number(item.truePrice || 0) * 100) * quantity;
+        }
+      });
+      return groups.map(shop => ({ ...shop, checked: shop.selectable.length > 0 && shop.selectable.every(item => item.checked), subtotal: (shop.cents / 100).toFixed(2) }));
+    },
+    cartServiceModules() { return pageContentModules(this.cartDecoration,'cart').map((module,order) => ({...module,order})).filter(module => module.type === 'service' && !module.config.service_hidden).map(module => ({...module, ...contentComponentStyle(module.config.service_style,'rpx',url => url && url.startsWith('/') ? HTTP_REQUEST_URL + url : url)})); },
+    cartListOrder() { return pageContentModules(this.cartDecoration,'cart').findIndex(module => module.id === 'list'); },
     cartStyles() { return cartPageStyles(this.cartDecoration, 'rpx', url => url && url.startsWith('/') ? HTTP_REQUEST_URL + url : url); },
     componentStyle() {
       return { bottom: this.navigationHeight + 'px' };
@@ -768,9 +806,25 @@ export default {
         that.switchSelect();
       }
     },
-    checkboxChange: function (event) {
+    selectShop(shop, event) {
+      const selected = new Set(this.selectValue.map(String));
+      shop.selectable.forEach(item => event.detail.value.length ? selected.add(String(item.id)) : selected.delete(String(item.id)));
+      this.checkboxChange({ detail: { value: Array.from(selected) } });
+    },
+    openCartShop(shop) {
+      if (shop.id) this.$util.JumpPath('/pages/merchant/shop?id=' + shop.id);
+    },
+    cartProductImage(item) {
+      const product = item.productInfo || {};
+      return (product.attrInfo || {}).image || product.image || '/static/easy-loadimage/loading.png';
+    },
+    checkboxChange: function (event, shop) {
       let that = this;
       let value = event.detail.value;
+      if (shop) {
+        const groupIds = shop.items.map(item => String(item.id));
+        value = this.selectValue.filter(id => !groupIds.includes(String(id))).concat(value);
+      }
       let valid = that.cartList.valid;
       let arr1 = [];
       let arr2 = [];
@@ -811,7 +865,7 @@ export default {
       that.$set(that.cartList, "valid", newValid);
       // let newArr = that.cartList.valid.filter(item => item.attrStatus);
       that.isAllSelect = newValid.length === arr1.length + arr3.length;
-      that.selectValue = value;
+      that.selectValue = newValid.filter(item => item.checked).map(item => item.id);
       that.switchSelect();
     },
     inArray: function (search, array) {
@@ -825,6 +879,9 @@ export default {
     switchSelect: function () {
       let that = this;
       let validList = that.cartList.valid;
+      const selectable = validList.filter(item => !that.footerswitch || item.attrStatus);
+      that.selectValue = selectable.filter(item => item.checked).map(item => item.id);
+      that.isAllSelect = selectable.length > 0 && selectable.every(item => item.checked);
       let selectValue = that.selectValue;
       let selectCountPrice = 0.0;
       if (selectValue.length < 1) {
@@ -847,7 +904,7 @@ export default {
     },
     async refreshReductionQuote() {
       const requestId = ++this.reductionRequestId;
-      this.fullReductionPrice = '0.00'; this.reductionError = '';
+      this.fullReductionPrice = '0.00'; this.reductionError = ''; this.reductionActivities = [];
       if (!this.selectValue.length) { this.selectCountPrice = '0.00'; this.reductionLoading = false; return; }
       this.reductionLoading = true;
       try {
@@ -855,6 +912,7 @@ export default {
         if (requestId !== this.reductionRequestId) return;
         this.selectCountPrice = data.pay_price;
         this.fullReductionPrice = data.full_reduction_price;
+        this.reductionActivities = data.activities || [];
       } catch (error) { if (requestId === this.reductionRequestId) this.reductionError = typeof error === 'string' ? error : (error.msg || '优惠计算失败'); }
       finally { if (requestId === this.reductionRequestId) this.reductionLoading = false; }
     },
@@ -1578,4 +1636,11 @@ export default {
 
 <style scoped>
 .cart-page-title{position:sticky;top:0;z-index:300}
+</style>
+
+<style scoped>.decorated-cart{display:flex;flex-direction:column}.decorated-cart > view{flex-shrink:0}</style>
+
+<style scoped>
+.shoppingCart .cart-shop{background:#fff}.shoppingCart .cart-shop .item{margin-bottom:0;border-bottom:1rpx solid #f5f5f5}
+.cart-shop{margin-bottom:24rpx;overflow:hidden;border-radius:20rpx}.cart-shop-header{display:flex;align-items:center;padding:24rpx 20rpx;background:#fff}.cart-shop-name{display:flex;align-items:center;gap:12rpx;flex:1;min-width:0;font-size:28rpx;font-weight:600;margin-left:16rpx}.cart-shop-name text:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cart-shop-total{display:flex;justify-content:flex-end;align-items:center;gap:12rpx;padding:20rpx;font-size:24rpx;background:#fff;border-top:1rpx solid #f5f5f5}.cart-total-label{font-size:22rpx;color:#666;line-height:1.4}
 </style>

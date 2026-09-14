@@ -48,6 +48,30 @@ def validate_final_item(tab: object, expected_url: str) -> None:
         raise ExtractionError("extraction_failed", "JD opened a different item than requested.")
 
 
+def _extract_product_title(tab: object) -> str:
+    """Use the SKU name, never an unrelated h1 such as JD's price calculator."""
+    script = r"""
+var selectors = ['.sku-title-name', '.sku-name', '.itemInfo-wrap .name', '.itemInfo-wrap h1', '#name h1', '.product-intro .name'];
+for (var i = 0; i < selectors.length; i++) {
+    var el = document.querySelector(selectors[i]);
+    var text = el && el.textContent.trim();
+    if (text) return text;
+}
+return '';
+"""
+    try:
+        value = tab.run_js(script)
+        return value.strip() if isinstance(value, str) else ''
+    except Exception:
+        return ''
+
+
+def product_page_ready(tab: object) -> bool:
+    return bool(_extract_product_title(tab) and any(
+        normalize_media_url(url) for url in _extract_native_gallery(tab)
+    ))
+
+
 def _extract_native_gallery(tab: object) -> list[str]:
     script = r"""
 var urls = [];
@@ -80,6 +104,7 @@ function add(img, filterTools) {
     }
 }
 add(document.querySelector('#spec-img'), false);
+add(document.querySelector('#spec-n1 .main-img img, #spec-n1 img.main-img'), true);
 var carousel = document.querySelectorAll('#spec-list img, .spec-list img, .image-carousel-track .item img, [class*="image-carousel-track"] .item img');
 for (var i = 0; i < carousel.length; i++) add(carousel[i], true);
 if (carousel.length === 0) {
@@ -106,7 +131,7 @@ def original_image_candidate(value: str) -> str | None:
     parts = urlsplit(value)
     if not (parts.hostname or '').endswith('.360buyimg.com'):
         return None
-    match = re.fullmatch(r'/n[0-9]+/(?:s[0-9]+x[0-9]+_)?jfs/(.+)', parts.path)
+    match = re.fullmatch(r'/(?:n[0-9]+|pcpubliccms)/(?:s[0-9]+x[0-9]+_)?jfs/(.+)', parts.path)
     if not match:
         match = re.fullmatch(r'/n[0-9]+/s[0-9]+x[0-9]+/jfs/(.+)', parts.path)
     if not match:
@@ -187,12 +212,7 @@ def extract_product(
     extractor = extractor_class()
     extractor.page = tab
     extractor.scroll_pause = scroll_pause
-    native_gallery = _extract_native_gallery(tab)
     raw = extractor._extract_all_by_js()
-    if isinstance(raw, dict):
-        raw = dict(raw)
-        raw["native_gallery"] = _prefer_full_size_gallery(tab, native_gallery)
-        raw["video_candidates"] = _extract_video_candidates(tab)
     # Reveal description tabs without following shop links or interacting with verification.
     try:
         tab.run_js(r"""
@@ -207,4 +227,12 @@ document.querySelectorAll('#detail button, #J-detail-content button, .detail-con
         pass
     extractor._slow_scroll_to_load()
     details = extractor._extract_detail_images_by_js()
+    if isinstance(raw, dict):
+        raw = dict(raw)
+        title = _extract_product_title(tab)
+        if title:
+            raw["title"] = title
+        # Gallery/video can hydrate after the title. Read them after lazy loading too.
+        raw["native_gallery"] = _prefer_full_size_gallery(tab, _extract_native_gallery(tab))
+        raw["video_candidates"] = _extract_video_candidates(tab)
     return map_product(source_url, raw, details)

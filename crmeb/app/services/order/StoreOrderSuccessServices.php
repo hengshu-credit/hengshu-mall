@@ -74,6 +74,20 @@ class StoreOrderSuccessServices extends BaseServices
                 app()->make(OrderPaymentDispatchServices::class)->flush((int)$orderInfo['id']);
             });
             if ($currentOrder['paid']) return true;
+            if (!empty($currentOrder['is_cancel']) || !empty($currentOrder['is_del']) || !empty($currentOrder['is_system_del'])) {
+                if ($paytype === PayServices::YUE_PAY || $paytype === 'offline') throw new ApiException('订单已失效');
+                // The channel has already taken payment, but cancellation released stock.
+                // Record the receipt without granting goods/points/commission or reserving stock again.
+                $late=$currentOrder->toArray();
+                $update=['paid'=>1,'pay_type'=>$paytype,'pay_time'=>time(),'trade_no'=>$other['trade_no']??'','refund_status'=>1];
+                if (!$this->dao->update($late['id'],$update)) throw new ApiException('记录迟到付款失败');
+                $late=array_replace($late,$update);
+                $user=app()->make(\app\services\user\UserServices::class)->getOneForUpdate(['uid'=>$late['uid']]);
+                $late['nickname']=$user['nickname'];$late['phone']=$user['phone'];
+                app()->make(\app\services\statistic\CapitalFlowServices::class)->setFlow($late,'order');
+                app()->make(OrderPaymentDispatchServices::class)->stage((int)$late['id'],'late_payment_review');
+                return true;
+            }
             return $this->completePayment($currentOrder->toArray(), $paytype, $other);
         });
     }

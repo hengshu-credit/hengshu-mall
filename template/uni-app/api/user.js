@@ -9,6 +9,8 @@
 // +----------------------------------------------------------------------
 
 import request from "@/utils/request.js";
+import store from '@/store';
+import { transferRequest } from '../../shared/transferRequest';
 
 /**
  * 获取用户信息
@@ -353,7 +355,8 @@ export function rechargeWechat(data) {
  * 
  */
 export function recharge(data) {
-	return request.post("recharge/recharge", data);
+    const operation=transferRequest(data,store.state.app.uid || '',uni);
+    return request.post("recharge/recharge", operation.payload).then(result=>{operation.complete();return result;});
 }
 /**
  * 获取默认地址

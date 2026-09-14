@@ -1048,6 +1048,9 @@ export default {
    * @param url 跳转路径
    */
   JumpPath: function (url) {
+    if (typeof url !== 'string' || !url.trim()) return;
+    url = url.trim();
+    if (url === '/pages/merchant/shop?from=product') return this.Tips({ title: '请在商品详情或店铺页面使用此入口' });
     const link = categoryLink(url);
     if (link.pathname === CATEGORY_PAGE) return openCategoryPage(link.options);
     const pages = getCurrentPages();

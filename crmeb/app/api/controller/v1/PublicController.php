@@ -861,7 +861,7 @@ class PublicController
             }
         }
 
-        if (in_array($type, ['home', 'detail', 'user']) && $themeInfo) {
+        if (in_array($type, ['home', 'detail', 'user', 'shop']) && $themeInfo) {
             foreach ($themeInfo['value'] as &$userDataItem) {
                 if ($userDataItem['name'] == 'customerService') {
                     $userDataItem['routine_contact_type'] = (int)sys_config('routine_contact_type');
@@ -1087,6 +1087,7 @@ class PublicController
     public function themeProduct(Request $request)
     {
         $where = $request->getMore([
+            [['seller_shop_id','d'],0],
             ['ids', ''],
             ['cate_ids', ''],
             ['order', 0],

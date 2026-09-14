@@ -215,6 +215,7 @@ class OutStoreProductServices extends BaseServices
                 if (!$attrRes) throw new AdminException('添加失败');
                 $id = (int)$res->id;
             }
+            if(!empty($data['is_show']))(new ProductQualityServices)->assertPublish($id);
             return $id;
         });
     }
@@ -226,22 +227,7 @@ class OutStoreProductServices extends BaseServices
      */
     public function setShow(int $id, int $is_show)
     {
-        if (empty($id)) throw new AdminException('参数错误');
-
-        if ($is_show) {
-            // 检查商品是否可以上架
-            $this->checkShelves($id);
-        }
-
-        /** @var StoreCartServices $cartService */
-        $cartService = app()->make(StoreCartServices::class);
-        $cartService->changeStatus($id, $is_show);
-        $this->dao->update($id, ['is_show' => $is_show]);
-
-        /** @var StoreProductCateServices $storeProductCateServices */
-        $storeProductCateServices = app()->make(StoreProductCateServices::class);
-        $storeProductCateServices->update($id, ['status' => $is_show], 'product_id');
-        return true;
+        return app()->make(StoreProductServices::class)->setShow([$id],$is_show);
     }
 
     /**

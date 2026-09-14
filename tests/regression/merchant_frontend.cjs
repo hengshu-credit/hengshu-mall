@@ -24,7 +24,8 @@ function load(relative, api = {}) {
   const code = babel.transformSync(parsed ? parsed.script.content : source, { filename: file, babelrc: false, configFile: false, plugins: [require(path.join(deps, '@babel/plugin-transform-modules-commonjs'))] }).code;
   const mod = { exports: {} };
   const importer = name => {
-    if (name === '@/api/merchant') return { operationKey: () => 'test_operation_key_123', ...api };
+    if (name === '@/api/merchant') return { operationKey: () => 'test_operation_key_123', merchantGet: async () => ({data:[]}), ...api };
+    if (name.startsWith('@/components/')) return load(name.slice(2), api);
     if (name.startsWith('.')) return load(path.relative(path.join(admin, 'src'), path.resolve(path.dirname(file), name)), api);
     throw new Error('Unexpected import: ' + name);
   };
@@ -40,6 +41,13 @@ function mount(component, props) {
   return { vm, child: vm.$refs.subject, destroy() { vm.$destroy(); vm.$el.remove(); } };
 }
 const profile = () => ({ name: '测试商户', type_id: 2, tag_ids: [], subject_kind: 'company', subject_name: '测试公司', identity_number: '91****7890', bank_account: '62****5555', document_ids: [] });
+test('shop theme picker rejects malformed lists and ignores null options', async()=>{
+  let response=[null,{id:42,title:'主题42'}];
+  const component=load('components/merchantDecoration/ShopPageSelect.vue',{merchantGet:async()=>({data:response})});
+  const mounted=mount(component,{value:42});await flush();
+  assert.equal(mounted.child.pages.length,1);assert.equal(mounted.child.pages[0].id,42);
+  response={invalid:true};await mounted.child.search('');assert.equal(mounted.child.pages.length,0);assert.ok(mounted.child.error);mounted.destroy();
+});
 
 test('merchant form stays neutral, preserves basic contact fields and protects sensitive inputs', async () => {
   const component = load('pages/merchant/components/MerchantForm.vue');

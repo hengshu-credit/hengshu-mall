@@ -1,0 +1,10 @@
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const {loadShared}=require('./ranking_shared_loader.cjs');const {PNG}=require('pngjs');
+const root=path.resolve(__dirname,'../..'),folder=path.join(root,'crmeb/public/statics/ranking/tmall-v2');
+for(const name of ['header-metal.png','gold-medal-final.png']){const image=PNG.sync.read(fs.readFileSync(path.join(folder,name)));let transparent=0;for(let n=3;n<image.data.length;n+=4)if(image.data[n]===0)transparent++;assert(transparent>image.width*image.height*.05,name+' needs actual transparent alpha');}
+for(const name of ['MaShanZheng-Regular','BarlowCondensed-SemiBold'])assert.equal(fs.readFileSync(path.join(folder,'fonts',name+'.woff2')).subarray(0,4).toString(),'wOF2');
+for(const type of ['tmall_product','tmall_shop']){const scene=loadShared('rankingCanvas').canvasPreset(type);assert.equal(scene.fonts.length,2);const visit=nodes=>nodes.forEach(node=>{for(const url of [node.image,node.style.backgroundImage,...node.rankStyles.map(rule=>rule.image)].filter(Boolean))if(url.startsWith('/statics/'))assert(fs.existsSync(path.join(root,'crmeb/public',url)),url);visit(node.children);visit(node.productNodes);});for(const frame of ['header','card','footer','empty'])visit(scene[frame].nodes);}
+const scene=loadShared('rankingCanvas').canvasPreset('tmall_product');const top=scene.card.nodes.find(node=>node.id==='TOP字样'),digit=scene.card.nodes.find(node=>node.id==='名次数字');assert.notEqual(top.rankStyles,digit.rankStyles);top.rankStyles[0].style.color='#000000';assert.notEqual(digit.rankStyles[0].style.color,'#000000');
+const fresh=loadShared('rankingComponent').rankingComponent('marketingRanking');assert.equal(fresh.appearance.canvas.enabled,true);assert.equal(fresh.paddingConfig.val,0);
+const shop=loadShared('rankingComponent').rankingComponent('marketingRanking',{entityType:'shop'});assert(shop.appearance.canvas.card.nodes.some(node=>node.kind==='products'));
+console.log('PASS: real alpha assets, bundled fonts, complete asset references, independent rank colors, and Tmall default configuration');

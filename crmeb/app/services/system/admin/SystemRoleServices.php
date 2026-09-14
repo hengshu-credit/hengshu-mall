@@ -99,7 +99,7 @@ class SystemRoleServices extends BaseServices
         $method = trim(strtolower($request->method()));
 
         // 判断接口是一下两种的时候放行
-        if (in_array($rule, ['setting/admin/logout', 'menuslist'])) {
+        if ($method === 'get' && in_array($rule,['menus','menuslist','logo','copyright','setting/admin/logout'],true)) {
             return true;
         }
 
@@ -115,18 +115,24 @@ class SystemRoleServices extends BaseServices
             return $allAuth;
         });
 
-        // 权限菜单未添加时放行
-        if (!in_array($rule, $allAuth[$method])) return true;
-
-        // 如果是crud接口放行
-        if (strpos($rule, 'crud/') === 0) return true;
-
-        // 获取管理员的接口权限列表，存在时放行
-        $auth = $this->getRolesByAuth($request->adminInfo()['roles'], 2);
-        if (isset($auth[$method]) && in_array($rule, $auth[$method])) {
+        $auth = $this->getRolesByAuth((array)($request->adminInfo()['roles'] ?? []), 2);
+        // Explicit adjunct reads reuse the operation that requires them; never grant an entire prefix.
+        $reads = [
+            'merchant/config'=>[['get','merchant/shop/list'],['post','merchant/shop/save/<id>'],['get','merchant/application/list'],['get','merchant/type/list'],['get','merchant/tag/list'],['post','merchant/product/assign']],
+            'merchant/shop/options'=>[['get','merchant/shop/list'],['post','merchant/shop/save/<id>'],['post','merchant/product/assign'],['post','product/product/<id>'],['get','product/product/<id>'],['get','product/product']],
+            'merchant/shop/pages'=>[['post','merchant/shop/save/<id>'],['get','merchant/shop/info/<id>']],
+            'merchant/product/candidates'=>[['post','merchant/product/assign']],
+            'merchant/document/<id>'=>[['post','merchant/document/upload']],
+        ];
+        if ($method==='get' && isset($reads[$rule])) {
+            foreach($reads[$rule]as [$verb,$permission])if(in_array($permission,$allAuth[$verb]??[],true)&&in_array($permission,$auth[$verb]??[],true))return true;
+        }
+        // Missing permission metadata is a deployment/configuration error, never an allow rule.
+        if (!in_array($rule, $allAuth[$method] ?? [], true)) throw new AuthException('没有权限访问');
+        if (isset($auth[$method]) && in_array($rule, $auth[$method], true)) {
             return true;
         } else {
-            return true;
+            throw new AuthException('没有权限访问');
         }
     }
 

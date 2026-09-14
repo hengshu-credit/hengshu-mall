@@ -3,12 +3,13 @@
     <!-- 左侧配置 -->
     <div class="config-panel">
       <div class="panel-header">
-        <span class="title">当前风格：商城通用主题</span>
+        <span class="title">当前风格：{{ $route.query.page_type === 'merchant' ? '商户主题' : '商城通用主题' }}</span>
         <el-button type="text" @click="openStyleDialog">更换风格</el-button>
         <span class="restore-btn" @click="initData()"><i class="el-icon-refresh-left"></i> 还原主题</span>
       </div>
 
       <div class="config-body">
+        <div class="config-item"><div class="label">商品展示店铺名称</div><el-switch v-model="showMerchantName" /></div>
         <div class="palette-mode">
           <span>配色方案</span>
           <el-radio-group v-model="paletteMode" @change="changeMode"
@@ -243,6 +244,7 @@ export default {
       themeColor: '#E93323',
       gradientColor: '#FF7F00',
       subColor: '#FFC300',
+      showMerchantName: false,
       BaseURL: Setting.apiBaseURL.replace(/adminapi/, ''),
       styleDialogVisible: false,
       activeTab: 'my',
@@ -263,6 +265,7 @@ export default {
         gradient_color: this.gradientColor,
         sub_color: this.subColor,
         palette_mode: this.paletteMode,
+        show_merchant_name: this.showMerchantName,
       };
     },
     palette() {
@@ -404,6 +407,7 @@ export default {
       themeInfo(this.$route.query.id, 'theme')
         .then((res) => {
           this.usePalette(res.data);
+          this.showMerchantName = !!res.data.show_merchant_name;
           this.$nextTick(() => {
             this.ready = true;
             this.dirty = false;
@@ -423,8 +427,9 @@ export default {
       this.saving = true;
       const submitted = JSON.stringify(this.rawPalette);
       return themeSave(this.$route.query.id, {
+        page_type: this.$route.query.page_type || 'theme',
         type: 'theme',
-        value: this.palette,
+        value: {...this.palette, show_merchant_name:this.showMerchantName},
       })
         .then((res) => {
           if (this.$route.query.id == 0) {
@@ -448,7 +453,7 @@ export default {
     },
     saveAndClose() {
       return this.saveOnly().then((saved) => {
-        if (saved) this.$router.push(`${Setting.routePre}/setting/my_theme`);
+          if (saved) this.$router.push(`${Setting.routePre}/setting/${this.$route.query.page_type === 'merchant' ? 'merchant_theme' : 'my_theme'}`);
         return saved;
       });
     },

@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from .contract import ContractError, canonicalize_item_url
-from .extractor import ExtractionError, classify_page, extract_product, validate_final_item
+from .extractor import ExtractionError, classify_page, extract_product, product_page_ready, validate_final_item
 
 
 class WorkerStopped(BaseException):
@@ -34,9 +34,7 @@ def crawl(source_url: str, browser_address: str, scroll_pause: float) -> dict[st
         while True:
             classify_page(tab)
             try:
-                ready = tab.run_js(
-                    "return Boolean(document.querySelector('.sku-name,.itemInfo-wrap h1,#name h1,h1'));"
-                )
+                ready = product_page_ready(tab)
             except Exception:
                 ready = False
             if ready:

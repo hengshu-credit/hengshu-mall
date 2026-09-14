@@ -92,6 +92,7 @@ class UserRecharge extends AuthController
             'refund_price',
         ]);
         if (!$id) return app('json')->fail('数据不存在');
-        return app('json')->success($this->services->refund_update((int)$id, $data['refund_price']) ? '退款成功' : '退款失败');
+        $result=$this->services->refund_update((int)$id, (string)$data['refund_price']);
+        return app('json')->success($result['state']==='succeeded'?'退款成功':'退款已受理，请在交易异常监控中查看确认状态',$result);
     }
 }

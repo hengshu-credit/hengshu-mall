@@ -1,0 +1,11 @@
+{
+  "name": "hengshu-regression-tooling",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated, locked dependencies for repository regression scripts",
+  "engines": { "node": ">=22 <23" },
+  "dependencies": {
+    "playwright": "1.55.1",
+    "pngjs": "7.0.0"
+  }
+}

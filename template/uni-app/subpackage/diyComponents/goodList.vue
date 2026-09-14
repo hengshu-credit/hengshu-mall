@@ -24,6 +24,8 @@
         </view>
       </view>
 
+      <view v-if="productsError" class="products-error" @tap="productslist">商品加载失败，点击重试</view>
+      <view v-else-if="emptyText && !productsLoading && !tempArr.length" class="tab-products-empty">{{$t(emptyText)}}</view>
       <view v-if="tempArr.length > 0" class="list">
         <!-- 单列 -->
         <view v-if="styleConfig == 0">
@@ -51,6 +53,8 @@
                 }}</text>
                 {{ item.store_name }}
               </view>
+              <merchant-name :product="item" :show="dataConfig.showMerchantName" />
+              <discount-explanation mode="product" :context="{product:item}" />
               <view
                 class="flex items-end flex-wrap mt-8 w-full"
                 v-if="
@@ -216,6 +220,8 @@
                     }}</text>
                     {{ item.store_name }}
                   </view>
+              <merchant-name :product="item" :show="dataConfig.showMerchantName" />
+              <discount-explanation mode="product" :context="{product:item}" />
                   <view
                     class="flex items-end flex-wrap mt-8 w-full"
                     v-if="
@@ -369,6 +375,8 @@
                     }}</text>
                     {{ item.store_name }}
                   </view>
+              <merchant-name :product="item" :show="dataConfig.showMerchantName" />
+              <discount-explanation mode="product" :context="{product:item}" />
                   <view
                     class="flex items-end flex-wrap mt-8 w-full"
                     v-if="
@@ -525,6 +533,8 @@
                   }}</text>
                   {{ item.store_name }}
                 </view>
+              <merchant-name :product="item" :show="dataConfig.showMerchantName" />
+              <discount-explanation mode="product" :context="{product:item}" />
                 <baseMoney
                   :money="item.price"
                   symbolSize="24"
@@ -568,6 +578,8 @@
                 }}</text>
                 {{ item.store_name }}
               </view>
+              <merchant-name :product="item" :show="dataConfig.showMerchantName" />
+              <discount-explanation mode="product" :context="{product:item}" />
               <view class="flex-between-center mt-14">
                 <baseMoney
                   :money="item.price"
@@ -629,6 +641,8 @@
                 }}</text>
                 {{ item.store_name }}
               </view>
+              <merchant-name :product="item" :show="dataConfig.showMerchantName" />
+              <discount-explanation mode="product" :context="{product:item}" />
               <view
                 class="flex items-end flex-wrap mt-8 w-full"
                 v-if="
@@ -793,6 +807,8 @@
                 }}</text>
                 {{ item.store_name }}
               </view>
+              <merchant-name :product="item" :show="dataConfig.showMerchantName" />
+              <discount-explanation mode="product" :context="{product:item}" />
               <view class="flex-between-center mt-8">
                 <baseMoney
                   :money="item.price"
@@ -859,20 +875,28 @@ import { getCartCounts } from "@/api/order.js";
 import { goShopDetail } from "@/libs/order.js";
 import productWindow from "@/components/productWindow";
 import commonWrapper from "./commonWrapper.vue";
+import MerchantName from '@/components/merchantName/index.vue';
+import DiscountExplanation from '@/components/discountExplanation/index.vue';
+import { decorationProductQuery, decorationProductIds, orderedDecorationProducts } from '../../../shared/decorationProducts';
 export default {
   name: "goodList",
   components: {
+    DiscountExplanation,
+    MerchantName,
     productWindow,
     commonWrapper,
   },
   props: {
+    compactSingle: {type:Boolean,default:false},
+    emptyText: {type:String,default:''},
+    shopId: {type:Number,default:0},
     dataConfig: {
       type: Object,
       default: () => {},
     },
     list: {
       type: Array,
-      default: () => [],
+      default: null,
     },
     isSortType: {
       type: String | Number,
@@ -882,7 +906,10 @@ export default {
   mixins: [skuSelect],
   data() {
     return {
+      productsLoading: false,
       tempArr: [],
+      productsRequest: 0,
+      productsError: false,
       type: 0,
       attr: {
         cartAttr: false,
@@ -904,7 +931,7 @@ export default {
   watch: {
     list: {
       handler(val) {
-        if (val && val.length) this.tempArr = val;
+        this.productslist();
       },
       deep: true,
     },
@@ -965,9 +992,11 @@ export default {
         this.waterFall();
       }
     },
-    dataConfig() {
-      this.productslist();
+    dataConfig: {
+      handler() { this.productslist(); },
+      deep: true,
     },
+    shopId() { this.productslist(); },
   },
   computed: {
     ...mapState({
@@ -983,7 +1012,7 @@ export default {
       return this.dataConfig.headerType ? this.dataConfig.headerType.tabVal : 0;
     },
     headerText() {
-      return this.dataConfig.headerText ? this.dataConfig.headerText.value : "";
+      return this.dataConfig.headerText ? this.dataConfig.headerText.value : this.dataConfig.name === 'goodRecommend' ? '优品推荐' : '';
     },
     headerImg() {
       return this.dataConfig.headerImg ? this.dataConfig.headerImg.url : "";
@@ -1092,12 +1121,14 @@ export default {
       };
     },
     styleConfig() {
-      return this.dataConfig.styleConfig.tabVal;
+      if(this.compactSingle && this.tempArr.length===1)return 0;
+      const style = Number(this.dataConfig.styleConfig.tabVal);
+      return this.dataConfig.name === 'goodRecommend' && style === 3 ? 5 : style;
     },
     /*商品图片圆角样式*/
     imgStyle() {
       let borderRadius = `${this.dataConfig.filletImg.val * 2}rpx`;
-      if (this.dataConfig.styleConfig.tabVal == 1) {
+      if (this.styleConfig == 1) {
         borderRadius = `${this.dataConfig.filletImg.val * 2}rpx ${
           this.dataConfig.filletImg.val * 2
         }rpx 0 0`;
@@ -1108,7 +1139,7 @@ export default {
         }rpx ${this.dataConfig.filletImg.valList[3].val * 2}rpx ${
           this.dataConfig.filletImg.valList[2].val * 2
         }rpx`;
-        if (this.dataConfig.styleConfig.tabVal == 1) {
+        if (this.styleConfig == 1) {
           borderRadius = `${this.dataConfig.filletImg.valList[0].val * 2}rpx ${
             this.dataConfig.filletImg.valList[1].val * 2
           }rpx 0 0`;
@@ -1146,7 +1177,8 @@ export default {
       return this.dataConfig.goodsPriceColor.color[0].item;
     },
     btnStyle() {
-      return this.dataConfig.bntStyleConfig.tabVal;
+      const style=Number(this.dataConfig.bntStyleConfig.tabVal)||0;
+      return this.compactSingle&&this.tempArr.length===1 ? style+1 : style;
     },
     showBtn() {
       return this.dataConfig.cartConfig.tabVal;
@@ -1180,7 +1212,7 @@ export default {
     },
     /*商品模板*/
     goodStyleConfig() {
-      return this.dataConfig.styleConfig.tabVal;
+      return this.styleConfig;
     },
     /*检索条件  0综合 1销量 2价格*/
     goodsSort() {
@@ -1227,44 +1259,23 @@ export default {
       });
     },
     productslist() {
-      if (this.list && this.list.length) {
+      const requestId = ++this.productsRequest;
+      this.productsLoading=false;
+      this.productsError = false;
+      if (Array.isArray(this.list)) {
         this.tempArr = this.list;
         return;
       }
-      let limit = this.$config.LIMIT;
-      let data = {};
-      if (this.typeConfig == 1) {
-        const goodsList = this.dataConfig.goodsList.list || [];
-        const ids = goodsList.map(item => item.id).filter(Boolean).join(',');
-        if (ids) {
-          data = { ids };
-        } else {
-          this.tempArr = [];
-          return;
-        }
-      } else if (this.typeConfig == 3) {
-        data = {
-          priceOrder: this.goodsSort == 2 ? "desc" : "",
-          salesOrder: this.goodsSort == 1 ? "desc" : "",
-          cate_id: this.dataConfig.classList.classVal
-            ? this.dataConfig.classList.classVal.join(",")
-            : "",
-          limit: this.numberConfig,
-        };
-      } else if (this.typeConfig == 4) {
-        data = {
-          priceOrder: this.goodsSort == 2 ? "desc" : "",
-          salesOrder: this.goodsSort == 1 ? "desc" : "",
-          store_label_id: this.dataConfig.goodsLabel.activeValue
-            ? this.dataConfig.goodsLabel.activeValue.join(",")
-            : "",
-          limit: this.numberConfig,
-        };
-      }
+      this.tempArr = [];
+      if (this.typeConfig == 1 && !decorationProductIds(this.dataConfig).length) return;
+      const data = decorationProductQuery(this.dataConfig, this.shopId);
+      this.productsLoading=true;
       getProductslist(data).then((res) => {
-        // Detail recommendations may arrive while the fallback request is pending.
-        this.tempArr = this.list && this.list.length ? this.list : res.data;
-      });
+        if (requestId !== this.productsRequest) return;
+        this.tempArr = orderedDecorationProducts(res.data, this.dataConfig);
+      }).catch(() => {
+        if (requestId === this.productsRequest) this.productsError = true;
+      }).finally(()=>{if(requestId===this.productsRequest)this.productsLoading=false;});
     },
     goDetail(item) {
       goShopDetail(item, this.$store.state.app.uid).then((res) => {
@@ -1361,6 +1372,7 @@ export default {
 </script>
 
 <style lang="scss">
+.tab-products-empty { padding:52rpx 24rpx; text-align:center; color:#999; font-size:26rpx; line-height:40rpx; background:#f7f8fa; border-radius:16rpx; }
 $page-padding: 10px;
 $grid-gap: 10px;
 .wf-page {

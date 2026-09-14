@@ -28,6 +28,10 @@ class OutPushListener implements ListenerInterface
         foreach ($outAccountList as $item) {
             if ($item['push_open'] == 1) {
                 $token = $this->getPushToken($item);
+                if (!$token) {
+                    \app\services\order\OrderPaymentDispatchServices::recordDeliveryFailure();
+                    continue;
+                }
                 if ($type == 'order_create_push') {
                     OutPushJob::dispatch('orderCreate', [$data['order_id'], $item['order_create_push'] . '?pushToken=' . $token]);
                 } elseif ($type == 'order_pay_push') {

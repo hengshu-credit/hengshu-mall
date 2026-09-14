@@ -3,11 +3,23 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('../../template/admin/node_modules/jsdom');
 const root = path.resolve(__dirname, '../../services/jd-crawler/src/jd_crawler');
-function run(file, method, html) {
+function run(file, method, html, parseJson = true) {
   const code = fs.readFileSync(path.join(root, file), 'utf8').split(`def ${method}(`)[1].match(/r"""([\s\S]*?)"""/)[1];
   const dom = new JSDOM(html, { url: 'https://item.jd.com/100278221408.html', runScripts: 'outside-only' });
-  try { return JSON.parse(dom.window.eval(`(function(){${code}})()`)); } finally { dom.window.close(); }
+  try { const result = dom.window.eval(`(function(){${code}})()`); return parseJson ? JSON.parse(result) : result; } finally { dom.window.close(); }
 }
+const modern = fs.readFileSync(path.join(__dirname, 'fixtures/jd-modern-item.html'), 'utf8');
+assert.equal(run('extractor.py', '_extract_product_title', modern, false), '实木书桌');
+assert.equal(run('extractor.py', '_extract_product_title', '<h1 class="calculator-title">最小单价计算器</h1>', false), '');
+assert.deepEqual(run('extractor.py', '_extract_native_gallery', modern), ['https://img12.360buyimg.com/pcpubliccms/s1440x1440_jfs/fixture/product.jpg.avif']);
+assert.deepEqual(run('vendor/cherrypainter_dom.py', '_extract_detail_images_by_js', modern).map(item => item.url), [
+  'https://img10.360buyimg.com/imgzone/jfs/fixture/top.jpg.avif',
+  'https://img10.360buyimg.com/imgzone/jfs/fixture/tall.webp',
+  'https://img10.360buyimg.com/sku/jfs/fixture/middle.jpg',
+  'https://img10.360buyimg.com/imgzone/jfs/fixture/narrow.png',
+  'https://img10.360buyimg.com/imgzone/jfs/fixture/footer.jpg',
+]);
+console.log('PASS: JD 4.0.28 SKU title, main image and ordered details exclude calculator and recommendations');
 const host = 'https://img10.360buyimg.com';
 const gallery = run('extractor.py', '_extract_native_gallery', `
 <img id="spec-img" src="${host}/n5/s50x50_jfs/t1/product.jpg.avif" data-large="${host}/n0/jfs/t1/product.jpg.avif">

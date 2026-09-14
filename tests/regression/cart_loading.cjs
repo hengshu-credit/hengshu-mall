@@ -16,13 +16,14 @@ const request = (kind, params) => new Promise((resolve, reject) => {
   calls.push({ kind, params, resolve(data) { if (kind === 'list') active--; resolve({ data }); }, reject(error) { if (kind === 'list') active--; reject(error); } });
 });
 const uni = { $on() {}, $off() {}, getStorageSync() {}, getWindowInfo: () => ({ statusBarHeight: 0 }), hideTabBar() {}, showLoading() { shown++; }, hideLoading() { hidden++; } };
+uni.createSelectorQuery = () => ({ in() { return this; }, select() { return this; }, boundingClientRect(fn) { fn(null); return this; }, exec() {} });
 const order = { getCartCounts: () => request('count'), getCartList: params => request('list', { ...params }) };
 let source = fs.readFileSync(path.join(root, 'template/uni-app/pages/order_addcart/order_addcart.vue'), 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
 source = preprocess(source, { H5: true }, { type: 'js' });
 const { code } = babel.transformSync(source, { babelrc: false, configFile: false, plugins: [require(path.join(root, 'template/admin/node_modules/@babel/plugin-transform-modules-commonjs'))] });
 const moduleObject = { exports: {} };
 vm.runInNewContext(code, { module: moduleObject, exports: moduleObject.exports, uni, wx: { setTabBarBadge() {}, hideTabBarRedDot() {} }, getApp: () => ({ globalData: {} }), setTimeout, clearTimeout,
-  require: id => id === 'vuex' ? Vuex : id === '@/api/order.js' ? order : id === '@/api/store.js' ? { getProductHot: () => Promise.resolve({ data: [] }) } : id === '@/utils/validate.js' ? { Throttle: fn => fn } : {},
+  require: id => id.includes('shared/') ? require('./ranking_shared_loader.cjs').loadShared(id.split('/').pop()) : id === 'vuex' ? Vuex : id === '@/api/order.js' ? order : id === '@/api/store.js' ? { getProductHot: () => Promise.resolve({ data: [] }) } : id === '@/utils/validate.js' ? { Throttle: fn => fn } : {},
 });
 const options = moduleObject.exports.default;
 const store = new Vuex.Store({ getters: { isLogin: () => true }, modules: { indexData: { namespaced: true, state: { cartNum: 0 }, mutations: { setCartNum(state, n) { state.cartNum = n; } } } } });

@@ -191,7 +191,7 @@ class JdCrawlerServices
         $escape = function ($text) { return htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); };
         $description = '<p>' . $escape($title) . '</p>';
         foreach ($params as $param) $description .= '<p>' . $escape($param['name']) . '：' . $escape($param['value']) . '</p>';
-        foreach ($details as $image) $description .= '<p><img src="' . $escape($image) . '" alt="" /></p>';
+        foreach ($details as $image) $description .= '<p style="margin:0;padding:0;"><img src="' . $escape($image) . '" alt="" style="width:100%;max-width:100%;height:auto;display:block;" /></p>';
         $attr = [
             'pic' => $images[0], 'price' => round((float)$price, 2), 'cost' => 0, 'ot_price' => 0,
             'stock' => 0, 'bar_code' => '', 'bar_code_number' => '', 'weight' => 0, 'volume' => 0,

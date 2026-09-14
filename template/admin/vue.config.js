@@ -18,6 +18,7 @@ const resolve = (dir) => {
 };
 // 项目部署基础
 module.exports = {
+  parallel: 2,
   // 打包路径
   outputDir: 'dist',
   // 打包路径--线上部署文件地址
@@ -40,10 +41,13 @@ module.exports = {
           },
         },
         sourceMap: false,
-        parallel: true, //使用多进程并行运行来提高构建速度。默认并发运行数：os.cpus().length - 1。
+        parallel: 2, // Bound workers so large Windows hosts do not exhaust memory.
       }),
     );
     if (process.env.NODE_ENV === 'production') {
+      for (const minimizer of config.optimization.minimizer || []) {
+        if (minimizer.options && 'parallel' in minimizer.options) minimizer.options.parallel = 2;
+      }
       config.plugins = [...config.plugins, ...pluginsPro];
     }
   },

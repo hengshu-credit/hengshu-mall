@@ -1,3 +1,4 @@
+import { pageContentModules } from '../../shared/pageModuleOrder';
 import { normalizeCategoryPage, categoryPageStyle } from '../../shared/categoryPageConfig';
 import { componentStyle, verticalStyleSpace } from '../../shared/componentStyle';
 import { emitThemeScroll } from './themePageEvents';
@@ -6,6 +7,9 @@ export default {
   mounted() { uni.$on('theme-page-show', this.refreshCheckoutOnShow); },
   beforeDestroy() { uni.$off('theme-page-show', this.refreshCheckoutOnShow); },
   methods: {
+    categoryProductUrl(id, title = '', child = false) {
+      return this.shopId ? '/pages/merchant/products?shop_id='+this.shopId+'&category_id='+Number(id)+'&title='+encodeURIComponent(title || '店铺商品') : '/pages/goods/goods_list/index?'+(child?'sid':'cid')+'='+Number(id)+'&title='+encodeURIComponent(title);
+    },
     notifyThemeScroll(event) { emitThemeScroll(event.detail.scrollTop); },
     refreshCheckoutOnShow(event) {
       if (!event || event.path !== '/pages/goods_cate/goods_cate' || !this.getCartList) return;
@@ -17,20 +21,21 @@ export default {
   watch: { titleHeight() { this.$nextTick(()=>{if(this.measureScrollHeight)this.measureScrollHeight();}); } },
   computed: {
     categoryAppearance() { const config=normalizeCategoryPage(this.decoration);if(config.search_hidden)config.show_search=0;return config; },
+    categorySearchModules() { return pageContentModules(this.categoryAppearance,'category').map((module,order)=>({...module,order})).filter(module=>module.type === 'search' && !module.config.isHide); },
     checkoutConfig() { return this.categoryAppearance.checkout || {}; },
-    categoryOuterStyle() { return { ...componentStyle(this.categoryAppearance.category_style || {}, 'rpx').outer, ...(this.categoryAppearance.status === 1 ? { display: 'flex', flex: 1, minHeight: 0 } : {}) }; },
+    categoryOuterStyle() { return { order:pageContentModules(this.categoryAppearance,'category').findIndex(module=>module.id === 'category'), ...componentStyle(this.categoryAppearance.category_style || {}, 'rpx').outer, ...(this.categoryAppearance.status === 1 ? { display: 'flex', flex: 1, minHeight: 0 } : {}) }; },
     categoryModuleStyle() { return this.categoryAppearance.category_style ? componentStyle(this.categoryAppearance.category_style, 'rpx').inner : {}; },
     decorationStyle() {
       const style = categoryPageStyle(this.categoryAppearance, 'var(--view-theme)');
       // CSS custom properties are not converted from rpx by the H5 renderer.
       const scale = uni.getWindowInfo().windowWidth / 750;
-      style['--cat-search-height'] = (this.categoryAppearance.show_search ? (96 + verticalStyleSpace(this.categoryAppearance.search_component) * 2) * scale : 0) + 'px';
+      style['--cat-search-height'] = this.categorySearchModules.reduce((height,module)=>height + (96 + verticalStyleSpace(module.config) * 2) * scale,0) + 'px';
       style['--cat-module-space'] = verticalStyleSpace(this.categoryAppearance.category_style) * 2 * scale + 'px';
       style['--category-navigation-height'] = this.navigationHeight + 'px';
       style['--category-checkout-height'] = this.checkoutHeight + 'px';
       style['--category-title-height'] = this.titleHeight + 'px';
       return style;
     },
-    decorationClasses() { return { 'no-search': !this.categoryAppearance.show_search, 'modular-category': !!this.categoryAppearance.category_style, 'outline-tabs': this.categoryAppearance.sub_tab_style === 'outline' }; },
+    decorationClasses() { return { 'no-search': !this.categorySearchModules.length, 'modular-category': !!this.categoryAppearance.category_style, 'outline-tabs': this.categoryAppearance.sub_tab_style === 'outline' }; },
   },
 };

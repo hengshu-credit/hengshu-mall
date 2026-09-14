@@ -29,7 +29,7 @@ return [
             'port'       => Env::get('redis.port', 6379),
             'password'   => Env::get('redis.redis_password', ''),
             'select'     => Env::get('redis.select', 0),
-            'timeout'    => 0,
+            'timeout'    => 3,
             'persistent' => false,
         ],
     ],

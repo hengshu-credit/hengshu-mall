@@ -15,8 +15,11 @@ cd /root/hengshu-mall
 tar --no-same-owner -xzf hengshu-mall-update.tar.gz
 cd /root/hengshu-mall/crmeb-mall
 docker-compose -f compose.yml up -d --build
-docker-compose -f compose.yml ps
 ```
+
+交易可靠性及商品经营核对结构在后端启动时自动初始化；迁移失败会阻止 PHP 就绪，队列和补偿进程等待 PHP 健康后启动。不会重新初始化商城。更新完成后退出并重新登录后台，子管理员需分配相应菜单权限。
+
+更新图片显示功能时，必须同时构建并启动 `media-display`。新版 APP 通过 `/api/media/image` 读取兼容图片，沿用现有 API 反向代理入口。部署后在本地源码目录执行 `node help/release/check-storefront.cjs https://mall.hengshucredit.com 1`，核对商城/店铺商品范围、购物车导航和真实 PNG 响应；最后一个参数应填写有在售 AVIF 商品的店铺 ID。HTTP 200 但返回 HTML 的图片地址会被判为失败。
 
 或者用 `bash start.sh` 启动，脚本自动识别两种 Compose 命令。直接使用 Compose 不需要先运行脚本，也不需要初始化京东密钥。首次构建需要联网下载镜像、Chromium 和 Python 依赖。
 
@@ -88,7 +91,7 @@ ssh -N -L 6080:127.0.0.1:6080 root@服务器IP
 
 导航栏内容设置可选“固定一直展示”或“智能隐藏”（下滑隐藏、上滑显示）。顶部搜索栏／搜索框可分别配置左右按钮，包括首页、返回、收藏、分享、客服和商城内部链接，支持名称、图标、显隐与排序。三个分类布局均可独立添加“分类结算栏”，配置购物车入口、金额、结算按钮与公共样式；“商品操作栏”仅在商品详情页的基础组件中可添加。底部组件按导航在下、业务操作栏在上的顺序排列，删除保存后不会自动恢复。
 
-本包包含后台和 H5 生产文件。Android 配套安装物色 6.0.6；小程序需用更新后的源码重新编译发布。
+本包包含后台和 H5 生产文件，不包含 APK。Android 编译资源与原生 UI 验证独立记录；现有已安装 App 不会因服务器更新自动替换内置资源。小程序需用更新后的源码重新编译发布。
 
 ### 京东云等国内服务器构建加速
 

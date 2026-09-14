@@ -4,7 +4,8 @@
       class="origin-img"
       :key="imageSrc"
       :src="imageSrc"
-      mode="aspectFill"
+      :mode="mode || 'aspectFill'"
+      lazy-load
       v-if="loadImg && !isLoadError"
       v-show="showImg"
       :style="[imgStyle]"
@@ -159,6 +160,8 @@ export default {
     stopVisibility() {
       if (this._stopVisibility) this._stopVisibility();
       this._stopVisibility = null;
+      if (this._imageObserver) this._imageObserver.disconnect();
+      this._imageObserver = null;
       uni.$off("scroll", this.scrollFn);
     },
     startVisibility() {
@@ -167,6 +170,20 @@ export default {
       // #ifdef H5
       this._stopVisibility = observeImageVisibility(this.$el, this.loadVisibleImage);
       if (this._stopVisibility) return;
+      // #endif
+      // Native image loading must not depend on page-level scroll events:
+      // decorated pages and scroll-view containers can scroll independently.
+      // #ifdef APP-PLUS
+      this.loadVisibleImage();
+      return;
+      // #endif
+      // #ifdef MP
+      if (uni.createIntersectionObserver) {
+        this._imageObserver = uni.createIntersectionObserver(this);
+        this._imageObserver.relativeToViewport({ bottom: 200 }).observe('#' + this.uid, result => {
+          if (result.intersectionRatio > 0) this.loadVisibleImage();
+        });
+      }
       // #endif
       uni.$on("scroll", this.scrollFn);
       this.init();

@@ -289,6 +289,7 @@
             </view>
 
             <!-- 数据区域 -->
+            <merchant-name v-if="item.name === 'name' && item.show" :product="productData" :show="dataConfig.showMerchantName" />
             <view v-if="item.name === 'data' && item.show" class="data-section">
               <text
                 v-if="item.checkList.includes(0)"
@@ -385,12 +386,14 @@
 </template>
 
 <script>
+import MerchantName from '@/components/merchantName/index.vue';
 import commonWrapper from "./commonWrapper.vue";
 import BaseTag from "@/components/BaseTag.vue";
 
 export default {
   name: "productInfo",
   components: {
+    MerchantName,
     BaseTag,
     commonWrapper
   },

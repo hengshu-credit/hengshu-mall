@@ -71,6 +71,8 @@ export function componentStyle(
   unit = "px",
   imageUrl = (url) => url
 ) {
+  config = config || {};
+  config = config || {};
   const px = (value) => (Number(value) || 0) * (unit === "rpx" ? 2 : 1) + unit;
   const first = (value, fallback = "") =>
     value && value.color && value.color[0] ? value.color[0].item : fallback;
@@ -78,7 +80,7 @@ export function componentStyle(
     background: first(config.bottomBgColor),
     display: "flow-root",
   };
-  const inner = { boxSizing: "border-box" };
+  const inner = { boxSizing: "border-box", overflow: 'hidden', border: '0 solid transparent', boxShadow: 'none' };
   ["margin", "padding"].forEach((name) => {
     const value = config[name + "Config"];
     if (!value) return;
@@ -111,8 +113,9 @@ export function componentStyle(
     inner.backgroundRepeat = "no-repeat";
   } else if (bg) {
     const surface = gradient(bg.colorConfig, (bg.colorDirection || {}).tabVal);
-    inner.background =
-      surface && base ? `${surface}, ${base}` : surface || base;
+    // The editable background is authoritative, including transparent. A second
+    // opaque legacy layer would make color/alpha controls appear ineffective.
+    inner.background = surface || base;
   }
   if (config.fillet)
     inner.borderRadius = Number(config.fillet.type) === 1
@@ -136,6 +139,8 @@ export function componentStyle(
         .join(" ") +
       " " +
       first(shadow.colorConfig);
+  if(config.zIndexConfig){inner.position='relative';inner.zIndex=Number(config.zIndexConfig.val)||0;}
+  if(config.textColor && config.textColor.color)inner.color=first(config.textColor);
   return { outer, inner };
 }
 export function verticalStyleSpace(config = {}) {

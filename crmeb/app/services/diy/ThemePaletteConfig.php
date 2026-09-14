@@ -23,6 +23,10 @@ class ThemePaletteConfig
         if (!is_string($id) || !preg_match('/^[a-z0-9-]{0,40}$/D', $id)) throw new AdminException('配色方案标识不正确');
         $result['palette_mode'] = $mode;
         $result['palette_id'] = $mode === 'preset' ? $id : '';
+        if (isset($value['show_merchant_name'])) {
+            if (!in_array($value['show_merchant_name'], [0,1,true,false], true)) throw new AdminException('店铺名称展示选项不正确');
+            $result['show_merchant_name'] = (bool)$value['show_merchant_name'];
+        }
         return $result;
     }
 }

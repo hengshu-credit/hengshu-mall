@@ -120,7 +120,7 @@ class AllinPay extends BasePay implements PayInterface
 
     public function queryRefund(string $outTradeNo, string $outRequestNo, array $other = [])
     {
-        // TODO: Implement queryRefund() method.
+        return $this->pay->query($outRequestNo);
     }
 
     /**

@@ -16,5 +16,6 @@ navCheck(json_decode($dao->data['theme_data'],true)['theme_color']==='#E93323','
 $service->saveTheme(7,['type'=>'theme','value'=>$theme,'tid'=>0,'title'=>'','page_type'=>'theme']);
 navCheck($service->getThemeInfo(7,'cart')===$saved,'saving palette retains cart decoration');
 $cart['navigation']=[];
+$cart['navigation_source']='none';
 $service->saveTheme(7,['type'=>'cart','value'=>$cart,'tid'=>0,'title'=>'','page_type'=>'theme']);
 navCheck($service->themeNavigation('cart')===[],'deleted cart navigation does not inherit home');

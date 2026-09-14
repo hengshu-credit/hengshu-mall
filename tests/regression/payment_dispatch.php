@@ -3,7 +3,7 @@
 require dirname(__DIR__, 2) . '/crmeb/vendor/autoload.php';
 if (getenv('CRMEB_AUDIT_DATABASE') !== 'crmeb_audit') throw new RuntimeException('Requires disposable crmeb_audit database');
 $config = ['default' => 'mysql', 'connections' => ['mysql' => [
-    'type' => 'mysql', 'hostname' => '127.0.0.1', 'hostport' => 3306, 'database' => 'crmeb_audit',
+    'type' => 'mysql', 'hostname' => '127.0.0.1', 'hostport' => (int)(getenv('CRMEB_AUDIT_PORT') ?: 3306), 'database' => 'crmeb_audit',
     'username' => 'root', 'password' => 'audit-only-password', 'charset' => 'utf8mb4', 'prefix' => '',
 ]]];
 $db = new think\DbManager; $db->setConfig($config);
@@ -92,8 +92,11 @@ $container->instance(app\services\order\StoreOrderInvoiceServices::class, new cl
 $container->instance(app\services\product\product\StoreProductCouponServices::class, new class { public function giveOrderProductCoupon(...$args) {} });
 $container->instance(app\services\order\StoreOrderCartInfoServices::class, new class { public function getCarIdByProductTitle($id) { return 'fixture'; } });
 $container->instance(app\services\activity\lottery\LuckLotteryServices::class, new class { public function setCacheLotteryNum(...$args) {} });
+require __DIR__.'/payment_outbox_fixture.php';
 function seedDispatch() {
-    global $db, $dispatch;
+    global $db, $dispatch, $container;
+    $container->instance(app\services\order\OrderPaymentDispatchServices::class,$dispatch);
+    $db->table('audit_commerce_tasks')->where('1=1')->delete();
     $db->table('audit_queue_orders')->where('1=1')->delete();
     $db->table('audit_queue_status')->where('1=1')->delete();
     $db->table('audit_queue_orders')->insert(['id' => 1, 'order_id' => 'dispatch-order', 'uid' => 101]);
@@ -115,8 +118,9 @@ checkDispatch('failed listener rolls back markers and emits no jobs', !$failed &
 
 seedDispatch(); $dispatch->failStep = 'agent';
 $first = $notify->wechatProduct('dispatch-order', null, 'yue');
-checkDispatch('transport failure keeps committed paid state and durable pending markers', !$first && (int)$db->table('audit_queue_orders')->value('paid') === 1 && $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 7, $dispatch->published);
+checkDispatch('transport failure keeps committed paid state and durable pending markers', $first && (int)$db->table('audit_queue_orders')->value('paid') === 1 && $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 1, $dispatch->published);
 $dispatch->failStep = '';
+dueHistoricalTasks();
 $retry = $notify->wechatProduct('dispatch-order', null, 'yue');
 checkDispatch('paid callback retry resumes failed publication without replaying successful jobs', $retry && count($dispatch->published) === 10 && count(array_unique(array_column($dispatch->published, 'step'))) === 10 && $db->table('audit_queue_status')->where('change_type', 'pay_success')->count() === 1 && $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 0, $dispatch->published);
 $notify->wechatProduct('dispatch-order', null, 'yue');
@@ -135,11 +139,13 @@ $container->instance('log', new class { public function error($message) {} });
 $transport = new class { public $fail = true; public function connection() { return $this; } public function push(...$args) { return $this->fail ? false : 'job-id'; } };
 $container->instance('queue', $transport);
 putenv('AUDIT_DISPATCH_QUEUE=1');
+$db->table('audit_commerce_tasks')->where('1=1')->delete();
 $swallowed = new SwallowedFailurePaymentDispatch($statusDao);
 $swallowed->stage(1, 'custom_notice');
+$container->instance(app\services\order\OrderPaymentDispatchServices::class,$swallowed);
 try { $swallowed->flush(1); } catch (Throwable $error) {}
 checkDispatch('caught queue failure cannot acknowledge a pending delivery', $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 1);
-$transport->fail = false; $swallowed->flush(1);
+$transport->fail = false; dueHistoricalTasks(); $swallowed->flush(1);
 checkDispatch('transport recovery can acknowledge previously caught failure', $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 0);
 putenv('AUDIT_DISPATCH_QUEUE');
 
@@ -184,23 +190,27 @@ $sms = new class extends app\services\message\notice\SmsService {
     public function send(bool $switch, $phone, array $data, string $mark) { if ($this->fail) throw new RuntimeException('SMS unavailable'); return true; }
 };
 $direct->sender = function () use ($sms) { $sms->sendSms('fixture', []); };
+$container->instance(app\services\order\OrderPaymentDispatchServices::class,$direct);
+$db->table('audit_commerce_tasks')->where('1=1')->delete();
 $direct->stage(1, 'notice_user');
 try { $direct->flush(1); } catch (Throwable $error) {}
 checkDispatch('caught direct SMS exception retains pending payment notice', $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 1);
-$sms->fail = false; $direct->flush(1);
+$sms->fail = false; dueHistoricalTasks(); $direct->flush(1);
 $provider = new class { public $fail = true; public function sms($type) { return $this; } public function send(...$args) { return !$this->fail; } };
 $container->instance(app\services\serve\ServeServices::class, $provider);
 $direct->sender = function () { (new app\listener\notice\CustomNoticeListener)->sendSms(101, ['sms_text' => 'order {order_id}', 'sms_id' => 'fixture'], ['order_id' => 'fixture', 'phone' => 'fixture']); };
+$container->instance(app\services\order\OrderPaymentDispatchServices::class,$direct);
+$db->table('audit_commerce_tasks')->where('1=1')->delete();
 $direct->stage(1, 'custom_notice');
 try { $direct->flush(1); } catch (Throwable $error) {}
 checkDispatch('custom SMS provider false retains pending payment notice', $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 1);
-$provider->fail = false; $direct->flush(1);
+$provider->fail = false; dueHistoricalTasks(); $direct->flush(1);
 checkDispatch('direct SMS recovery acknowledges pending notice', $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 0);
 
 class PaymentDispatchBoundaryRedis extends Redis {
     public $accept = false;
-    public function rPush($key, ...$values) { return $this->accept ? 1 : false; }
-    public function zAdd($key, $score_or_options, ...$values) { return $this->accept ? 1 : false; }
+    public function rPush($key, $value = null, ...$values) { return $this->accept ? 1 : false; }
+    public function zAdd($key, $score_or_options, $value = null, ...$values) { return $this->accept ? 1 : false; }
 }
 $redisBoundary = new PaymentDispatchBoundaryRedis;
 $redisConnector = new think\queue\connector\Redis($redisBoundary, 'payment-fixture');
@@ -217,10 +227,12 @@ foreach (['push', 'later'] as $method) {
         if ($method === 'push') DispatchTransportJob::dispatch([1]);
         else DispatchTransportJob::dispatchSecs(10, 'doJob', [1]);
     };
-    $direct->stage(1, 'custom_notice');
+    $container->instance(app\services\order\OrderPaymentDispatchServices::class,$direct);
+$db->table('audit_commerce_tasks')->where('1=1')->delete();
+$direct->stage(1, 'custom_notice');
     try { $direct->flush(1); } catch (Throwable $error) {}
     checkDispatch('real Redis ' . $method . ' rejection retains durable pending stage', $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 1);
-    $redisBoundary->accept = true; $direct->flush(1);
+    $redisBoundary->accept = true; dueHistoricalTasks(); $direct->flush(1);
     checkDispatch('real Redis ' . $method . ' recovery acknowledges stage', $db->table('audit_queue_status')->where('change_type', $dispatch::PENDING)->count() === 0);
 }
 putenv('AUDIT_DISPATCH_QUEUE');

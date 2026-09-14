@@ -39,6 +39,17 @@ class OrderPaymentDispatchServices extends BaseServices
         if (self::$publishing) self::$queueFailed = true;
     }
 
+    public static function guardDelivery(callable $work)
+    {
+        $publishing=self::$publishing; $failed=self::$queueFailed;
+        self::$publishing=true; self::$queueFailed=false;
+        try {
+            $result=$work();
+            if ($result===false || self::$queueFailed) throw new \RuntimeException('Delivery was rejected');
+            return $result;
+        } finally { self::$publishing=$publishing; self::$queueFailed=$failed; Queue::instance()->clean(); }
+    }
+
     /** Called with the unpaid order locked, before the payment transaction commits. */
     public function stage(int $orderId, string $step): void
     {
@@ -46,6 +57,7 @@ class OrderPaymentDispatchServices extends BaseServices
             'change_message' => $step, 'change_time' => time()])) {
             throw new \RuntimeException('Unable to record payment delivery');
         }
+        app()->make(\app\services\system\CommerceTaskServices::class)->stage('order',$orderId,$step);
     }
 
     /** Nested fulfillment may stage work for several already-paid group orders. */
@@ -59,32 +71,44 @@ class OrderPaymentDispatchServices extends BaseServices
     public function flush(int $orderId): void
     {
         $steps = $this->dao->getColumn(['oid' => $orderId, 'change_type' => self::PENDING], 'change_message');
+        $tasks = app()->make(\app\services\system\CommerceTaskServices::class);
         foreach ($steps as $step) {
-            $this->transaction(function () use ($orderId, $step) {
-                $order = app()->make(StoreOrderSuccessServices::class)->getOneForUpdate(['id' => $orderId]);
-                if (!$order || !$order['paid']) return;
-                $where = ['oid' => $orderId, 'change_type' => self::PENDING, 'change_message' => $step];
-                if (!$this->dao->getOne($where)) return;
-                $previous = self::$publishing;
-                $previousFailure = self::$queueFailed;
-                self::$publishing = true;
-                self::$queueFailed = false;
-                try {
-                    if ($this->publish($step, $order->toArray()) === false || self::$queueFailed) {
-                        throw new \RuntimeException('Unable to publish payment delivery');
-                    }
-                    if (!$this->dao->delete($where)) throw new \RuntimeException('Unable to acknowledge payment delivery');
-                } finally {
-                    self::$publishing = $previous;
-                    self::$queueFailed = $previousFailure;
-                    Queue::instance()->clean();
-                }
-            });
+            $tasks->stage('order',$orderId,$step);
         }
+        $tasks->runBusiness('order',$orderId);
+    }
+
+    public function deliverTask(string $step, int $orderId, string $key): bool
+    {
+        $order = app()->make(StoreOrderSuccessServices::class)->getOne(['id'=>$orderId]);
+        if (!$order || !$order['paid']) throw new \RuntimeException('Paid order missing');
+        $data=$order->toArray(); $data['delivery_key']=$key;
+        $previous=self::$publishing; $previousFailure=self::$queueFailed;
+        self::$publishing=true; self::$queueFailed=false;
+        try {
+            if ($this->publish($step,$data)===false || self::$queueFailed) throw new \RuntimeException('Unable to publish payment delivery');
+            $this->dao->delete(['oid'=>$orderId,'change_type'=>self::PENDING,'change_message'=>$step]);
+            return true;
+        } finally {
+            self::$publishing=$previous; self::$queueFailed=$previousFailure; Queue::instance()->clean();
+        }
+    }
+
+    /** Import old pending records in bounded batches; no new callback is required. */
+    public function recoverLegacy(int $limit = 500): int
+    {
+        $taskKeys=(new \app\model\system\CommerceTask())->db()->field('task_key')->buildSql();
+        $rows=$this->dao->search(['change_type'=>self::PENDING],false)
+            ->whereRaw("CONCAT('order:',oid,':',change_message) NOT IN (".trim($taskKeys,'()').")")
+            ->field('oid,change_message')->order('oid,change_time')->limit($limit)->select()->toArray();
+        $tasks=app()->make(\app\services\system\CommerceTaskServices::class);
+        foreach($rows as $row) $tasks->stage('order',(int)$row['oid'],$row['change_message']);
+        return count($rows);
     }
 
     protected function publish(string $step, array $order)
     {
+        if ($step==='late_payment_review') throw new \app\services\system\CommerceTaskNeedsReview('订单取消后渠道确认付款：库存已释放，禁止发货，请核对渠道并处理原路退款');
         if (strpos($step, 'pink_') === 0) return $this->publishPink($step, $order);
         switch ($step) {
             case 'lottery': return app()->make(LuckLotteryServices::class)->setCacheLotteryNum((int)$order['uid'], 'order');

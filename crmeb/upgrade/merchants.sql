@@ -125,3 +125,13 @@ CREATE TABLE IF NOT EXISTS `eb_merchant_install` (
   `id` tinyint unsigned NOT NULL,
   `version` int unsigned NOT NULL DEFAULT 0, PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS `eb_merchant_follow` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `uid` int unsigned NOT NULL,
+  `shop_id` int unsigned NOT NULL,
+  `created_at` int unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `member_shop` (`uid`,`shop_id`),
+  KEY `shop_followers` (`shop_id`),
+  KEY `member_created` (`uid`,`created_at`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

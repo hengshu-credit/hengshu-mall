@@ -26,6 +26,7 @@ export default {
   },
   component: LayoutMain,
   children: [
+    { path: 'commerce', name: `${pre}commerceHealth`, meta: { auth: ['finance-commerce-health'], title: '交易异常监控' }, component: () => import('@/pages/finance/commerce/index.vue') },
     {
       path: 'billing_records/index',
       name: `${pre}billingRecords`,

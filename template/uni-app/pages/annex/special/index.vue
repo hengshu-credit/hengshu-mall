@@ -142,6 +142,7 @@ import Cache from "@/utils/cache";
 import appUpdate from "@/components/update/app-update.vue";
 import { applyTheme } from "@/utils/theme.js";
 import PageDesign from "@/subpackage/diyComponents/pageDesign.vue";
+import { microPageWithTitle } from "../../../../shared/pageTitleComponent";
 
 export default {
   computed: {
@@ -158,6 +159,8 @@ export default {
         backgroundColor: this.bgColor,
         backgroundImage: this.bgPic ? `url(${this.bgPic})` : "",
         minHeight: this.windowHeight + "px",
+        paddingTop: "var(--status-bar-height)",
+        boxSizing: "border-box",
       };
     },
     pdHeights() {
@@ -669,6 +672,7 @@ export default {
     },
     setDiyData(data) {
       if (!data) return;
+      data = microPageWithTitle(data);
       this.currentDiyData = data;
       this.errorNetwork = false;
       if (data.is_bg_color) {

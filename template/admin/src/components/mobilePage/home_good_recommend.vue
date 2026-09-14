@@ -1,5 +1,6 @@
 <template>
   <common_wrapper :config="configObj">
+    <div v-if="productPreviewMessage" style="padding:12px;color:#909399;font-size:12px">{{ productPreviewMessage }}</div>
     <div class="home_product">
       <!-- Header Section -->
       <div class="header-box" :style="headerBoxStyle" v-if="headerText || headerImg">
@@ -35,12 +36,12 @@
               />
               <div
                 v-else
-                class="empty-box"
+                class="empty-box theme-product-placeholder-frame"
                 :style="{
                   borderRadius: imgRadius,
                 }"
               >
-                <img src="../../assets/images/shan.png" />
+                <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
               </div>
             </div>
             <div class="info">
@@ -134,12 +135,12 @@
               />
               <div
                 v-else
-                class="empty-box"
+                class="empty-box theme-product-placeholder-frame"
                 :style="{
                   borderRadius: imgRadius2,
                 }"
               >
-                <img src="../../assets/images/shan.png" />
+                <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
               </div>
             </div>
             <div
@@ -230,12 +231,12 @@
                 />
                 <div
                   v-else
-                  class="empty-box"
+                  class="empty-box theme-product-placeholder-frame"
                   :style="{
                     borderRadius: imgRadius,
                   }"
                 >
-                  <img src="../../assets/images/shan.png" />
+                  <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
                 </div>
               </div>
               <div
@@ -293,7 +294,9 @@
 
 <script>
 import { mapState } from 'vuex';
+import decorationProducts from '@/mixins/decorationProducts';
 export default {
+  mixins: [decorationProducts],
   name: 'home_good_recommend',
   cname: '优品推荐',
   configName: 'c_good_recommend',
@@ -869,6 +872,7 @@ export default {
         } else {
           this.list = configObj.productList.list.length ? configObj.productList.list : 4;
         }
+        this.refreshPreviewProducts(configObj);
       }
     },
   },

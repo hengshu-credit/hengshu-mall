@@ -1,7 +1,9 @@
 import { getCategoryList } from '@/api/store.js';
+import { getShopCategories } from '@/api/storefront';
 
 export default {
   props: {
+    shopId: {type:Number,default:0},
     initialCategoryRequest: { default: null },
   },
   mounted() {
@@ -17,6 +19,7 @@ export default {
       if (this.refreshCategoryCart) this.refreshCategoryCart();
     },
     loadCategoryData() {
+      if (this.shopId) return getShopCategories(this.shopId);
       const initial = !this._initialCategoryUsed && this.initialCategoryRequest;
       this._initialCategoryUsed = true;
       // Share only this page entry's already-started read. Refreshes stay fresh.

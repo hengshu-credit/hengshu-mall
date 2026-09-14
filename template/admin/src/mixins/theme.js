@@ -22,9 +22,9 @@ export default {
   methods: {
     getInfo() {
       if (this.$route && /\/setting\/edit_theme$/.test(this.$route.path || '')) {
-        const id=this.$route.query.id || 0;
+        const id=this.$route.query.page_type === 'shop' ? 0 : this.$route.query.id || 0;
         this.colorStyle=editorPalette({});
-        return themeInfo(id,'theme').then(res=>{this.colorStyle=editorPalette(res.data);}).catch(err=>this.$message.error(err.msg || '主题配色加载失败'));
+        return themeInfo(id,'theme').then(res=>{this.colorStyle={...editorPalette(res.data),showMerchantName:!!res.data.show_merchant_name};}).catch(err=>this.$message.error(err.msg || '主题配色加载失败'));
       }
       getColorChange('color_change')
         .then((res) => {

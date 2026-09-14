@@ -14,6 +14,9 @@ use think\facade\Route;
  * 财务模块 相关路由
  */
 Route::group('finance', function () {
+    Route::get('commerce/health','v1.finance.CommerceHealth/health');
+    Route::get('commerce/tasks','v1.finance.CommerceHealth/tasks');
+    Route::get('commerce/refunds','v1.finance.CommerceHealth/refunds');
 
     /** 提现 */
     Route::group(function () {

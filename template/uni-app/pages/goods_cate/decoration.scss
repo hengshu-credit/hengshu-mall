@@ -57,3 +57,13 @@
   &.productSort > .category-module-shell > .scroll-box { min-width: 0; }
 }
 
+
+// Content order is shared with the editor, including independently configured searches.
+.category-decorated {
+  &.goodCate { display:flex;flex-direction:column;padding-top:var(--category-title-height, 0px); }
+  &.goodCate > .category-search-shell { position:relative;top:auto;left:auto;flex-shrink:0; }
+  &.productSort > .category-search-shell { position:relative; }
+  > .category-search-shell > .header { position:relative;top:auto; }
+  > .category-module-shell { flex-shrink:0; }
+  > .category-module-shell ~ view:not(.category-search-shell):not(.category-module-shell) { order:1000000; }
+}

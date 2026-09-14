@@ -10,6 +10,7 @@ export default {
   },
   methods: {
     loadProductCategories(refresh, cacheKey) {
+      if (this.shopId) { cacheKey += '_SHOP_' + this.shopId; refresh = true; }
       const cached = !refresh && uni.getStorageSync(cacheKey);
       const request = cached ? Promise.resolve({ data: cached }) : this.loadCategoryData();
       return request.then(res => {

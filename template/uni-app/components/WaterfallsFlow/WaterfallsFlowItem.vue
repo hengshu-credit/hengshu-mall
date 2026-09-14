@@ -5,13 +5,15 @@
 			mode="widthFix"
 			:marketing-style="item.marketing_style" :image-src="item.image"
 			width="100%"
-			height="345rpx"
+			:height="imageHeight"
 			borderRadius="16rpx 16rpx 0 0"></easy-loadimage>
 		</view>
 		<view class="info_box">
 			<view class="w-full line2 fs-28 text--w111-333 lh-40rpx">
 				<text v-if="item.brand_name" class="brand-tag">{{ item.brand_name }}</text>{{item.store_name}}
 			</view>
+            <merchant-name :product="item" :show="showMerchantName" />
+            <discount-explanation mode="product" :context="{product:item}" />
 			<view class="mt-8">
 				<view class="flex-y-center flex-wrap mt-8">
 					<baseMoney :money="item.price" symbolSize="24" integerSize="40" decimalSize="24" weight></baseMoney>
@@ -36,13 +38,19 @@
 </template>
 <script>
 	import easyLoadimage from '@/components/easy-loadimage/easy-loadimage.vue'
+    import MerchantName from '@/components/merchantName/index.vue';
+    import DiscountExplanation from '@/components/discountExplanation/index.vue';
 	import {mapGetters} from "vuex";
 	import {HTTP_REQUEST_URL} from '@/config/app';
 	export default {
 		components: {
+            MerchantName,
+            DiscountExplanation,
 			easyLoadimage
 		},
 		props: {
+            showMerchantName: {default:undefined},
+            imageHeight: {type:String,default:'345rpx'},
 			item: {
 				type: Object,
 				require: true

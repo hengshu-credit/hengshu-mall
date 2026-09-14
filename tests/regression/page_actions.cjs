@@ -36,7 +36,7 @@ const Vue = require(path.join(deps, 'vue'));
 const calls = [];
 global.uni = { navigateTo: options => calls.push(['web', options.url]), navigateBack: options => options.fail(), setClipboardData: options => calls.push(['copy', options.data]) };
 global.getCurrentPages = () => [{ route:'pages/goods_cate/goods_cate', $page:{fullPath:'/pages/goods_cate/goods_cate?sid=21'} }];
-const component = load('template/uni-app/components/pageActionButtons/index.vue', id => id.includes('shared/') ? shared : id.includes('utils/') ? {getCustomer:path=>calls.push(['customer',path])} : {HTTP_REQUEST_URL:'https://mall.test'}).default;
+const component = load('template/uni-app/components/pageActionButtons/index.vue', id => id.includes('shared/') ? require('./ranking_shared_loader.cjs').loadShared(id.split('/').pop()) : id.includes('utils/') ? {getCustomer:path=>calls.push(['customer',path])} : {HTTP_REQUEST_URL:'https://mall.test'}).default;
 const buttons = new Vue(component);
 buttons.$util = {JumpPath: path => calls.push(['navigate',path])};
 buttons.$on('action', action => calls.push(['action', action]));

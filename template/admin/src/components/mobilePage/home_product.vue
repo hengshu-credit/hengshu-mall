@@ -2,7 +2,7 @@
   <common_wrapper :config="configObj">
     <div class="home_product">
       <div class="hd_nav" v-if="styleConfig == 0">
-        <div class="item" :class="index == tabCur ? 'active' : ''" v-for="(item, index) in navlist" :key="index">
+        <div class="item" :class="index == tabCur ? 'active' : ''" v-for="(item, index) in navlist" :key="index" @click.stop="selectTab(index)">
           <p
             class="title"
             :style="{ color: index == tabCur ? (toneConfig ? textColor2 : colorStyle.theme) : '#282828' }"
@@ -23,7 +23,7 @@
             class="item"
             :class="index == tabCur ? 'on' : ''"
             v-for="(item, index) in navlist"
-            :key="index"
+            :key="index" @click.stop="selectTab(index)"
             :style="{
               color: index == tabCur ? (toneConfig ? textColor : '#333') : '#282828',
             }"
@@ -41,7 +41,7 @@
             class="item"
             :class="index == tabCur ? 'on3' : ''"
             v-for="(item, index) in navlist"
-            :key="index"
+            :key="index" @click.stop="selectTab(index)"
             :style="{
               color: index == tabCur ? (toneConfig ? textColor2 : colorStyle.theme) : '#282828',
             }"
@@ -59,7 +59,7 @@
             class="item"
             :class="index == tabCur ? 'on2' : ''"
             v-for="(item, index) in navlist"
-            :key="index"
+            :key="index" @click.stop="selectTab(index)"
             :style="{
               color: index == tabCur ? (toneConfig ? textColor3 : '#fff') : '#282828',
               background: index == tabCur ? (toneConfig ? decorateColor : themeColor) : '',
@@ -69,7 +69,7 @@
           </div>
         </template>
         <template v-if="styleConfig == 4">
-          <div class="item pic" v-for="(item, index) in navlist" :key="index">
+          <div class="item pic" v-for="(item, index) in navlist" :key="index" @click.stop="selectTab(index)">
             <div
               class="pictrue acea-row row-center-wrapper"
               :style="{
@@ -77,7 +77,7 @@
               }"
             >
               <img class="img" :src="item.image" v-if="item.image" />
-              <img src="../../assets/images/shan.png" v-else />
+              <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" v-else />
             </div>
             <div
               class="title"
@@ -91,7 +91,8 @@
           </div>
         </template>
       </div>
-      <div class="list-wrapper">
+      <div v-if="!list.length" class="tab-products-empty">{{productPreviewMessage || '暂无商品，试试其他分类'}}</div>
+      <div v-else class="list-wrapper" :class="{'single-product':list.length===1}">
         <div class="item" v-for="(item, index) in list" :key="index">
           <div class="img-box">
             <img
@@ -105,27 +106,25 @@
             />
             <div
               v-else
-              class="empty-box"
+              class="empty-box theme-product-placeholder-frame"
               :style="{
                 borderRadius: bgRadius,
               }"
             >
-              <img src="../../assets/images/shan.png" />
+              <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" />
             </div>
           </div>
-          <div class="info" :style="{ borderRadius: bgRadius2 }">
+          <div class="info">
             <div class="title line2">
               {{ item.store_name || '这里是商品名称展示区域,商品名称展示区域,商品名称展示区域' }}
             </div>
-            <div class="pictrue">
-              <img src="../../assets/images/goods01.png" />
-            </div>
+            <div v-if="item.merchant_name && colorStyle.showMerchantName" class="merchant-label">{{item.merchant_name}} ›</div>
+            <div v-if="item.label_list && item.label_list.length" class="product-labels"><span v-for="(label,i) in item.label_list" :key="i">{{label.name}}</span></div>
             <div class="price">
               <div class="num" :style="{ color: goodsPriceColor }">
-                <span>￥</span>{{ item.price ? $HandlePrice(item.price, 0) : 77
-                }}<span>{{ item.price ? $HandlePrice(item.price, 1) : '' }}</span>
+                <span>￥</span>{{ item.price !== undefined ? $HandlePrice(item.price, 0) : 0
+                }}<span>{{ item.price !== undefined ? $HandlePrice(item.price, 1) : '.00' }}</span>
               </div>
-              <img src="../../assets/images/goods02.png" />
             </div>
             <div class="sales">已售{{ item.sales || 0 }}件</div>
           </div>
@@ -149,8 +148,11 @@
 
 <script>
 import { mapState } from 'vuex';
+import decorationProducts from '@/mixins/decorationProducts';
+import {productTabsMargin,productTabsCard} from '../../../../shared/productTabs';
 // import theme from "@/mixins/theme";
 export default {
+  mixins:[decorationProducts],
   name: 'home_product',
   cname: '商品选项卡',
   configName: 'c_home_product',
@@ -202,6 +204,9 @@ export default {
         cname: '商品选项卡',
         desc: '商品选项卡',
         name: 'promotionList',
+        cardStyleVersion: 1,
+        marginConfig: productTabsMargin(),
+        paddingConfig: {title:'内边距',val:12,min:0,isAll:false,valList:[{val:12},{val:12},{val:12},{val:12}]},
         timestamp: this.num,
         isHide: false,
         setUp: {
@@ -555,7 +560,7 @@ export default {
             { val: '单个', icon: 'iconcaozuo-bianjiao' },
           ],
           valName: '圆角值',
-          val: 0,
+          val: 12,
           min: 0,
           valList: [{ val: 0 }, { val: 0 }, { val: 0 }, { val: 0 }],
         },
@@ -596,8 +601,11 @@ export default {
     });
   },
   methods: {
+    selectTab(index){this.$set(this.configObj.tabConfig,'tabCur',index);this.setConfig(this.configObj);},
     setConfig(data) {
       if (!data) return;
+      const card=productTabsCard(data);
+      ['marginConfig','paddingConfig','fillet','componentBgConfig','cardStyleVersion'].forEach(key=>this.$set(data,key,card[key]));
       for (let key in this.defaultConfig) {
         if (data[key] == undefined) {
           this.$set(data, key, JSON.parse(JSON.stringify(this.defaultConfig[key])));
@@ -617,7 +625,7 @@ export default {
       let decorateColorLeft = data.decorateColor.color[0].item;
       let decorateColorRight = data.decorateColor.color[1].item;
       this.decorateColorLeft = decorateColorLeft;
-      this.goodsPriceColor = this.toneCartConfig ? data.goodsPriceColor.color[0].item : '#E93323';
+      this.goodsPriceColor = this.toneCartConfig ? data.goodsPriceColor.color[0].item : this.colorStyle.theme || '#E93323';
       this.decorateColor = `linear-gradient(90deg,${decorateColorLeft} 0%,${decorateColorRight} 100%)`;
       this.decorateColor2 = data.decorateColor2.color[0].item;
       this.themeColor = `linear-gradient(90deg,${this.colorStyle.theme} 0%,${this.colorStyle.gradient} 100%)`;
@@ -643,17 +651,6 @@ export default {
         if (data.bottomConfig) paddingConfig.valList[2].val = data.bottomConfig.val;
         this.$set(this.configObj, 'paddingConfig', paddingConfig);
       }
-      if (!data.marginConfig) {
-        let marginConfig = {
-          title: '外边距',
-          isAll: false,
-          val: 0,
-          min: 0,
-          valList: [{ val: 0 }, { val: 0 }, { val: 0 }, { val: 0 }],
-        };
-        if (data.mbConfig) marginConfig.valList[0].val = data.mbConfig.val;
-        this.$set(this.configObj, 'marginConfig', marginConfig);
-      }
       let fillet = data.fillet.type;
       let filletVal = data.fillet.val;
       let valList = data.fillet.valList;
@@ -666,13 +663,7 @@ export default {
       this.navlist = data.tabConfig.list;
       this.tabCur = data.tabConfig.tabCur || 0;
       let goods = data.tabConfig.list[this.tabCur];
-      if (goods.tabVal == 1 && goods.goodsList.list) {
-        this.list = goods.goodsList.list.length ? goods.goodsList.list : 2;
-      } else if (goods.goodsList.list) {
-        this.list = goods.productList.list.length ? goods.productList.list : 2;
-      } else {
-        this.list = goods.productList.list.length ? goods.productList.list : 2;
-      }
+      this.refreshPreviewProducts({name:'promotionList',typeConfig:{activeValue:Number(goods.tabVal)||3},goodsList:goods.goodsList||{list:[]},classList:{classVal:goods.selectConfig&&goods.selectConfig.activeValue||[]},goodsLabel:goods.goodsLabel||{activeValue:[]},goodsSort:{tabVal:Number(goods.goodsSort)||0},numberConfig:goods.numConfig||{val:6}});
     },
   },
 };
@@ -965,5 +956,29 @@ export default {
       }
     }
   }
+}
+
+.home_product {
+  .menus { width:100%; overflow-x:auto; padding:0 0 10px; gap:24px; margin:0; }
+  .menus .item { margin:0; padding:8px 0; flex-shrink:0; font-size:14px; line-height:22px; }
+  .menus .item.on { font-size:15px; font-weight:600; }
+  .hd_nav { margin-bottom:10px; }
+  .tab-products-empty { padding:26px 12px;text-align:center;background:#f7f8fa;border-radius:8px;color:#999;font-size:13px;line-height:20px; }
+  .list-wrapper { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
+  .list-wrapper .item { width:auto;min-width:0;margin:0;background:#f7f7f7;border-radius:8px;overflow:hidden; }
+  .list-wrapper .img-box { width:100%;height:auto;aspect-ratio:1; }
+  .list-wrapper .img-box .img { width:100%;height:100%;object-fit:contain; }
+  .list-wrapper .info { padding:10px;background:transparent;border-radius:0; }
+  .list-wrapper .info .title { font-size:14px;line-height:20px; }
+  .list-wrapper .info .price { margin-top:8px; }
+  .list-wrapper .info .price .num { font-size:20px;line-height:26px;font-weight:600; }
+  .list-wrapper .info .sales { margin-top:8px;font-size:11px;line-height:18px;padding-right:26px; }
+  .merchant-label { margin-top:4px;font-size:11px;color:#888;line-height:17px; }
+  .product-labels { display:flex;gap:4px;font-size:11px;color:#999; }
+  .list-wrapper.single-product { grid-template-columns:minmax(0,1fr); }
+  .list-wrapper.single-product .item { display:grid;grid-template-columns:112px minmax(0,1fr);gap:10px;padding:10px; }
+  .list-wrapper.single-product .img-box { width:112px;height:112px;border-radius:8px;overflow:hidden; }
+  .list-wrapper.single-product .info { min-width:0;padding:0; }
+  .list-wrapper.single-product .info .title { min-height:40px; }
 }
 </style>

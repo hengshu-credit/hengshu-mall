@@ -364,6 +364,8 @@
 </template>
 
 <script>
+import {merchantLink} from '../../../shared/merchantLinks';
+import { HTTP_REQUEST_URL } from '@/config/app';
 import commonWrapper from "./commonWrapper.vue";
 import { getCustomer } from "@/utils/index.js";
 import { toLogin } from "@/libs/login.js";
@@ -373,6 +375,7 @@ export default {
   components: { commonWrapper },
   name: "menus",
   props: {
+    shopId: {type:Number,default:0},
     dataConfig: {
       type: Object,
       default: () => {},
@@ -643,14 +646,17 @@ export default {
       };
     },
     menusTap(url) {
-      this.$util.JumpPath(url);
+      this.$util.JumpPath(merchantLink(url,this.shopId));
     },
     goMenuPage(url) {
+      url=merchantLink(url,this.shopId);
+      if (!url) return;
+      if (url.startsWith('/pages/merchant/')) return this.$util.JumpPath(url);
       if (this.isLogin) {
         if (url.indexOf("http") === -1) {
           if (url== "/kefu/mobile_list") {
             return uni.navigateTo({
-              url: `/pages/annex/web_view/index?url=${location.origin}${url}`,
+              url: '/pages/annex/web_view/index?url=' + encodeURIComponent(HTTP_REQUEST_URL + url),
             });
           } else if (url == "/pages/extension/customer_list/chat") {
             return getCustomer(url);

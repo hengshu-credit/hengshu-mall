@@ -57,7 +57,11 @@ class AdminAuthServices extends BaseServices
         /** @var JwtAuth $jwtAuth */
         $jwtAuth = app()->make(JwtAuth::class);
         //设置解析token
-        [$id, $type, $pwd] = $jwtAuth->parseToken($token);
+        try {
+            if (substr_count($token,'.')!==2) throw new \RuntimeException('Malformed token');
+            [$id, $type, $pwd] = $jwtAuth->parseToken($token);
+            if ($type !== 'admin' || (int)$id <= 0) throw new \RuntimeException('Wrong token audience');
+        } catch (\Throwable $error) { throw new AuthException($msg, [], 401); }
 
         //检测token是否过期
         $md5Token = md5($token);
@@ -79,7 +83,7 @@ class AdminAuthServices extends BaseServices
 
         //获取管理员信息
         $adminInfo = $this->dao->get($id);
-        if (!$adminInfo || !$adminInfo->id) {
+        if (!$adminInfo || !$adminInfo->id || !$adminInfo->status || $adminInfo->is_del) {
             if (!request()->isCli()) {
                 $cacheService->delete($md5Token);
             }

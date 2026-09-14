@@ -2025,18 +2025,19 @@ class UserServices extends BaseServices
      */
     public function setMemberOverdueTime($vip_day, int $user_id, int $is_money_level, $member_type = false)
     {
+        return $this->transaction(function()use($vip_day,$user_id,$is_money_level,$member_type){
         if ($vip_day == 0) throw new ApiException('天数不能为0');
-        $user_info = $this->getUserInfo($user_id, 'is_money_level,overdue_time');
+        $user_info = $this->getOneForUpdate(['uid'=>$user_id], 'is_money_level,overdue_time,is_ever_level');
         if (!$user_info) throw new ApiException('用户不存在');
         if (!$member_type) $member_type = "month";
-        if ($member_type == 'ever') {
+        if ($member_type == 'ever' || !empty($user_info['is_ever_level'])) {
             $overdue_time = 0;
             $is_ever_level = 1;
         } else {
             if ($user_info['is_money_level'] == 0) {
                 $overdue_time = bcadd(bcmul($vip_day, 86400, 0), time(), 0);
             } else {
-                $overdue_time = bcadd(bcmul($vip_day, 86400, 0), $user_info['overdue_time'], 0);
+                $overdue_time = bcadd(bcmul($vip_day, 86400, 0), max(time(), (int)$user_info['overdue_time']), 0);
             }
             $is_ever_level = 0;
         }
@@ -2045,6 +2046,7 @@ class UserServices extends BaseServices
         $setData['is_money_level'] = $is_money_level ?: 0;
         // if ($user_info['level'] == 0) $setData['level'] = 1;
         return $this->dao->update(['uid' => $user_id], $setData);
+        });
     }
 
     /**

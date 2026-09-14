@@ -1,0 +1,28 @@
+// Explanations describe server prices; they never compute an alternative checkout total.
+export function priceExplanation(mode, context = {}) {
+  if (context.pending) return ['正在计算优惠，完成后请确认金额。'];
+  if (context.error) return ['优惠尚未确认，请重新计算后提交。'];
+  const lines = [];
+  if (mode === 'product') {
+    if (Number((context.product || {}).vip_price) > 0) lines.push('付费会员价格需满足对应会员条件。');
+    lines.push('商品价格以所选规格为准，运费与可用优惠在结算时确认。');
+    return lines;
+  }
+  let activities = context.activities || [];
+  if (mode === 'order') {
+    activities = ((context.snapshot || {}).cartInfo || []).map(item => item.full_reduction_activity).filter(Boolean);
+    lines.push('金额依据成交时保存的价格与优惠快照。退款按商品行已分摊实付款计算。');
+  }
+  const seen = new Set();
+  activities.forEach(activity => {
+    const name = typeof activity.name === 'string' ? activity.name : '';
+    const key = activity.id || name;
+    if (!name || seen.has(key)) return;
+    seen.add(key);
+    const amount = Number(activity.discount);
+    lines.push(name + (Number.isFinite(amount) && amount > 0 ? '：优惠 ¥' + amount.toFixed(2) : ''));
+  });
+  if (mode === 'cart') lines.push('合计不含运费；优惠券与积分在结算时确认。');
+  if (mode === 'confirm') lines.push(context.exclusive ? '专属活动按活动规则结算，优惠券与积分是否可用以本页试算为准。' : '先按会员价计算满减，再使用符合条件的优惠券与积分；运费另计。');
+  return lines;
+}

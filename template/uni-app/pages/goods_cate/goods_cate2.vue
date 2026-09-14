@@ -2,8 +2,8 @@
 	<view class="goodCate category-decorated" :style="decorationStyle" :class="decorationClasses">
 		<!-- <view>
 			<scroll-view scroll-y="true" class="scroll-Y"> -->
-		<view v-if="categoryAppearance.show_search" class="category-search-shell">
-          <header-serch :dataConfig="categoryAppearance.search_component" :special="1" />
+		<view v-for="module in categorySearchModules" :key="module.id" class="category-search-shell" :style="{order:module.order}">
+          <header-serch :dataConfig="module.config" :shopId="shopId" :special="1" />
         </view>
         <view v-show="categoryAppearance.show_category && !categoryAppearance.category_hidden" class="category-module-shell" :style="categoryOuterStyle">
 		<view class="conter" :style="categoryModuleStyle">
@@ -248,6 +248,7 @@ export default {
 			});
 		},
 		getCartList(iSshow) {
+      if (!this.isLogin) { if (!iSshow) this.getIsLogin(); return; }
 			let that = this;
 			vcartList().then((res) => {
 				that.$set(that.cartData, 'cartList', res.data);
@@ -257,7 +258,7 @@ export default {
 					that.$set(that.cartData, 'iScart', false);
 				}
 				that.getTotalPrice();
-			});
+			}).catch(() => { that.$set(that.cartData, 'iScart', false); });
 		},
 		closeList(e) {
 			this.$set(this.cartData, 'iScart', e);
@@ -267,11 +268,12 @@ export default {
 			this.productslist();
 		},
 		getCartNum() {
+      if (!this.isLogin) { this.cartCount = 0; return; }
 			let that = this;
 			getCartCounts().then((res) => {
 				that.cartCount = res.data.count;
 				if (that.$refs.d_goodClass) that.$refs.d_goodClass.addIng = false;
-			});
+			}).catch(() => { that.cartCount = 0; });
 		},
 
 		onMyEvent: function () {
@@ -387,6 +389,7 @@ export default {
 			that.loading = true;
 			that.loadTitle = '';
 			getProductslist({
+        seller_shop_id: this.shopId,
 				page: that.page,
 				limit: that.limit,
 				type: 1,

@@ -24,6 +24,8 @@ class UserMoneyServices extends BaseServices
      * @var array[]
      */
     protected $incomeData = [
+        'recharge_refund_reserve' => ['title'=>'充值退款预留','type'=>'recharge_refund_reserve','mark'=>'退款预留扣除可用余额{%num%}元','status'=>1,'pm'=>0],
+        'recharge_refund_release' => ['title'=>'退款关闭释放预留','type'=>'recharge_refund_release','mark'=>'退款关闭退回预留余额{%num%}元','status'=>1,'pm'=>1],
         'pay_product' => [
             'title' => '余额支付购买商品',
             'type' => 'pay_product',

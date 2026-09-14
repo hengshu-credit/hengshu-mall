@@ -97,7 +97,8 @@ class CapitalFlowServices extends BaseServices
         $data['nickname'] = $orderInfo['nickname'];
         $data['phone'] = $orderInfo['phone'];
         $data['add_time'] = time();
-        $this->dao->save($data);
+        if (!$this->dao->save($data)) throw new \RuntimeException('写入资金流水失败');
+        return true;
     }
 
     /**

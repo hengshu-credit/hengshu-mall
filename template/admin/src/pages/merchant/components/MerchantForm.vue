@@ -17,6 +17,7 @@
         </el-form-item></el-col>
         <el-col :span="24"><el-form-item label="Logo"><el-input :value="value.logo" placeholder="图片地址，可选" @input="set('logo', $event)"><el-button v-if="!readonly" slot="append" @click="chooseLogo">选择图片</el-button></el-input></el-form-item></el-col>
         <el-col :span="24"><el-form-item label="简介"><el-input :value="value.description" type="textarea" :rows="2" maxlength="2000" @input="set('description', $event)" /></el-form-item></el-col>
+        <el-col :span="24"><el-form-item label="绑定商户主题"><shop-page-select :value="Number(value.shop_page_id || 0)" :disabled="readonly" @input="set('shop_page_id', $event)" /><p class="help">在“装修 > 商户主题”配置后绑定；进店后使用对应的首页、分类、详情及风格。</p></el-form-item></el-col>
         <el-col :span="24"><el-form-item label="内部备注"><el-input :value="value.remark" type="textarea" :rows="2" maxlength="2000" @input="set('remark', $event)" /></el-form-item></el-col>
       </el-row>
       <el-form-item label="主体类别" required>
@@ -60,8 +61,10 @@
 <script>
 import { uploadMerchantDocument, merchantFile, saveBlob } from '@/api/merchant';
 import { sections, subjectNames, docNames, formatTime } from '../fields';
+import ShopPageSelect from '@/components/merchantDecoration/ShopPageSelect';
 export default {
   name: 'MerchantForm',
+  components: { ShopPageSelect },
   props: { value: { type: Object, required: true }, types: { type: Array, default: () => [] }, tags: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] }, shopId: { type: Number, default: 0 }, readonly: Boolean, sensitive: Boolean, canFiles: Boolean },
   data() { return { sections, subjectNames, docNames, uploading: false, uploadKind: 'contract', localDocuments: [], previewOpen: false, previewUrl: '', previewMime: '' }; },
   computed: { selectedDocuments() { const map = new Map([...this.documents, ...this.localDocuments].map((item) => [Number(item.id), item])); return (this.value.document_ids || []).map((id) => map.get(Number(id)) || { id, name: `文件 #${id}`, kind: '', created_at: 0 }); } },

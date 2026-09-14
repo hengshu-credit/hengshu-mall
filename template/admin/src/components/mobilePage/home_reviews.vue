@@ -1,21 +1,21 @@
 <template>
-  <common_wrapper :config="configObj" v-if="!isHide">
+  <common_wrapper :config="configObj" v-if="!isHide && (!liveProductPreview || Number(previewDetail.replyCount)>0)">
     <div class="reviews-box">
       <!-- Header -->
       <div class="header">
         <div class="left">
           <span class="title" :style="{ color: titleColor }">评价</span>
-          <span class="count" :style="{ color: countColor }" v-if="checkList.includes(0)">(2.3k)</span>
+          <span class="count" :style="{ color: countColor }" v-if="checkList.includes(0)">({{liveProductPreview ? previewDetail.replyCount : '2.3k'}})</span>
         </div>
         <div class="right" v-if="checkList.includes(1)">
-          <span class="rate"><span :style="{ color: rateColor }">99.0% </span>好评率</span>
+          <span class="rate"><span :style="{ color: rateColor }">{{liveProductPreview ? previewDetail.replyChance : '99.0'}}% </span>好评率</span>
           <span class="iconfont iconyou" :style="{ color: rateColor }"></span>
         </div>
       </div>
 
       <!-- Review List -->
       <div class="list" :class="{ 'is-slide': isSlide }">
-        <div class="item" v-for="(item, index) in showList" :key="index">
+        <div class="item" v-for="(item, index) in displayedReviews" :key="index">
           <div class="user-info">
             <div class="avatar">
               <img :src="item.avatar" alt="" />
@@ -47,8 +47,10 @@
 
 <script>
 import { mapState } from 'vuex';
+import productPreview from '@/mixins/productPreview';
 
 export default {
+  mixins:[productPreview],
   name: 'home_reviews',
   cname: '商品评价',
   configName: 'c_reviews',
@@ -65,6 +67,7 @@ export default {
     },
   },
   computed: {
+    displayedReviews(){return this.liveProductPreview ? (Array.isArray(this.previewDetail.previewReplies)?this.previewDetail.previewReplies:[]).slice(0,this.configObj.numConfig?this.configObj.numConfig.val:2).map(r=>({...r,name:r.nickname,content:r.comment,star:r.product_score,images:r.pics||[]})) : this.showList;},
     ...mapState('mobildConfig', ['defaultArray']),
   },
   watch: {

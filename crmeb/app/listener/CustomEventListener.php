@@ -24,6 +24,7 @@ class CustomEventListener
                 eval(json_decode($item['customCode']));
             }
         } catch (\Throwable $e) {
+            \app\services\order\OrderPaymentDispatchServices::recordDeliveryFailure();
             $listener_log_open = config("log.listener_log", false);
             if ($listener_log_open) {
                 $date = date('Y-m-d H:i:s', time());

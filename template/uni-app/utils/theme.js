@@ -31,6 +31,11 @@ export function hexToRgba(hex, alpha) {
  * @param {Object} data 主题数据
  */
 export function setThemeColor(data) {
+  if (data) {
+    const showMerchant = !!data.show_merchant_name;
+    uni.setStorageSync('showMerchantName', showMerchant);
+    uni.$emit('merchant-name-display', showMerchant);
+  }
   if (data && data.theme_color) {
     const variables = paletteVariables(data);
     const selectedTheme = Object.keys(variables)

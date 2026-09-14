@@ -376,17 +376,17 @@ class StoreOrderCreateServices extends BaseServices
         if ($useIntegral && $userInfo['integral'] > 0) {
             /** @var UserServices $userServices */
             $userServices = app()->make(UserServices::class);
-            if (!$priceData['SurplusIntegral']) {
-                $res2 = false !== $userServices->update($uid, ['integral' => 0]);
-            } else {
-                $res2 = false !== $userServices->bcDec($userInfo['uid'], 'integral', $priceData['usedIntegral'], 'uid');
+            $current = $userServices->getOneForUpdate(['uid' => $uid]);
+            if (!$current || bccomp((string)$current['integral'], (string)$priceData['usedIntegral'], 2) < 0) {
+                throw new ApiException('可用积分已变化，请重新确认订单');
             }
+            $res2 = false !== $userServices->bcDec($uid, 'integral', (string)$priceData['usedIntegral'], 'uid');
             /** @var UserBillServices $userBillServices */
             $userBillServices = app()->make(UserBillServices::class);
             $res3 = $userBillServices->income('deduction', $uid, [
                 'number' => $priceData['usedIntegral'],
                 'deductionPrice' => $priceData['deduction_price']
-            ], $userInfo['integral'] - $priceData['usedIntegral'], $orderId);
+            ], bcsub((string)$current['integral'], (string)$priceData['usedIntegral'], 2), $orderId);
 
             $res2 = $res2 && false != $res3;
         }

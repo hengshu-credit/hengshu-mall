@@ -1,0 +1,60 @@
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const {chromium}=require('playwright');const {root,modules,bundle}=require('./theme_component_harness.cjs');
+const {loadShared}=require('./ranking_shared_loader.cjs');
+const compiled=bundle('template/admin/src/components/themeActions/RankingPreview.vue',[
+ 'template/admin/src/components/themeActions/RankingSettings.vue','template/admin/src/components/merchantDecoration/Settings.vue',
+ 'template/admin/src/components/merchantDecoration/Preview.vue','template/admin/src/components/linkaddress/index.vue',
+]);
+const out=path.join(root,'.build/decoration-controls');fs.mkdirSync(out,{recursive:true});
+(async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});try{
+ const page=await browser.newPage({viewport:{width:1500,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.setContent('<div id="app"></div>');for(const file of ['vue/dist/vue.js','vuex/dist/vuex.js','element-ui/lib/index.js'])await page.addScriptTag({path:path.join(modules,file)});
+ await page.addStyleTag({path:path.join(modules,'element-ui/lib/theme-chalk/index.css')});
+ await page.addStyleTag({content:compiled.css+'body{margin:0;background:#eee;font-family:Arial,"Microsoft YaHei"}*{box-sizing:border-box}.controls{display:grid;grid-template-columns:400px 480px;gap:40px;padding:28px}.preview{background:#ddd;align-self:start;padding:10px}.settings{background:white;max-height:920px;overflow:auto}.c_row-item{display:flex}.c_label{width:90px;flex-shrink:0}'});
+ await page.evaluate(({compiled,rank,merchant})=>{
+  Vue.directive('db-click',{});Vue.directive('permission',{});Vue.prototype.$route={query:{type:'home',page_type:'micro'}};
+  const cache={},file=suffix=>Object.keys(compiled.records).find(k=>k.endsWith(suffix));
+  const api={rankingList:async q=>({data:{list:[{id:91,page_id:501,name:'数码商品热销榜',entity_type:'product',status:'running'},{id:92,page_id:502,name:'好评店铺排行榜',entity_type:'shop',status:'running'}].filter(r=>!q.entity_type||r.entity_type===q.entity_type),count:1}}),getCategory:async()=>({data:[]}),pageCategory:async()=>({data:[{id:1,name:'商城页面',children:[{id:2,pid:1,name:'商城链接',children:[{id:3,pid:2,name:'基础链接',type:'link',children:[]}]}]}]}),cascaderListApi:async()=>({data:[]}),linkListApi:async()=>({data:{list:[],count:0}}),merchantOptions:async()=>({data:[{id:7,name:'数码旗舰店',available:true}]})};
+  const load=id=>{if(cache[id])return cache[id].exports;const r=compiled.records[id],m=cache[id]={exports:{}};new Function('module','exports','require',r.code)(m,m.exports,name=>{if(name==='@/components/linkaddress')return load(file('/linkaddress/index.vue'));if(name.startsWith('@/api/'))return api;if(name==='vuex')return Vuex;if(name==='@/setting')return{apiBaseURL:''};if(name.includes('uploadPictures'))return{template:'<div />'};if(/\.png$/.test(name))return'';if(!r.dependencies[name])throw Error('Missing test dependency '+name);return load(r.dependencies[name]);});if(r.template){Object.assign(m.exports.default,Vue.compile(r.template));m.exports.default._scopeId=r.scope;}return m.exports;};
+  const store=new Vuex.Store({state:{mobildConfig:{defaultArray:{1000:rank}}}});
+  window.vm=new Vue({store,provide(){return{decorationTheme:()=>this.palette};},components:{RankPreview:load(compiled.main).default,RankSettings:load(file('/RankingSettings.vue')).default,MerchantSettings:load(file('/merchantDecoration/Settings.vue')).default,MerchantPreview:load(file('/merchantDecoration/Preview.vue')).default},data:{rank,merchant,mode:'rank',palette:{theme:'#155eef',gradient:'#5599ff',minorColor:'#f90',minorColorT:'#eef4ff',priceColor:'#155eef'}},template:'<div class="controls"><div class="preview"><rank-preview v-if="mode===\'rank\'" :config="rank" :color-style="palette" detail /><merchant-preview v-else :config="merchant" :color-style="palette" /></div><div class="settings"><rank-settings v-if="mode===\'rank\'" :num="1000" detail /><merchant-settings v-else :config="merchant" /></div></div>'}).$mount('#app');
+ },{compiled,rank:loadShared('rankingComponent').rankingComponent('productRank'),merchant:loadShared('merchantDecoration').merchantComponent('recommendGroup')});
+ await page.getByText('样式设置',{exact:true}).click();
+ const surface=page.locator('.ranking-preview .component-surface');
+ const background=page.locator('[data-common-field="background"]');
+ for(const input of await background.locator('.custom-color > .el-input input').all())await input.fill('#abcdef');
+ await page.waitForFunction(()=>getComputedStyle(document.querySelector('.ranking-preview .component-surface')).backgroundImage.includes('171, 205, 239'));
+ for(const input of await background.locator('.custom-color > .el-input input').all())await input.fill('transparent');
+ assert(!(await surface.evaluate(el=>getComputedStyle(el).backgroundImage)).includes('255, 255, 255'),'transparent must not reveal a hidden white layer');
+ await page.locator('[data-common-field="radius"] .el-slider__input input').fill('28');
+ assert.equal(await surface.evaluate(el=>getComputedStyle(el).borderTopLeftRadius),'28px');
+ const border=page.locator('[data-common-field="border"]');await border.getByText('显示',{exact:true}).click();
+ await border.locator('.el-slider__input input').fill('5');await border.locator('.el-slider__input input').press('Tab');
+ await border.locator('.custom-color > .el-input input').fill('#123456');assert.equal(await surface.evaluate(el=>getComputedStyle(el).borderTop),'5px solid rgb(18, 52, 86)');
+ await border.getByText('隐藏',{exact:true}).click();assert.equal(await surface.evaluate(el=>getComputedStyle(el).borderTopWidth),'0px');
+ const arrow=page.locator('[data-field="arrowColor"] .color-source');await arrow.click();await page.locator('.el-select-dropdown:visible').getByText('主题主色',{exact:true}).click();
+ await page.waitForFunction(()=>getComputedStyle(document.querySelector('.rp-detail-arrow')).color==='rgb(21, 94, 239)');
+ assert.equal(await page.locator('.rp-detail-arrow').evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
+ assert((await page.locator('.rp-detail-arrow').getAttribute('class')).includes('iconyou'));
+ await page.evaluate(()=>{vm.palette.theme='#e53975';});await page.waitForFunction(()=>getComputedStyle(document.querySelector('.rp-detail-arrow')).color==='rgb(229, 57, 117)');
+ await page.evaluate(()=>{const saved=JSON.parse(JSON.stringify(vm.rank));vm.rank=saved;vm.$store.state.mobildConfig.defaultArray={1000:saved};});
+ assert.equal(await surface.evaluate(el=>getComputedStyle(el).borderTopLeftRadius),'28px');
+ await page.screenshot({path:path.join(out,'rank-controls.png')});
+ await page.evaluate(()=>vm.mode='merchant');
+ const first=page.locator('.group-card').first();await first.locator('.el-form-item').filter({hasText:'点击跳转'}).locator('.el-select').click();
+ await page.locator('.el-select-dropdown:visible').getByText('URL网址',{exact:true}).click();await first.getByPlaceholder('https://example.com/page').fill('https://example.com/deals?a=1&b=2#top');
+ assert.equal(await page.evaluate(()=>vm.merchant.groups[0].link),'https://example.com/deals?a=1&b=2#top');
+ await first.locator('.el-form-item').filter({hasText:'点击跳转'}).locator('.el-select').click();await page.locator('.el-select-dropdown:visible').getByText('商城页面',{exact:true}).click();
+ await first.getByPlaceholder('请选择页面').click();
+ const dialog=page.locator('.el-dialog:visible').last();await dialog.getByText('商品排行榜',{exact:true}).click();await dialog.getByText('数码商品热销榜',{exact:true}).click();await dialog.getByRole('button',{name:/确\s*定/}).click();
+ assert.equal(await page.evaluate(()=>vm.merchant.groups[0].link),'/pages/annex/special/index?theme_id=501');
+ await first.getByRole('button',{name:'选择页面',exact:true}).click();await dialog.getByText('店铺排行榜',{exact:true}).click();await dialog.getByText('好评店铺排行榜',{exact:true}).click();await dialog.getByRole('button',{name:/确\s*定/}).click();
+ assert.equal(await page.evaluate(()=>vm.merchant.groups[0].link),'/pages/annex/special/index?theme_id=502');
+ await first.getByPlaceholder('请选择页面').click();await dialog.locator('.el-tree').getByText('店铺页面',{exact:true}).click();
+ await dialog.locator('.merchant-link-options > .el-select').click();await page.locator('.el-select-dropdown:visible').getByText('店铺分类',{exact:true}).click();
+ await dialog.getByPlaceholder('搜索并选择店铺').click();await page.locator('.el-select-dropdown:visible').getByText('数码旗舰店',{exact:true}).click();
+ await page.screenshot({path:path.join(out,'new-page-links.png')});await dialog.getByRole('button',{name:/确\s*定/}).click();
+ assert.equal(await page.evaluate(()=>vm.merchant.groups[0].link),'/pages/merchant/category?id=7');assert.equal(await page.evaluate(()=>vm.merchant.groups[1].link),'','other recommendation items are untouched');
+ fs.writeFileSync(path.join(out,'saved-configs.json'),JSON.stringify(await page.evaluate(()=>({rank:vm.rank,recommend:vm.merchant})),null,2));
+ assert.deepEqual(errors,[]);console.log('PASS: actual background/alpha/border/radius controls, theme binding and reload; plain chevron; recommendation URL and real shared page picker including product/shop boards and shop category');
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

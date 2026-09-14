@@ -12,22 +12,16 @@ try {
     $bundledNode = Join-Path $projectRoot 'HBuilderX/plugins/node/node.exe'
     $node = if (Test-Path -LiteralPath $bundledNode) { $bundledNode } else { (Get-Command node -ErrorAction Stop).Source }
     $adminRoot = Join-Path $projectRoot 'template/admin'
-    Push-Location $adminRoot
-    try {
-        if (!(Test-Path -LiteralPath 'node_modules/@vue/cli-service/bin/vue-cli-service.js')) {
-            & npm.cmd ci --legacy-peer-deps
-            if ($LASTEXITCODE -ne 0) { throw 'Installing admin dependencies failed.' }
-        }
-        $major = [int]((& $node -p 'parseInt(process.versions.node)').Trim())
-        if ($major -ge 17 -and $env:NODE_OPTIONS -notmatch 'openssl-legacy-provider') {
-            $env:NODE_OPTIONS = "$oldNodeOptions --openssl-legacy-provider".Trim()
-        }
-        & $node node_modules/@vue/cli-service/bin/vue-cli-service.js build --mode=production
-        if ($LASTEXITCODE -ne 0) { throw 'Admin production build failed.' }
-    } finally { Pop-Location }
+    if (!(Test-Path -LiteralPath (Join-Path $adminRoot 'node_modules/@vue/cli-service/bin/vue-cli-service.js'))) {
+        Push-Location $adminRoot
+        try { & npm.cmd ci --legacy-peer-deps; if ($LASTEXITCODE -ne 0) { throw 'Installing admin dependencies failed.' } } finally { Pop-Location }
+    }
+    & $node (Join-Path $projectRoot 'help/release/check-gate.cjs')
+    if ($LASTEXITCODE -ne 0) { throw 'Required verification has not passed for the current source.' }
+    & python (Join-Path $projectRoot 'tests/tooling/build-frontends.py') admin h5
+    if ($LASTEXITCODE -ne 0) { throw 'Verified frontend builds failed.' }
     New-Item -ItemType Directory -Path $stageParent -Force | Out-Null
-    $h5Output = Join-Path $stageParent 'h5'
-    & (Join-Path $projectRoot 'help/release/build-h5.ps1') -OutputPath $h5Output
+    $h5Output = Join-Path $projectRoot '.build/storefront-hardening/h5'
     $packageArgs = @((Join-Path $projectRoot 'help/release/package.cjs'), $stageParent)
     $packageArgs += @('--h5', $h5Output)
     if ($Update) { $packageArgs += '--update' }

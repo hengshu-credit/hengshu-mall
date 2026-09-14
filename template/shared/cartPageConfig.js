@@ -1,6 +1,7 @@
 import { commonStyleDefaults, componentStyle } from './componentStyle';
 import { headerActions } from './pageActions';
 import { pageTitleFromPage, syncLegacyPageTitle } from './pageTitleComponent';
+import { normalizeModuleOrder } from './pageModuleOrder';
 
 export function normalizeCartPage(value = {}) {
   const defaults = {
@@ -17,10 +18,17 @@ export function normalizeCartPage(value = {}) {
   defaults.checkout_style.paddingConfig.isAll = true;
   defaults.checkout_style.paddingConfig.valList = [6, 15, 6, 15].map(val => ({ val }));
   const result = { ...defaults, ...JSON.parse(JSON.stringify(value || {})) };
+  result.navigation_source = ['home', 'custom', 'none'].includes(result.navigation_source)
+    ? result.navigation_source : result.navigation && result.navigation.menuList ? 'custom' : 'home';
   result.title_actions = headerActions(result.title_actions || { right: [{ type: 'cartManage', showLabel: true }] });
   result.title_component = pageTitleFromPage(result, '购物车');
   syncLegacyPageTitle(result);
   ['service_style', 'list_style', 'checkout_style'].forEach(key => { result[key] = { ...defaults[key], ...(result[key] || {}) }; });
+  result.extra_modules = (Array.isArray(result.extra_modules) ? result.extra_modules : []).filter(item => item && /^service_\w+$/.test(item.id) && item.config).map(item => ({
+    id: item.id,
+    config: { service_labels: item.config.service_labels || defaults.service_labels, service_style: { ...defaults.service_style, ...item.config.service_style }, service_hidden: !!item.config.service_hidden },
+  }));
+  result.content_order = normalizeModuleOrder(result.content_order, ['service', 'list'], result.extra_modules);
   return result;
 }
 

@@ -764,8 +764,9 @@ function add(value) {
     seen[value] = true;
     urls.push({type: 'image', url: value});
 }
-function scan(doc) {
-    var roots = doc.querySelectorAll('#J-detail-content, #detail, #product-detail, .detail-content, .ssd-module-wrap, .ssd-module');
+function scan(doc, descriptionFrame) {
+    var roots = doc.querySelectorAll('#J-detail-content, #detail, #product-detail, #detail-top, #detail-main, #detail-footer, #industrial-introduction, .detail-content, .ssd-module-wrap, .ssd-module');
+    if (!roots.length && descriptionFrame && doc.body) roots = [doc.body];
     var visited = new Set();
     function visit(el) {
         if (visited.has(el)) return;
@@ -781,7 +782,7 @@ function scan(doc) {
         var match, pattern = /url\(["']?([^"')]+)["']?\)/g;
         while ((match = pattern.exec(bg))) add(match[1]);
         if (el.tagName === 'IFRAME') {
-            try { if (el.contentDocument) scan(el.contentDocument); } catch (e) {}
+            try { if (el.contentDocument) scan(el.contentDocument, true); } catch (e) {}
         }
         for (var i = 0; i < el.children.length; i++) visit(el.children[i]);
     }

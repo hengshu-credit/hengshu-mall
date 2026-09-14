@@ -17,7 +17,18 @@
             </div>
           </div>
         </div>
-        <div class="right_box" v-if="currenType == 'marketing_link' && coupon.length">
+        <div class="right_box merchant-link-options" v-if="currenType === 'merchant_link'">
+          <div class="cont">店铺页面</div>
+          <div class="Box">
+            <div class="cont_box" v-for="item in visibleMerchantLinks" :key="item.id" :class="currenId === item.id ? 'on' : ''" @click="getUrl(item)">{{ item.name }}</div>
+          </div>
+          <div class="cont">指定店铺页面</div>
+          <el-select v-model="shopDestination" size="small" @change="selectMerchantLink(selectedShopId)"><el-option v-for="(label,key) in shopDestinations" :key="key" :value="key" :label="label" /></el-select>
+          <merchant-select v-model="selectedShopId" placeholder="搜索并选择店铺" @change="selectMerchantLink" />
+          <p>“商品所属店铺”用于商品详情或店铺装修，将打开当前商品所属的店铺。个人中心可选择“已关注店铺”或指定店铺。</p>
+        </div>
+        <div class="right_box" v-if="currenType==='product_ranking_link'||currenType==='shop_ranking_link'"><ranking-links :entity="currenType==='product_ranking_link'?'product':'shop'" :selected-url="currenUrl" @pick="getUrl" /></div>
+        <div class="right_box" v-if="currenType == 'marketing_link'  && coupon.length">
           <div>
             <div class="cont">优惠券</div>
             <div class="Box">
@@ -271,7 +282,10 @@ import {
 import { lotteryList } from '@/api/lottery';
 import { cmsListApi } from '@/api/cms';
 import { linkListApi } from '@/api/setting';
+import RankingLinks from './RankingLinks';
+import MerchantSelect from '@/components/merchantSelect/index.vue';
 export default {
+  components: { MerchantSelect,RankingLinks },
   name: 'linkaddress',
   props: {
     fromType: {
@@ -283,6 +297,14 @@ export default {
     return {
       modals: false,
       categoryData: [],
+      selectedShopId: 0,shopDestination:'home',shopDestinations:{home:'店铺主页',category:'店铺分类',products:'店铺商品',sales:'店铺商品销量榜',rating:'店铺商品好评榜'},
+      merchantLinks: [
+        { id: 'merchant-followed', name: '已关注店铺', url: '/pages/merchant/followed' },
+        { id:'mall-sales-ranking',name:'商城商品销量榜',url:'/pages/merchant/ranking?type=sales' },
+        { id:'mall-rating-ranking',name:'商城商品好评榜',url:'/pages/merchant/ranking?type=rating' },
+        { id: 'merchant-street', name: '店铺街', url: '/pages/merchant/street' },
+        { id: 'merchant-current', name: '商品所属店铺', url: '/pages/merchant/shop?from=product' },
+      ],
       currenType: 'link',
       props: {
         label: 'name',
@@ -415,12 +437,17 @@ export default {
       treeId: 0,
     };
   },
-  computed: {},
+  computed: {visibleMerchantLinks(){const query=this.$route&&this.$route.query||{};const context=['detail','shop'].includes(query.type)||query.page_type==='merchant';return this.merchantLinks.filter(item=>item.id!=='merchant-current'||context);}},
   created() {
     this.getSort();
     this.goodsCategory();
   },
   methods: {
+    selectMerchantLink(id) {
+      if(Number(id)<=0){this.currenUrl='';return;}
+      const urls={home:'/pages/merchant/shop?id=',category:'/pages/merchant/category?id=',products:'/pages/merchant/products?shop_id=',sales:'/pages/merchant/ranking?type=sales&shop_id=',rating:'/pages/merchant/ranking?type=rating&shop_id='};
+      this.getUrl({id:'merchant-'+this.shopDestination+'-'+id,url:urls[this.shopDestination]+Number(id)});
+    },
     getTemplateRow(row) {
       this.presentId = row.id;
       this.currenUrl = row.url;
@@ -511,6 +538,7 @@ export default {
     },
     reset() {
       this.currenUrl = '';
+      this.selectedShopId = 0;
       this.presentId = 0;
       this.currenId = '';
       // this.customdate.name="";
@@ -526,7 +554,7 @@ export default {
           if (res.data.length) {
             res.data[0].children[0].selected = true;
           }
-          this.categoryData = res.data;
+          this.categoryData = [{id:'new-storefront-links',name:'排行榜与店铺',children:[{id:'ranking-product-pages',pid:'new-storefront-links',type:'product_ranking_link',name:'商品排行榜'},{id:'ranking-shop-pages',pid:'new-storefront-links',type:'shop_ranking_link',name:'店铺排行榜'},{id:'merchant-pages',pid:'new-storefront-links',type:'merchant_link',name:'店铺页面'}]},...res.data];
           if (
             this.fromType === 'diyPage' &&
             res.data.length &&
@@ -685,6 +713,10 @@ export default {
       }
       this.loading = true;
       this.currenType = data.type;
+      if (['merchant_link','product_ranking_link','shop_ranking_link'].includes(this.currenType)) {
+        this.loading = false;
+        return;
+      }
       if (
         this.currenType == 'product' ||
         this.currenType == 'seckill' ||

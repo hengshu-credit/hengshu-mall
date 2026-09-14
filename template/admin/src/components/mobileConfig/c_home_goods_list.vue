@@ -1,5 +1,10 @@
 <template>
   <div class="mobile-config">
+    <div v-if="configObj.setUp && configObj.setUp.tabVal === 0" style="padding:15px">
+      <label>列表标题</label>
+      <el-input :value="configObj.headerText ? configObj.headerText.value : ''" placeholder="留空隐藏标题" @input="$set(configObj, 'headerText', { title: '列表标题', value: $event })" />
+    </div>
+    <div v-if="configObj.setUp && configObj.setUp.tabVal === 0" style="padding:15px">商户店铺名称 <el-select size="small" :value="configObj.showMerchantName === undefined ? 'theme' : configObj.showMerchantName ? 'show' : 'hide'" @change="$event === 'theme' ? $delete(configObj, 'showMerchantName') : $set(configObj, 'showMerchantName', $event === 'show')"><el-option label="跟随主题" value="theme" /><el-option label="显示" value="show" /><el-option label="隐藏" value="hide" /></el-select></div>
     <div v-for="(item, key) in rCom" :key="key">
       <component
         :is="item.components.name"

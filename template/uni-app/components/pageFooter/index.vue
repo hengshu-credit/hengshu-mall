@@ -69,10 +69,12 @@ import { activeNavigationIndex, navigationVisible, navigationPage, navigationPat
 import { componentStyle as commonComponentStyle } from '../../../shared/componentStyle';
 import { HTTP_REQUEST_URL } from "@/config/app.js";
 import BaseBadge from "@/components/BaseBadge/index.vue";
+import { scopedNavigation } from '../../../shared/decorationContext';
 export default {
   name: "pageFooter",
   components: { BaseBadge },
   props: {
+    pageScoped: { type: Boolean, default: false },
     mainNavigationOnly: { type: Boolean, default: false },
     managed: { type: Boolean, default: false },
     collapsed: { type: Boolean, default: false },
@@ -177,7 +179,7 @@ export default {
     configData: {
       handler(newVal) {
         if (newVal) {
-          let configData = newVal;
+          let configData = this.pageScoped ? scopedNavigation(newVal) : newVal;
           this.newData = configData;
           this.showTabBar = !!(configData.effectConfig && Number(configData.effectConfig.tabVal));
         }
@@ -279,6 +281,9 @@ export default {
       this.$nextTick(this.measureFooter);
     },
     navigationInfo() {
+      if (this.pageScoped) {
+        this.setNavigationInfo(scopedNavigation(this.configData)); return Promise.resolve();
+      }
       if (this.configData && this.configData.mainNavigation && this.configData.mainNavigation.pageScoped) {
         this.setNavigationInfo(this.configData); return Promise.resolve();
       }

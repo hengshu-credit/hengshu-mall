@@ -9,6 +9,8 @@
 // +----------------------------------------------------------------------
 
 import request from '@/libs/request';
+import axios from 'axios';
+import setting from '@/setting';
 
 /**
  * @description 获取分类
@@ -438,6 +440,24 @@ export function getProProduct(data) {
     method: 'get',
     params: data,
   });
+}
+
+export function getStorefrontPreview(params) {
+  const {kind,...filters}=params;
+  return request({url:'diy_pro/get_product',method:'get',params:{...filters,preview_kind:kind}});
+}
+
+export async function getDecorationProductDetail(id) {
+  const base=setting.apiBaseURL.replace(/\/adminapi\/?$/,'');
+  const response=await axios.get(base+'/api/product/detail/'+Number(id));
+  if(response.data.status!==200)throw new Error(response.data.msg||'商品预览读取失败');
+  if(Number(response.data.data.replyCount)>0){
+    const reviews=await axios.get(base+'/api/reply/list/'+Number(id),{params:{page:1,limit:50}});
+    if(reviews.data.status===200)response.data.data.previewReplies=reviews.data.data;
+  }
+  const ranks=await axios.get(base+'/api/marketing/product_rankings/'+Number(id),{params:{limit:1}}).catch(()=>null);
+  response.data.data.previewRankings=ranks&&ranks.data.status===200?ranks.data.data.list||[]:[];
+  return response.data.data;
 }
 
 /**

@@ -111,6 +111,13 @@ class CategoryPageConfig
             $result['navigation'] = $navigation ? MainNavigationConfig::validateComponent($navigation) : [];
         }
         foreach (['search_style', 'category_style'] as $key) if (isset($value[$key])) $result[$key] = ComponentStyleConfig::validate($value[$key]);
+        if (isset($result['category_style'])) {
+            $fillet = $result['category_style']['fillet'] ?? [];
+            $fillet['type'] = 0;
+            $fillet['val'] = 0;
+            $fillet['valList'] = array_map(function ($index) use ($fillet) { return array_replace($fillet['valList'][$index] ?? [], ['val'=>0]); }, [0,1,2,3]);
+            $result['category_style']['fillet'] = $fillet;
+        }
         if (isset($value['layout_configs'])) {
             if (!is_array($value['layout_configs']) || count($value['layout_configs']) > 3) throw new AdminException('分类组件配置格式不正确');
             $result['layout_configs'] = [];
@@ -120,6 +127,7 @@ class CategoryPageConfig
                 $result['layout_configs'][$key] = self::validate(array_replace($layout, ['status' => (int)$key]));
             }
         }
+        if (isset($value['extra_modules']) || isset($value['content_order'])) $result = array_replace($result, PageModuleConfig::validate($value, 'category'));
         return $result;
     }
 }

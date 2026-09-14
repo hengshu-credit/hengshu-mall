@@ -74,8 +74,10 @@ class ThemeServices extends BaseServices
         [$page, $limit] = $this->getPageValue();
         $field = 'id,title,info,type,home_image,category_image,detail_image,user_image,theme_data,add_time,up_time,is_use,page_type';
         $order = 'id desc';
-        if (($where['page_type'] ?? '') === 'all') {
-            unset($where['page_type']);
+        if (($where['page_type'] ?? '') === 'merchant') {
+            $where['page_type'] = ['merchant','shop'];
+        } elseif (($where['page_type'] ?? '') === 'all') {
+            $where['page_type'] = ['theme', 'micro'];
         } else {
             $where['page_type'] = 'theme';
         }
@@ -149,8 +151,15 @@ class ThemeServices extends BaseServices
         $info = $this->dao->get($where);
         if (!$info) throw new AdminException('数据不存在');
         $info = $info->toArray();
+        if (!empty($info['is_del'])) throw new AdminException('页面已删除');
+        if (($info['page_type'] ?? '') === 'shop' && in_array($type,['category','detail','theme'],true)) {
+            $fallback = $this->getThemeInfo(0,$type);
+            if ($type === 'category') $fallback['status'] = (int)((json_decode($info['home_data'],true) ?: [])['shop_category_style'] ?? 1);
+            return $fallback;
+        }
         if ($type == 'home') {
-            return json_decode($info['home_data'], true) ?? [];
+            $home = json_decode($info['home_data'], true) ?? [];
+            return \app\services\merchant\MerchantThemeServices::isMerchant($info['page_type'] ?? '') ? \app\services\merchant\MerchantThemeServices::home($home) : $home;
         } elseif ($type == 'navigation') {
             return MainNavigationConfig::read(json_decode($info['home_data'], true) ?: []);
         } elseif ($type == 'category') {
@@ -161,6 +170,9 @@ class ThemeServices extends BaseServices
             return json_decode($info['detail_data'], true) ?? [];
         } elseif ($type == 'user') {
             return json_decode($info['user_data'], true) ?? [];
+        } elseif ($type == 'shop') {
+            if (!\app\services\merchant\MerchantThemeServices::isMerchant($info['page_type'] ?? '')) throw new AdminException('请选择商户主题');
+            return \app\services\merchant\MerchantThemeServices::home(json_decode($info['home_data'] ?? '', true) ?: []);
         } elseif ($type == 'cart') {
             return (json_decode($info['theme_data'] ?? '', true) ?: [])['cart_page'] ?? [];
         } elseif ($type == 'theme') {
@@ -208,6 +220,24 @@ class ThemeServices extends BaseServices
      */
     public function saveTheme($id, $data)
     {
+        $oldKind = $id ? $this->dao->value(['id'=>$id],'page_type') : '';
+        $merchantTheme = ($data['page_type'] ?? '') === 'merchant' || $oldKind === 'merchant';
+        if ($merchantTheme && $data['type'] === 'shop') $data['type'] = 'home';
+        if ($merchantTheme) {
+            if ($id && !\app\services\merchant\MerchantThemeServices::isMerchant($oldKind)) throw new AdminException('请选择商户主题');
+            if (!in_array($data['type'],['home','category','detail','theme'],true)) throw new AdminException('商户主题只支持首页、分类、详情及风格');
+            $data['page_type']='merchant';
+        }
+        if ($data['type'] === 'shop') {
+            if ($id && $this->dao->value(['id'=>$id], 'page_type') !== 'shop') throw new AdminException('请选择店铺专题页面');
+            $data['page_type'] = 'shop';
+            $layout = $data['value']['shop_category_style'] ?? 1;
+            if (!in_array($layout, [1,2,3], true)) throw new AdminException('店铺分类样式请选择1、2或3');
+            $data['value']['shop_category_style'] = $layout;
+        }
+        if (in_array($data['type'], ['home','detail','user','shop'], true)) $data['value'] = RankingDecorationConfig::validatePage($data['value']);
+        if (in_array($data['type'], ['home','detail','user','shop'], true)) $data['value'] = MerchantDecorationConfig::validatePage($data['value']);
+        if ($data['type'] === 'shop') $data['value'] = PageActionsConfig::validatePage(MainNavigationConfig::validatePage($data['value']), 'shop');
         if ($data['type'] === 'theme') $data['value'] = ThemePaletteConfig::validate($data['value']);
         if ($data['type'] === 'navigation') return $this->saveNavigation((int)$id, $data['value']);
         if ($data['type'] === 'category') $data['value'] = CategoryPageConfig::validate($data['value']);
@@ -246,6 +276,19 @@ class ThemeServices extends BaseServices
         } else {
             $type = $this->dao->value(['id' => $id], 'type');
         }
+
+        if ($merchantTheme && ((!$id && !$data['tid']) || $oldKind === 'shop')) {
+            $seed = \app\services\merchant\MerchantThemeServices::seed();
+            if ($oldKind === 'shop') {
+                $legacyHome=json_decode($this->dao->value(['id'=>$id],'home_data'),true) ?: [];
+                $legacyCategory=CategoryPageConfig::read(json_decode($seed['category_data'],true));
+                $legacyCategory['status']=(int)($legacyHome['shop_category_style'] ?? 1);
+                $seed['category_data']=$seed['category_default_data']=json_encode($legacyCategory);
+                unset($seed['home_data'],$seed['home_default_data'],$seed['home_data_update_time']);
+            }
+            $saveData = array_replace($saveData,$seed);
+        }
+        if ($merchantTheme) $saveData['page_type']='merchant';
 
         // 将传入的 value 统一转为 JSON 字符串
         $value = json_encode($data['value']);
@@ -294,6 +337,11 @@ class ThemeServices extends BaseServices
                 }
                 break;
 
+            case 'shop':
+                $saveData['home_data'] = $value;
+                $saveData['home_data_update_time'] = time();
+                if ($type == 0) $saveData['home_default_data'] = $value;
+                break;
             case 'cart':
                 $palette = json_decode($saveData['theme_data'] ?? ($id ? $this->dao->value(['id'=>$id], 'theme_data') : ''), true) ?: [];
                 $palette['cart_page'] = $data['value'];
@@ -350,6 +398,8 @@ class ThemeServices extends BaseServices
      */
     public function saveThemeTitle($id, $data)
     {
+        if ($id && \app\services\merchant\MerchantThemeServices::isMerchant($this->dao->value(['id'=>$id],'page_type'))) $data['page_type'] = $this->dao->value(['id'=>$id],'page_type');
+        if (!$id && ($data['page_type'] ?? '') === 'merchant' && !$data['tid']) $saveData=\app\services\merchant\MerchantThemeServices::seed();
         // 如果指定了模板主题 ID（tid），则先复制其数据作为基础
         if ($data['tid'] !== 0) {
             // 查询模板主题
@@ -397,6 +447,10 @@ class ThemeServices extends BaseServices
     {
         $type = $id ? $this->dao->value(['id' => $id], 'type') : 0;
         switch ($data['type']) {
+            case 'shop':
+                $saveData['home_image'] = $data['image'];
+                if ($type == 0) $saveData['home_default_image'] = $data['image'];
+                break;
             case 'home':
                 $saveData['home_image'] = $data['image'];
                 if ($type == 0) $saveData['home_default_image'] = $data['image'];
@@ -467,6 +521,7 @@ class ThemeServices extends BaseServices
         foreach (['home_data', 'detail_data', 'user_data'] as $page) {
             $decoded = $decode($config[$page] ?? []);
             if (!is_array($decoded)) throw new AdminException('导入主题页面配置格式不正确');
+            if (isset($decoded['value'])) $decoded = MerchantDecorationConfig::validatePage($decoded);
             $config[$page] = json_encode($decoded, JSON_UNESCAPED_UNICODE);
         }
         $config['theme_data'] = $decode($config['theme_data'] ?? []);
@@ -520,6 +575,8 @@ class ThemeServices extends BaseServices
      */
     public function useTheme(int $id)
     {
+        $target = $this->dao->get($id);
+        if (!$target || !empty($target['is_del']) || ($target['page_type'] ?? 'theme') !== 'theme') throw new AdminException('请选择商城主题，店铺页面请在商户资料中绑定');
         $this->dao->update(['is_use' => 1], ['is_use' => 0]);
         $this->dao->update($id, ['is_use' => 1]);
         return true;
@@ -680,6 +737,15 @@ class ThemeServices extends BaseServices
         $data = $this->dao->get($id);
         if (!$data) throw new AdminException('主题不存在');
         if ($data['is_use']) throw new AdminException('当前主题正在使用中，不能删除');
+        if (\app\services\merchant\MerchantThemeServices::isMerchant($data['page_type'])) {
+            return \think\facade\Db::transaction(function () use ($id) {
+                // Serialize deletion with merchant binding validation on this page row.
+                \think\facade\Db::name('theme')->where('id', $id)->lock(true)->find();
+                \app\services\merchant\MerchantShopPages::assertUnbound($id);
+                $this->dao->update($id, ['is_del' => 1]);
+                return true;
+            });
+        }
         $this->dao->update($id, ['is_del' => 1]);
         return true;
     }
@@ -701,6 +767,17 @@ class ThemeServices extends BaseServices
         if (!in_array($page, ['home', 'category', 'detail', 'user', 'cart', 'other'], true)) $page = 'other';
         if (in_array($page, ['home', 'category', 'detail', 'user', 'cart'], true)) {
             $data = $this->getThemeInfo($themeId, $page);
+            if ($page === 'cart') {
+                // Legacy empty arrays were written by the editor even when the
+                // page should inherit Home. Explicit removal now records 'none'.
+                $source = $data['navigation_source'] ?? (!empty($data['navigation']['menuList']) ? 'custom' : 'home');
+                if ($source === 'none') return [];
+                if ($source === 'home') {
+                    $home = MainNavigationConfig::component($this->getThemeInfo($themeId, 'home'));
+                    if ($home) $home['mainNavigation']['pageScoped'] = true;
+                    return $home;
+                }
+            }
             $navigation = in_array($page, ['category','cart'], true) ? ($data['navigation'] ?? []) : MainNavigationConfig::component($data);
             if (($data['navigation_mode'] ?? '') === 'page' || ($navigation['name'] ?? '') === 'mainNavigation' || ($navigation && in_array($page, ['category', 'cart'], true))) {
                 if ($navigation) $navigation['mainNavigation']['pageScoped'] = true;
@@ -753,14 +830,14 @@ class ThemeServices extends BaseServices
      * @email 442384644@qq.com
      * @date 2026/02/03
      */
-    public function getMicroPageList()
+    public function getMicroPageList(array $filters = [])
     {
         [$page, $limit] = $this->getPageValue(); // 获取分页参数
         $field = 'id,title,info,type,add_time,up_time,page_type'; // 查询字段
         $order = 'id desc'; // 排序
         $where = [
             'is_del' => 0, // 未删除
-            'page_type' => 'micro', // 微页面类型
+            'page_type' => in_array($filters['page_type'] ?? '', ['micro','shop'], true) ? $filters['page_type'] : ['micro','shop'],
         ];
         $list = $this->dao->themeList($where, $field, $page, $limit, $order); // 查询列表
         foreach ($list as &$item) {

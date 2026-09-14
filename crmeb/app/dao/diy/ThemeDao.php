@@ -53,7 +53,7 @@ class ThemeDao extends BaseDao
             })->when(isset($where['type']) && $where['type'] !== '', function ($query) use ($where) {
                 $query->where('type', $where['type']);
             })->when(isset($where['page_type']) && $where['page_type'] !== '', function ($query) use ($where) {
-                $query->where('page_type', $where['page_type']);
+                $query->whereIn('page_type', (array)$where['page_type']);
             });
     }
 

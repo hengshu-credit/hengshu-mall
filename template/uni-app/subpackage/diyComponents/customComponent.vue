@@ -187,6 +187,7 @@ export default {
     CommonWrapper,
   },
   props: {
+    shopId: {type:Number,default:0},
     dataConfig: {
       type: Object,
       default: () => ({}),
@@ -534,6 +535,7 @@ export default {
     // though width usually suffices.
   },
   watch: {
+    shopId(){if(this.selectTypeValue==='goods')this.fetchGoodsData();},
     dataConfig: {
       handler(val) {
         this.fetchData();
@@ -627,6 +629,8 @@ export default {
       });
     },
     fetchGoodsData() {
+      const request=this._goodsRequest=(this._goodsRequest||0)+1;
+      this.dataList=[];
       if (!this.configObj.goodsDataSource) return;
       let params = {
         limit: this.configObj.goodsNum.val,
@@ -649,9 +653,11 @@ export default {
           ? this.configObj.goodsClass.activeValue.join(",")
           : this.configObj.goodsClass.activeValue;
       }
+      if(this.shopId)params.seller_shop_id=this.shopId;
       getThemeProduct(params).then((res) => {
+        if(this._isDestroyed||request!==this._goodsRequest||this.selectTypeValue!=='goods')return;
         this.dataList = res.data;
-      });
+      }).catch(()=>{});
     },
     fetchUserInfo() {
       getThemeUser().then((res) => {

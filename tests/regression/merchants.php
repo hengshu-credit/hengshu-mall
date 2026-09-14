@@ -35,10 +35,10 @@ checkMerchant('known legacy products migrated',Db::name('store_product')->where(
 checkMerchant('unknown nonzero legacy ownership preserved',Db::name('store_product')->where('id',2)->value('seller_shop_id')==0);
 checkMerchant('one set of merchant menu entries',Db::name('system_menus')->where('unique_auth','admin-merchant-management')->count()===1);
 $merchantMenu=Db::name('system_menus')->where('unique_auth','admin-merchant-management')->find();
-checkMerchant('merchant menu uses an available Element icon',$merchantMenu['icon']==='s-shop');
+checkMerchant('merchant menu uses an available Element icon',$merchantMenu['icon']==='office-building');
 Db::name('system_menus')->where('id',$merchantMenu['id'])->update(['icon'=>'ios-people-outli']);
 MerchantInstaller::menus(); MerchantInstaller::menus();
-checkMerchant('truncated legacy merchant icon is repaired without replacing the menu',Db::name('system_menus')->where('id',$merchantMenu['id'])->value('icon')==='s-shop' && Db::name('system_menus')->where('unique_auth','admin-merchant-management')->count()===1);
+checkMerchant('truncated legacy merchant icon is repaired without replacing the menu',Db::name('system_menus')->where('id',$merchantMenu['id'])->value('icon')==='office-building' && Db::name('system_menus')->where('unique_auth','admin-merchant-management')->count()===1);
 Db::name('system_menus')->where('id',$merchantMenu['id'])->update(['icon'=>'s-cooperation']);
 MerchantInstaller::menus();
 checkMerchant('custom merchant menu icons are preserved',Db::name('system_menus')->where('id',$merchantMenu['id'])->value('icon')==='s-cooperation');

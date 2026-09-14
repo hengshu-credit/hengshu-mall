@@ -129,7 +129,7 @@
             <div class="goods-wrapper">
               <template v-if="item.goods.length > 0">
                 <div class="goods-item" v-for="(goods, index) in item.goods" :key="index">
-                  <img src="../../assets/images/shan.png" alt="" />
+                  <img class="theme-product-placeholder" src="../../assets/images/product-diy.png" alt="" />
                   <span v-if="index < 2">￥{{ goods.price }}</span>
                   <span class="num" v-else>+5</span>
                 </div>

@@ -38,6 +38,7 @@ class MerchantServices
         $changes = $extra['changes'] ?? MerchantData::diff($before,$after);
         foreach ($changes as &$change) {
             if ($change['field'] === 'type_id') foreach (['before','after'] as $side) $change[$side . '_label'] = Db::name('merchant_type')->where('id',(int)$change[$side])->value('name') ?: '';
+            if ($change['field'] === 'shop_page_id') foreach (['before','after'] as $side) $change[$side . '_label'] = $change[$side] ? (Db::name('theme')->where('id',(int)$change[$side])->value('title') ?: '已删除页面') : '基础店铺页';
             if ($change['field'] === 'tag_ids') foreach (['before','after'] as $side) $change[$side . '_label'] = $change[$side] ? Db::name('merchant_tag')->whereIn('id',$change[$side])->order('id')->column('name') : [];
         }
         unset($change);
@@ -132,6 +133,7 @@ class MerchantServices
         unset($row['profile']);
         foreach (['id','subject_id','type_id','is_platform','owner_uid','version','created_at','updated_at'] as $field) $row[$field]=(int)$row[$field];
         $row['profile'] = $sensitive ? $data : MerchantData::redact($data);
+        $row['shop_page_title'] = !empty($data['shop_page_id']) ? (Db::name('theme')->where('id',(int)$data['shop_page_id'])->where('is_del',0)->value('title') ?: '') : '';
         $row['type_name'] = Db::name('merchant_type')->where('id',$row['type_id'])->value('name') ?: '已删除类型';
         $row['tags'] = $data['tag_ids'] ? Db::name('merchant_tag')->whereIn('id',$data['tag_ids'])->select()->toArray() : [];
         $row['pending'] = null;
@@ -246,6 +248,7 @@ class MerchantServices
             $effective=$row?$this->profile($row):[];
             $before=$pending?MerchantVault::decrypt($pending['data']):$effective;
             $data=MerchantData::normalize($input,$before,$actor['sensitive'] ?? false);
+            MerchantShopPages::validate((int)($data['shop_page_id'] ?? 0));
             $this->validateDictionary($data,$before);
             $this->checkDocuments($data['document_ids'],$id,$actor);
             if ($row && !MerchantData::diff($before,$data)) return ['id'=>$id,'version'=>$version,'changed'=>false];

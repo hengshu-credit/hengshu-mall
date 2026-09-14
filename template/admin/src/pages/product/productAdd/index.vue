@@ -153,6 +153,7 @@
           @addcustom="addcustom"
         ></other-setting>
 
+        <quality-review v-show="currentTab === '1'" v-model="formValidate.quality_review" />
         <el-form-item>
           <el-button
             v-if="!$route.params.id && currentTab === '1'"
@@ -373,6 +374,7 @@ import {
   RuleValidate,
 } from './defaultData.js';
 import BasicInfo from './components/BasicInfo.vue';
+import QualityReview from './components/QualityReview.vue';
 import SpecStock from './components/SpecStock.vue';
 import ProductDetail from './components/ProductDetail.vue';
 import LogisticsSetting from './components/LogisticsSetting.vue';
@@ -384,6 +386,7 @@ import { formatRichText } from '@/utils/editorImg';
 export default {
   name: 'ProductAdd',
   components: {
+    QualityReview,
     uploadPictures,
     freightTemplate,
     addAttr,
@@ -493,6 +496,7 @@ export default {
       currentIndex: 0,
 
       formValidate: {
+        quality_review: {},
         disk_info: '', //卡密类型
         logistics: ['1'], //选择物流方式
         freight: 2, //运费设置
@@ -2041,7 +2045,7 @@ export default {
           this.formValidate.label_id = activeIds;
           if (this.openSubimit) return;
           this.openSubimit = true;
-          this.formValidate.description = formatRichText(this.content);
+          this.formValidate.description = formatRichText(this.content, true);
           if (this.formValidate.spec_type === 0) {
             this.formValidate.attrs = item;
             this.formValidate.header = [];

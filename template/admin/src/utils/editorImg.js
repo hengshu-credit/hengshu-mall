@@ -7,17 +7,21 @@
 // +----------------------------------------------------------------------
 // | Author: CRMEB Team <admin@crmeb.com>
 // +----------------------------------------------------------------------
-export function formatRichText(html) {
-  let newContent = html.replace(/<img[^>]*>/gi, function (match, capture) {
+import { fullWidthDescriptionImages } from '../../../shared/productDescription';
+
+export function formatRichText(html, fullWidthImages = false) {
+  let newContent = fullWidthImages ? fullWidthDescriptionImages(html) : html.replace(/<img[^>]*>/gi, function (match, capture) {
     match = match.replace(/style="[^"]+"/gi, '').replace(/style='[^']+'/gi, '');
     match = match.replace(/width="[^"]+"/gi, '').replace(/width='[^']+'/gi, '');
     match = match.replace(/height="[^"]+"/gi, '').replace(/height='[^']+'/gi, '');
     return match;
   });
   newContent = newContent.replace(/style="[^"]+"/gi, function (match, capture) {
-    match = match.replace(/width:[^;]+;/gi, 'max-width:100%;').replace(/width:[^;]+;/gi, 'max-width:100%;');
+    match = match.replace(/(^style="|;)\s*(?:max-)?width\s*:[^;"]+;?/gi, '$1max-width:100%;');
     return match;
   });
+
+  if (fullWidthImages) return fullWidthDescriptionImages(newContent);
 
   // 如果需要移除换行请打开
   // newContent = newContent.replace(/<br[^>]*\/>/gi, '');

@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const cp = require('child_process');
 const root = path.resolve(__dirname, '../..');
+const sourceState = require('./check-gate.cjs').checkGate();
 if (!process.argv[2]) throw Error('Run ./package.ps1 from the project root');
 const stageParent = path.resolve(process.argv[2]);
 if (!stageParent.startsWith(path.join(root, '.build') + path.sep)) throw Error('Staging must be inside .build');
@@ -21,12 +22,10 @@ const git = (...args) => cp.execFileSync('git', args, { cwd: root, maxBuffer: 30
 const tracked = [...new Set(git('ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', 'crmeb').toString().split('\0').filter(Boolean))];
 const index = path.join(root, 'template/admin/dist/index.html');
 if (!fs.existsSync(index)) throw Error('Build template/admin first');
-function latestSource(...dirs) { return git('ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', ...dirs).toString().split('\0')
-  .filter(Boolean).filter(p => fs.existsSync(path.join(root, p)))
-  .reduce((n, p) => Math.max(n, fs.statSync(path.join(root, p)).mtimeMs), 0); }
-if (fs.statSync(index).mtimeMs < latestSource('template/admin', 'template/shared')) throw Error('Admin build is older than its sources');
+const assertBuild = require('../../tests/regression/commerce_build_assert.cjs');
+const adminBuild = assertBuild('admin'), h5Build = assertBuild('h5'), appBuild = assertBuild('app');
 const h5Index = path.join(h5Root, 'index.html');
-if (!fs.existsSync(h5Index) || fs.statSync(h5Index).mtimeMs < latestSource('template/uni-app', 'template/shared')) throw Error('H5 build is missing or older than its sources');
+if (path.resolve(h5Build.output) !== h5Root) throw Error('Package H5 path differs from verified build');
 fs.mkdirSync(stage, { recursive: true });
 const seed = fs.readFileSync(path.join(root, 'crmeb/public/install/crmeb.sql'), 'utf8').replace(/\\\//g, '/');
 const seedUploads = new Set((seed.match(/\/uploads\/[a-zA-Z0-9_./%-]+/g) || []).map(p => 'crmeb/public' + p));
@@ -76,6 +75,7 @@ function copyCrawler(source, target) {
   }
 }
 copyCrawler(crawlerRoot, path.join(stage, 'jd-crawler'));
+copyCrawler(path.join(root, 'services/media-display'), path.join(stage, 'media-display'));
 // Update mode does not carry any installer files or write its environment template.
 fs.copyFileSync(path.join(__dirname, 'env.example'), path.join(stage, '.env.example'));
 fs.mkdirSync(path.join(stage, 'deploy'));
@@ -85,10 +85,13 @@ for (const file of ['nginx.conf', 'php.ini', 'php-entrypoint.sh', 'worker-entryp
 const template = path.join(stage, 'crmeb/public/install/.env');
 if (!update) fs.writeFileSync(template, fs.readFileSync(template, 'utf8').replace(/^DEBUG\s*=\s*true\s*$/m, 'DEBUG = false'));
 const info = { createdAt: new Date().toISOString(), commit: git('rev-parse', 'HEAD').toString().trim(),
+  sourceState, schema: { commerce_reliability: 1, product_quality: 1, merchant: 4 },
+  configurationContract: 'decoration-context-2026-09-14',
+  native: { bundled: false, appServiceSha256: appBuild.entrySha256, sourceDigest: appBuild.sourceDigest, sourceManifestVersion: (fs.readFileSync(path.join(root,'template/uni-app/manifest.json'),'utf8').match(/"versionName"\s*:\s*"([^"]+)"/)||[])[1] || null },
   domain: 'mall.hengshucredit.com', mode: update ? 'existing-installation-update' : 'fresh-install', php: '7.4',
   backendFiles: copied, seedUploadReferences: seedUploads.size, bundledSeedUploads: seedCopied,
   missingSeedUploads: seedUploads.size - seedCopied, adminEntrySha256: sha(fs.readFileSync(index)), h5EntrySha256: sha(fs.readFileSync(h5Index)),
-  includes: ['PHP backend and vendor', 'admin production build', 'mobile H5 production build', ...(update ? [] : ['installer seed SQL']), 'deployment configuration', 'independent JD crawler and browser'],
+  includes: ['PHP backend and vendor', 'admin production build', 'mobile H5 production build', ...(update ? [] : ['installer seed SQL']), 'deployment configuration', 'independent JD crawler and browser', 'AVIF display service', 'commerce recovery worker'],
   excludes: ['local database', 'local credentials', 'runtime logs', 'Android signing and AppKey', 'native APK and mini-program builds'] };
 fs.writeFileSync(path.join(stage, 'release.json'), JSON.stringify(info, null, 2) + '\n');
 function files(p) { return fs.readdirSync(p, { withFileTypes: true }).flatMap(e => e.isDirectory() ? files(path.join(p, e.name)) : [path.join(p, e.name)]); }

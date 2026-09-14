@@ -49,6 +49,7 @@ class MerchantManager extends AuthController
         if (!$allowed) throw new AuthException('没有读取商户候选的权限');
         return app('json')->success($this->service()->options((string)$this->request->get('keyword',''),MerchantData::ids($this->request->get('selected_ids',[]))));
     }
+    public function shopPages() { if (!$this->permits('save') && !$this->permits('info')) throw new AuthException('没有读取店铺页面的权限'); return app('json')->success(\app\services\merchant\MerchantShopPages::options((string)$this->request->get('keyword',''))); }
     public function applications() { $this->requirePermission('applications'); return app('json')->success($this->service()->applications($this->request->getMore([['status',''],['kind','']]),...$this->page())); }
     public function assignProducts()
     {

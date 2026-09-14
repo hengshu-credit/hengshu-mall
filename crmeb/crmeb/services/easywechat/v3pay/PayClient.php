@@ -432,6 +432,7 @@ class PayClient extends BaseClient
             throw new PayException('发起退款查询失败');
         }
 
+        if (($res['code'] ?? '') === 'RESOURCE_NOT_EXISTS') return $res;
         if (isset($res['code']) && isset($res['message'])) {
             throw new PayException($res['message']);
         }

@@ -18,7 +18,7 @@ $package['home_data']=['value'=>[]];
 $importService->importThemeData($package);
 $category=$importService->getThemeInfo(23,'category');$cart=$importService->getThemeInfo(23,'cart');
 categoryCheck('structured category import retains title deletion and checkout components', $category['show_title']===0 && $category['checkout']['barLayout']==='floating' && $category['checkout']['showDetails']);
-categoryCheck('import retains category component appearance', $category['category_style']['fillet']['val']===18);
+categoryCheck('import applies the current square category-body contract', $category['category_style']['fillet']['val']===0);
 categoryCheck('imported cart remains editable with its visibility and appearance', $cart['page_title']==='购物袋' && !$cart['show_checkout'] && $cart['list_style']['fillet']['val']===16);
 categoryCheck('page JSON is encoded once', is_array($importService->getThemeInfo(23,'home')));
 $restored=app\services\diy\CategoryPageConfig::read($importDao->saved['category_default_data']);

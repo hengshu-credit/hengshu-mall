@@ -12,14 +12,18 @@
       >
         产品介绍
       </div>
-      <div class="desc">此模块暂无内容设置，仅支持通用样式设置</div>
+      <div v-if="liveProductPreview" class="preview-description" v-html="descriptionHtml"></div>
+      <div v-else class="desc">选择预览商品后显示当前产品介绍</div>
     </div>
   </common_wrapper>
 </template>
 
 <script>
 import { mapState } from 'vuex';
+import productPreview from '@/mixins/productPreview';
+import {previewDescription} from '@/utils/previewDescription';
 export default {
+  mixins:[productPreview],
   name: 'home_product_desc',
   cname: '产品介绍',
   configName: 'c_product_desc',
@@ -35,6 +39,7 @@ export default {
     },
   },
   computed: {
+    descriptionHtml(){return previewDescription(this.previewStore.description||'');},
     ...mapState('mobildConfig', ['defaultArray']),
     titleShow() {
       return this.configObj?.isShow?.tabVal == 0;
@@ -46,7 +51,7 @@ export default {
       return this.configObj?.fontSize?.val || 16;
     },
     titleAlign() {
-      return this.configObj?.textPosition.val || 'left';
+      return this.configObj?.textPosition?.val || 'left';
     },
   },
   watch: {
