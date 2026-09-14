@@ -8,7 +8,7 @@
           <i class="el-icon-search" /> {{ config.searchPlaceholder }}
         </div>
         <div
-          class="shop-heading"
+          class="shop-heading shop-header-profile" :class="'layout-' + config.headerLayout"
           :style="
             config.headerLayout === 1
               ? { flexDirection: 'column', textAlign: 'center' }
@@ -18,8 +18,8 @@
           "
         >
           <img v-if="config.showLogo && shop.logo" :src="shop.logo" /><div v-else-if="config.showLogo" class="shop-avatar">{{shop.name.slice(0,1)}}</div>
-          <div class="shop-text"><b>{{shop.name}}</b><small v-if="config.showDescription">{{shop.description || '欢迎光临本店'}}</small></div>
-          <div v-if="config.showFollow" class="shop-follow-control"><small v-if="config.showFollowers">{{previewFollowers}} 人关注</small><span class="shop-button" :style="{ background: primary }">{{
+          <div class="shop-text"><b class="shop-name">{{shop.name}}</b><small class="shop-description" v-if="config.showDescription">{{shop.description || '欢迎光临本店'}}</small></div>
+          <div v-if="config.showFollow" class="shop-follow-control is-stacked"><small v-if="config.showFollowers">{{previewFollowers}} 人关注</small><span class="shop-button" :style="{ background: primary }">{{
             config.followText
           }}</span></div>
         </div>
@@ -76,7 +76,7 @@
             <div v-for="item in products" :key="item.id" class="product">
               <img :src="item.image" />
               <div>{{item.store_name}}</div>
-              <small v-if="config.showMerchantName && item.merchant_name">{{item.merchant_name}}</small><b :style="{ color: primary }">¥{{item.price}}</b>
+              <merchant-label v-if="config.showMerchantName" :name="item.merchant_name" /><b :style="{ color: primary }">¥{{item.price}}</b>
             </div>
           </div><div v-if="!products.length" class="preview-state">店铺暂无推荐商品</div></template
         >
@@ -108,7 +108,7 @@
                 </div>
                 <div class="shop-text">
                   <div>{{item.store_name}}</div>
-                  <small v-if="config.showMerchantName && item.merchant_name">{{item.merchant_name}}</small><b :style="{ color: primary }">¥{{item.price}}</b>
+                  <merchant-label v-if="config.showMerchantName" :name="item.merchant_name" /><b :style="{ color: primary }">¥{{item.price}}</b>
                 </div>
               </div>
             </div>
@@ -123,7 +123,7 @@
             <div v-for="item in products" :key="item.id" class="product">
               <img :src="item.image" />
               <div>{{item.store_name}}</div>
-              <small v-if="config.showMerchantName && item.merchant_name">{{item.merchant_name}}</small><b :style="{ color: primary }">¥{{item.price}}</b>
+              <merchant-label v-if="config.showMerchantName" :name="item.merchant_name" /><b :style="{ color: primary }">¥{{item.price}}</b>
             </div>
           </div><div v-if="!products.length" class="preview-state">暂无商品</div></template
         >
@@ -132,10 +132,12 @@
   </div>
 </template>
 <script>
+import MerchantLabel from '@/components/merchantDecoration/MerchantLabel.vue';
 import {editorThemeColors} from '../../../../shared/themeColors';
 import { componentStyle } from '../../../../shared/componentStyle';
 import merchantPreview from '@/mixins/merchantPreview';
 export default {
+  components: { MerchantLabel },
   mixins: [merchantPreview],
   props: { config: Object, colorStyle: { type: Object, default: () => ({}) } },
   data: () => ({ placeholder: require('@/assets/images/shan.png'), productPlaceholder: require('@/assets/images/product-diy.png') }),
@@ -166,12 +168,17 @@ export default {
   },
 };
 </script>
-<style scoped>
+<style scoped lang="scss">
+@import '../../../../shared/merchantPresentation.scss';
+.shop-follow-control.is-stacked{flex-direction:column-reverse;gap:0}
+.shop-follow-control.is-stacked small{margin-top:6px}
+.shop-follow-control.is-stacked .shop-button{max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 12px;line-height:30px;border-radius:18px}
+
 .preview-state{padding:12px;color:#909399;text-align:center;font-size:12px}
 .shop-follow-control{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .shop-utility-nav{display:flex;justify-content:space-between;margin-bottom:10px;font-size:12px}
 .shop-header-tabs{display:flex;justify-content:center;gap:36px;margin-top:12px;font-size:14px}
-.shop-avatar{width:50px;height:50px;flex-shrink:0;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#f3f3f3}
+.shop-avatar{width:50px;height:50px;flex-shrink:0;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--view-minorColorT);color:var(--view-theme);font-size:19px}
 .group-empty{height:70px;display:flex;align-items:center;justify-content:center;background:#f7f7f7}
 .merchant-preview {
   font-size: 13px;
@@ -346,4 +353,5 @@ export default {
   justify-content: space-around;
   padding: 16px 0;
 }
+@include shop-header-layout(.5px);
 </style>

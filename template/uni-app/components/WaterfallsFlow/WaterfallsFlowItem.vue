@@ -13,10 +13,9 @@
 				<text v-if="item.brand_name" class="brand-tag">{{ item.brand_name }}</text>{{item.store_name}}
 			</view>
             <merchant-name :product="item" :show="showMerchantName" />
-            <discount-explanation mode="product" :context="{product:item}" />
 			<view class="mt-8">
 				<view class="flex-y-center flex-wrap mt-8">
-					<baseMoney :money="item.price" symbolSize="24" integerSize="40" decimalSize="24" weight></baseMoney>
+					<product-price :product="item" :money="item.price" symbolSize="24" integerSize="40" decimalSize="24" weight></product-price>
 					<view class="inline-block h-26 lh-28rpx rd-14rpx bg--w111-F7E9CD fs-22 ml-8" 
 						v-if="Number(item.vip_price) > 0">
 						<text class="inline-block h-26 lh-28rpx svip_rd fs-18 bg--w111-484643 text--w111-FDDAA4 px-8">SVIP</text>
@@ -39,13 +38,13 @@
 <script>
 	import easyLoadimage from '@/components/easy-loadimage/easy-loadimage.vue'
     import MerchantName from '@/components/merchantName/index.vue';
-    import DiscountExplanation from '@/components/discountExplanation/index.vue';
+    import ProductPrice from '@/components/productPrice/index.vue';
 	import {mapGetters} from "vuex";
 	import {HTTP_REQUEST_URL} from '@/config/app';
 	export default {
 		components: {
             MerchantName,
-            DiscountExplanation,
+            ProductPrice,
 			easyLoadimage
 		},
 		props: {

@@ -22,7 +22,7 @@
           /><text @tap="searchShop">搜索</text></view
         >
         <view
-          class="shop-heading"
+          class="shop-heading shop-header-profile" :class="'layout-' + config.headerLayout"
           :style="
             config.headerLayout === 1
               ? { flexDirection: 'column', textAlign: 'center' }
@@ -46,6 +46,7 @@
             ></view
           ><follow-button
             v-if="config.showFollow"
+            :stacked="true"
             :shopId="effectiveShopId"
             :followText="config.followText"
             :followedText="config.followedText"
@@ -581,7 +582,9 @@ export default {
   },
 };
 </script>
-<style scoped>
+<style lang="scss" scoped>
+@import '../../../shared/merchantPresentation.scss';
+
 .shop-utility-nav {
   display: flex;
   align-items: center;
@@ -831,4 +834,5 @@ export default {
   color: var(--view-theme);
   font-size: 26rpx;
 }
+@include shop-header-layout(1rpx);
 </style>

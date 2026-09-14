@@ -24,5 +24,6 @@ const compiled=bundle('template/admin/src/pages/product/productAdd/components/Qu
   await page.getByText('充值退款',{exact:true}).click();await page.getByText('渠道待确认',{exact:true}).waitFor();await page.getByText('50.00',{exact:true}).waitFor();
   await page.screenshot({path:path.join(root,'.build/commerce-hardening-20260914/admin-health.png')});assert.deepEqual(errors,[]);
   console.log('PASS: real quality checklist controls emit complete review input; monitor shows terminal task and unknown refund states');
+  await require('./commerce_presentation_admin.cjs')(browser);
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

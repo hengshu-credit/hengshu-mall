@@ -9,8 +9,7 @@
       <view class="product-info" :style="{ textAlign: appearance.text_align, fontWeight: appearance.text_bold ? 700 : 400 }">
         <view v-if="appearance.show_product_name" class="product-title" :style="{ WebkitLineClamp: appearance.name_lines }">{{ item.store_name }}</view>
         <merchant-name :product="item" />
-              <discount-explanation mode="product" :context="{product:item}" />
-        <view class="product-bottom"><text class="product-price">{{ $t('￥') }}{{ item.price }}</text>
+        <view class="product-bottom"><product-price class="product-price" :product="item" integerSize="30" symbolSize="22" decimalSize="22" color="var(--cat-price-color)" weight />
           <view v-if="appearance.buy_button_style" class="purchase-controls">
             <text v-if="item.stock <= 0" class="sold-out">{{ $t('已售罄') }}</text>
             <view v-else class="category-buy" :class="'style-' + appearance.buy_button_style" @click.stop="buy(item, index)">
@@ -26,11 +25,11 @@
 <script>
 import { normalizeCategoryPage } from '../../../shared/categoryPageConfig';
 import MerchantName from '@/components/merchantName/index.vue';
-import DiscountExplanation from '@/components/discountExplanation/index.vue';
+import ProductPrice from '@/components/productPrice/index.vue';
 export default {
   name: 'CategoryProductList',
   components: {
-    DiscountExplanation,MerchantName},
+    ProductPrice,MerchantName},
   props: { decoration: { type: Object, default: () => ({}) }, tempArr: { type: Array, default: () => [] }, isLogin: { type: Boolean, default: false } },
   data() { return { addIng: false }; },
   computed: { appearance() { return normalizeCategoryPage(this.decoration); } },

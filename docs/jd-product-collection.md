@@ -52,6 +52,20 @@ docker-compose -f compose.yml exec jd-crawler python -m jd_crawler.bootstrap sho
 
 ## 验证
 
+2026-09-11 适配商品 `10119564643643` 页面使用的京东 `pc_item_components_3` 4.0.28：识别 `.sku-title-name`，等待标题和主图均就绪，支持 `#spec-n1` 主图及 `#detail-top/#detail-main/#detail-footer` 详情区，并在滚动加载后重新读取素材。新版 `pcpubliccms` 缩略图仍须通过浏览器尺寸检查后才采用原图候选。
+
+详情图片在采集回填、商品编辑保存和客户端展示时统一使用 `width:100%;height:auto`，移除图片固定宽高与裁切样式。已保存商品在展示时也会适配；原始图片文件保持不变。更新时需要同时更新采集服务、PHP 和前端构建。
+
+该修复的回归入口（后一个命令需要安装 Chromium 与采集服务的 Python 依赖，并设置 `PYTHONPATH=services/jd-crawler/src`）：
+
+```sh
+node tests/regression/jd_media_dom.cjs
+node tests/regression/product_description.cjs
+python tests/regression/jd_product_browser.py
+```
+
+新版结构使用合成商品数据验证；浏览器验证覆盖 320/375/430/1024 像素视口下的窄图和长图完整显示。真实商品的未登录实测返回 `verification_required`，仍需在采集服务的专用浏览器完成京东登录/验证后验收。
+
 在已安装商城 Composer/Node 依赖的开发环境执行：
 
 ```sh

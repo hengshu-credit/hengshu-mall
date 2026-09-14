@@ -118,12 +118,12 @@
             <div class="title line2">
               {{ item.store_name || '这里是商品名称展示区域,商品名称展示区域,商品名称展示区域' }}
             </div>
-            <div v-if="item.merchant_name && colorStyle.showMerchantName" class="merchant-label">{{item.merchant_name}} ›</div>
+            <merchant-label v-if="item.merchant_name && colorStyle.showMerchantName" :name="item.merchant_name" />
             <div v-if="item.label_list && item.label_list.length" class="product-labels"><span v-for="(label,i) in item.label_list" :key="i">{{label.name}}</span></div>
             <div class="price">
               <div class="num" :style="{ color: goodsPriceColor }">
                 <span>￥</span>{{ item.price !== undefined ? $HandlePrice(item.price, 0) : 0
-                }}<span>{{ item.price !== undefined ? $HandlePrice(item.price, 1) : '.00' }}</span>
+                }}<span>{{ item.price !== undefined ? $HandlePrice(item.price, 1) : '.00' }}</span><span v-if="Number(item.ot_price) > Number(item.price)" class="price-reference-preview">¥{{ item.ot_price }}</span><span class="price-chevron-preview">›</span>
               </div>
             </div>
             <div class="sales">已售{{ item.sales || 0 }}件</div>
@@ -147,11 +147,13 @@
 </template>
 
 <script>
+import MerchantLabel from '@/components/merchantDecoration/MerchantLabel.vue';
 import { mapState } from 'vuex';
 import decorationProducts from '@/mixins/decorationProducts';
 import {productTabsMargin,productTabsCard} from '../../../../shared/productTabs';
 // import theme from "@/mixins/theme";
 export default {
+  components: { MerchantLabel },
   mixins:[decorationProducts],
   name: 'home_product',
   cname: '商品选项卡',
@@ -981,4 +983,8 @@ export default {
   .list-wrapper.single-product .info { min-width:0;padding:0; }
   .list-wrapper.single-product .info .title { min-height:40px; }
 }
+</style>
+
+<style scoped>
+.price-reference-preview{margin-left:5px;font-size:10px!important;font-weight:400;color:#aaa;text-decoration:line-through;white-space:nowrap}.price-chevron-preview{margin-left:4px;font-size:15px!important;font-weight:400}
 </style>

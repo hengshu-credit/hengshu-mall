@@ -1,0 +1,24 @@
+// The editor uses half a pixel for each storefront rpx. Avoid flex gap on older WebViews.
+@mixin merchant-entry($u) {
+  .merchant-name { display:flex; align-items:center; min-width:0; max-width:100%; margin-top:10 * $u; min-height:36 * $u; color:#888; font-size:22 * $u; line-height:1.5; font-weight:400; text-align:left; }
+  .merchant-name-text { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .merchant-enter { flex-shrink:0; margin-left:12 * $u; font-size:20 * $u; color:#666; white-space:nowrap; }
+  .merchant-enter-arrow { margin-left:4 * $u; font-size:26 * $u; vertical-align:-1 * $u; }
+  .merchant-icon { position:relative; display:block; flex:0 0 22 * $u; width:22 * $u; height:18 * $u; margin-right:8 * $u; border:1 * $u solid #999; border-top:0; border-radius:2 * $u; box-sizing:border-box; }
+  .merchant-icon::before { content:''; position:absolute; left:-2 * $u; right:-2 * $u; top:-5 * $u; height:7 * $u; border:1 * $u solid #999; border-radius:3 * $u 3 * $u 4 * $u 4 * $u; background:#fff; }
+  .merchant-icon::after { content:''; position:absolute; width:6 * $u; height:9 * $u; right:3 * $u; bottom:0; border:1 * $u solid #999; border-bottom:0; }
+}
+
+@mixin shop-header-layout($u) {
+  .shop-heading.shop-header-profile { align-items:center; gap:0; padding:8 * $u 0 12 * $u; }
+  .shop-header-profile > image, .shop-header-profile > img, .shop-header-profile > .shop-avatar { width:100 * $u; height:100 * $u; flex-shrink:0; margin-right:24 * $u; border-radius:18 * $u; padding:0; object-fit:cover; }
+  .shop-header-profile > .shop-text { flex:1; min-width:0; }
+  .shop-header-profile .shop-name { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:32 * $u; line-height:1.4; font-weight:600; }
+  .shop-header-profile .shop-description { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-top:10 * $u; font-size:22 * $u; line-height:1.6; color:#999; }
+  .shop-header-profile > .shop-follow-control { margin-left:24 * $u; flex-shrink:0; }
+  .shop-header-profile.layout-1 > image, .shop-header-profile.layout-1 > img, .shop-header-profile.layout-1 > .shop-avatar { margin-right:0; margin-bottom:18 * $u; }
+  .shop-header-profile.layout-1 > .shop-text { flex:none; width:100%; }
+  .shop-header-profile.layout-1 > .shop-follow-control { margin-left:0; margin-top:22 * $u; }
+  .shop-header-profile.layout-2 > image, .shop-header-profile.layout-2 > img, .shop-header-profile.layout-2 > .shop-avatar { margin-right:0; margin-left:24 * $u; }
+  .shop-header-profile.layout-2 > .shop-follow-control { margin-left:0; margin-right:24 * $u; }
+}

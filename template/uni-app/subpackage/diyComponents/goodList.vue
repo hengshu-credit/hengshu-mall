@@ -54,7 +54,6 @@
                 {{ item.store_name }}
               </view>
               <merchant-name :product="item" :show="dataConfig.showMerchantName" />
-              <discount-explanation mode="product" :context="{product:item}" />
               <view
                 class="flex items-end flex-wrap mt-8 w-full"
                 v-if="
@@ -75,14 +74,14 @@
                 ></BaseTag>
               </view>
               <view class="flex-between-center" v-if="onlyShowPrice">
-                <baseMoney
+                <product-price :product="item"
                   :money="item.price"
                   symbolSize="24"
                   integerSize="40"
                   decimalSize="24"
                   weight
                   :color="priceColor"
-                ></baseMoney>
+                ></product-price>
                 <view @tap.stop="addCartChange(item, index)" v-if="!showBtn">
                   <view
                     class="w-96 h-56 rd-28rpx flex-center fs-24 text--w111-fff"
@@ -112,7 +111,7 @@
               </view>
               <view v-else>
                 <view class="flex-y-center mt-4 pb-10">
-                  <baseMoney
+                  <product-price :product="item"
                     :money="item.price"
                     symbolSize="24"
                     integerSize="40"
@@ -120,7 +119,7 @@
                     weight
                     :color="priceColor"
                     v-if="checkboxInfo.includes(2)"
-                  ></baseMoney>
+                  ></product-price>
                   <view
                     class="flex h-26 lh-28rpx rd-14rpx bg--w111-F7E9CD fs-22 ml-8"
                     v-if="
@@ -221,7 +220,6 @@
                     {{ item.store_name }}
                   </view>
               <merchant-name :product="item" :show="dataConfig.showMerchantName" />
-              <discount-explanation mode="product" :context="{product:item}" />
                   <view
                     class="flex items-end flex-wrap mt-8 w-full"
                     v-if="
@@ -242,14 +240,14 @@
                     ></BaseTag>
                   </view>
                   <view class="flex-between-center mt-20" v-if="onlyShowPrice">
-                    <baseMoney
+                    <product-price :product="item"
                       :money="item.price"
                       symbolSize="24"
                       integerSize="40"
                       decimalSize="24"
                       weight
                       :color="priceColor"
-                    ></baseMoney>
+                    ></product-price>
                     <view
                       @tap.stop="addCartChange(item, index)"
                       v-if="!showBtn"
@@ -280,7 +278,7 @@
                   </view>
                   <view v-else>
                     <view class="flex-y-center flex-no-wrap mt-8">
-                      <baseMoney
+                      <product-price :product="item"
                         :money="item.price"
                         symbolSize="24"
                         integerSize="40"
@@ -288,7 +286,7 @@
                         weight
                         :color="priceColor"
                         v-if="checkboxInfo.includes(2)"
-                      ></baseMoney>
+                      ></product-price>
                       <view
                         class="inline-block white-nowrap h-26 lh-28rpx rd-14rpx bg--w111-F7E9CD fs-22 ml-8"
                         v-if="
@@ -376,7 +374,6 @@
                     {{ item.store_name }}
                   </view>
               <merchant-name :product="item" :show="dataConfig.showMerchantName" />
-              <discount-explanation mode="product" :context="{product:item}" />
                   <view
                     class="flex items-end flex-wrap mt-8 w-full"
                     v-if="
@@ -397,14 +394,14 @@
                     ></BaseTag>
                   </view>
                   <view class="flex-between-center mt-20" v-if="onlyShowPrice">
-                    <baseMoney
+                    <product-price :product="item"
                       :money="item.price"
                       symbolSize="24"
                       integerSize="40"
                       decimalSize="24"
                       weight
                       :color="priceColor"
-                    ></baseMoney>
+                    ></product-price>
                     <view
                       @tap.stop="addCartChange(item, index)"
                       v-if="!showBtn"
@@ -435,7 +432,7 @@
                   </view>
                   <view v-else>
                     <view class="flex-y-center mt-8">
-                      <baseMoney
+                      <product-price :product="item"
                         :money="item.price"
                         symbolSize="24"
                         integerSize="40"
@@ -443,7 +440,7 @@
                         weight
                         :color="priceColor"
                         v-if="checkboxInfo.includes(2)"
-                      ></baseMoney>
+                      ></product-price>
                       <view
                         class="flex h-26 lh-28rpx rd-14rpx bg--w111-F7E9CD fs-22 ml-8"
                         v-if="
@@ -534,8 +531,7 @@
                   {{ item.store_name }}
                 </view>
               <merchant-name :product="item" :show="dataConfig.showMerchantName" />
-              <discount-explanation mode="product" :context="{product:item}" />
-                <baseMoney
+                <product-price :product="item"
                   :money="item.price"
                   symbolSize="24"
                   integerSize="40"
@@ -543,7 +539,7 @@
                   weight
                   :color="priceColor"
                   v-if="checkboxInfo.includes(2)"
-                ></baseMoney>
+                ></product-price>
               </view>
             </view>
           </view>
@@ -579,9 +575,8 @@
                 {{ item.store_name }}
               </view>
               <merchant-name :product="item" :show="dataConfig.showMerchantName" />
-              <discount-explanation mode="product" :context="{product:item}" />
               <view class="flex-between-center mt-14">
-                <baseMoney
+                <product-price :product="item"
                   :money="item.price"
                   symbolSize="24"
                   integerSize="40"
@@ -589,7 +584,7 @@
                   weight
                   :color="priceColor"
                   v-if="checkboxInfo.includes(2)"
-                ></baseMoney>
+                ></product-price>
                 <view @tap.stop="addCartChange(item, index)" v-if="!showBtn">
                   <view
                     class="rd-24rpx w-44 h-44"
@@ -642,7 +637,6 @@
                 {{ item.store_name }}
               </view>
               <merchant-name :product="item" :show="dataConfig.showMerchantName" />
-              <discount-explanation mode="product" :context="{product:item}" />
               <view
                 class="flex items-end flex-wrap mt-8 w-full"
                 v-if="
@@ -663,14 +657,14 @@
                 ></BaseTag>
               </view>
               <view class="flex-between-center" v-if="onlyShowPrice">
-                <baseMoney
+                <product-price :product="item"
                   :money="item.price"
                   symbolSize="24"
                   integerSize="40"
                   decimalSize="24"
                   weight
                   :color="priceColor"
-                ></baseMoney>
+                ></product-price>
                 <view @tap.stop="addCartChange(item, index)" v-if="!showBtn">
                   <view
                     class="w-96 h-56 rd-28rpx flex-center fs-24 text--w111-fff"
@@ -700,7 +694,7 @@
               </view>
               <view v-else>
                 <view class="flex-y-center mt-8">
-                  <baseMoney
+                  <product-price :product="item"
                     :money="item.price"
                     symbolSize="24"
                     integerSize="40"
@@ -708,7 +702,7 @@
                     weight
                     :color="priceColor"
                     v-if="checkboxInfo.includes(2)"
-                  ></baseMoney>
+                  ></product-price>
                   <view
                     class="flex h-26 lh-28rpx rd-14rpx bg--w111-F7E9CD fs-22 ml-8"
                     v-if="
@@ -808,9 +802,8 @@
                 {{ item.store_name }}
               </view>
               <merchant-name :product="item" :show="dataConfig.showMerchantName" />
-              <discount-explanation mode="product" :context="{product:item}" />
               <view class="flex-between-center mt-8">
-                <baseMoney
+                <product-price :product="item"
                   :money="item.price"
                   symbolSize="24"
                   integerSize="40"
@@ -818,7 +811,7 @@
                   weight
                   :color="priceColor"
                   v-if="checkboxInfo.includes(2)"
-                ></baseMoney>
+                ></product-price>
                 <view @tap.stop="addCartChange(item, index)" v-if="!showBtn">
                   <view
                     class="rd-24rpx w-44 h-44"
@@ -876,12 +869,12 @@ import { goShopDetail } from "@/libs/order.js";
 import productWindow from "@/components/productWindow";
 import commonWrapper from "./commonWrapper.vue";
 import MerchantName from '@/components/merchantName/index.vue';
-import DiscountExplanation from '@/components/discountExplanation/index.vue';
+import ProductPrice from '@/components/productPrice/index.vue';
 import { decorationProductQuery, decorationProductIds, orderedDecorationProducts } from '../../../shared/decorationProducts';
 export default {
   name: "goodList",
   components: {
-    DiscountExplanation,
+    ProductPrice,
     MerchantName,
     productWindow,
     commonWrapper,

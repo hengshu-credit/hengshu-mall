@@ -10,7 +10,7 @@ function setup() {
   const script = fs.readFileSync(filename, 'utf8').split('<script>')[1].split('</script>')[0];
   const component = vm.runInNewContext(script.replace(/^import .*;$/gm, '')
     .replace('export default', 'module.exports ='), {
-    module: { exports: {} }, skuSelect: {}, productWindow: {}, commonWrapper: {}, MerchantName: {}, DiscountExplanation: {},
+    module: { exports: {} }, skuSelect: {}, productWindow: {}, commonWrapper: {}, MerchantName: {}, ProductPrice: {},
     mapGetters: () => ({}), mapState: () => ({}),
     ...require('./ranking_shared_loader.cjs').loadShared('decorationProducts'),
     getProductslist: () => new Promise(resolve => { completeRequest = resolve; }),

@@ -1,11 +1,9 @@
 <template>
   <view
     v-if="visible && product.seller_shop_id && product.merchant_name"
-    class="merchant-name line1"
+    class="merchant-name"
     @tap.stop="openShop"
-    ><text class="iconfont icon-ic_shop" />{{ product.merchant_name
-    }}<text class="iconfont icon-ic_rightarrow"
-  /></view>
+    ><text class="merchant-icon" aria-hidden="true" /><text class="merchant-name-text">{{ product.merchant_name }}</text><text class="merchant-enter">进店<text class="merchant-enter-arrow">›</text></text></view>
 </template>
 <script>
 import { shopUrl } from "../../../shared/merchantDecoration";
@@ -43,17 +41,7 @@ export default {
   },
 };
 </script>
-<style scoped>
-.merchant-name {
-  display: block;
-  max-width: 100%;
-  font-size: 22rpx;
-  line-height: 34rpx;
-  color: #888;
-  margin-top: 8rpx;
-}
-.merchant-name .iconfont {
-  font-size: 22rpx;
-  margin-right: 6rpx;
-}
+<style scoped lang="scss">
+@import '../../../shared/merchantPresentation.scss';
+@include merchant-entry(1rpx);
 </style>

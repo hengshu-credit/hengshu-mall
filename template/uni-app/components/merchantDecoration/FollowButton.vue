@@ -1,5 +1,5 @@
 <template>
-  <view class="shop-follow-control"
+  <view class="shop-follow-control" :class="{'is-stacked':stacked}"
     ><view v-if="showCount" class="follow-count">{{ count }} 人关注</view
     ><button
       class="shop-follow-button"
@@ -21,6 +21,7 @@ export default {
     followText: { type: String, default: "关注店铺" },
     followedText: { type: String, default: "已关注" },
     showCount: { type: Boolean, default: false },
+    stacked: { type: Boolean, default: false },
   },
   data: () => ({ followed: false, count: 0, busy: false, sequence: 0 }),
   computed: {
@@ -96,9 +97,11 @@ export default {
 .shop-follow-control {
   display: flex;
   align-items: center;
-  gap: 16rpx;
   flex-shrink: 0;
 }
+.shop-follow-control.is-stacked { flex-direction:column-reverse; align-items:center; }
+.shop-follow-control.is-stacked .follow-count { margin:12rpx 0 0; }
+.shop-follow-control.is-stacked .shop-follow-button { max-width:180rpx; overflow:hidden; text-overflow:ellipsis; }
 .shop-follow-button {
   margin: 0;
   padding: 0 24rpx;
@@ -122,5 +125,7 @@ export default {
 .follow-count {
   font-size: 22rpx;
   color: #999;
+  margin-right:16rpx;
+  white-space:nowrap;
 }
 </style>

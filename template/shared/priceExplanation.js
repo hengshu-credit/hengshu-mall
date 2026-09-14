@@ -1,4 +1,29 @@
 // Explanations describe server prices; they never compute an alternative checkout total.
+function cents(value) {
+  if (value === null || value === undefined || !/^[0-9]+(?:\.[0-9]{1,2})?$/.test(String(value))) return null;
+  const parts = String(value).split('.');
+  const amount = Number(parts[0]) * 100 + Number(((parts[1] || '') + '00').slice(0, 2));
+  return Number.isSafeInteger(amount) ? amount : null;
+}
+const money = value => (value / 100).toFixed(2);
+
+export function productPriceSummary(product = {}, displayedPrice) {
+  const base = cents(product.price);
+  const current = cents(displayedPrice === undefined ? product.price : displayedPrice);
+  const reference = cents(product.ot_price), vip = cents(product.vip_price);
+  if (current === null) return { amount: '', reference: '', saving: '', rows: [] };
+  const saving = base !== null && base > current ? base - current : 0;
+  const rows = [];
+  if (saving) {
+    rows.push({ label: '商品售价', amount: money(base) });
+    rows.push({ label: '已计入优惠', amount: money(saving), discount: true });
+  }
+  rows.push({ label: saving ? '优惠后价格' : '当前售价', amount: money(current), total: true });
+  if (reference !== null && reference > current) rows.push({ label: '划线参考价', amount: money(reference), note: '参考价格，不代表原成交价，也不计为已享优惠。' });
+  if (vip !== null && vip > 0 && base !== null && vip < base && vip !== current) rows.push({ label: 'SVIP会员价', amount: money(vip), note: '需满足付费会员条件，是否适用以结算为准。' });
+  return { amount: money(current), reference: reference !== null && reference > current ? money(reference) : '', saving: saving ? money(saving) : '', rows };
+}
+
 export function priceExplanation(mode, context = {}) {
   if (context.pending) return ['正在计算优惠，完成后请确认金额。'];
   if (context.error) return ['优惠尚未确认，请重新计算后提交。'];

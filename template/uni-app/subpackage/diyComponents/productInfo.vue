@@ -237,6 +237,7 @@
               v-if="item.name === 'price' && item.show"
               class="price-section"
             >
+              <discount-explanation mode="product" :context="{product:displayInfo,displayedPrice:displayInfo.real_price}">
               <view class="price-row">
                 <view
                   v-if="item.checkList.includes(0)"
@@ -270,6 +271,7 @@
                   <text class="price">¥{{ displayInfo.vip_price }}</text>
                 </view>
               </view>
+              </discount-explanation>
             </view>
 
             <!-- 名称区域 -->
@@ -386,6 +388,7 @@
 </template>
 
 <script>
+import DiscountExplanation from '@/components/discountExplanation/index.vue';
 import MerchantName from '@/components/merchantName/index.vue';
 import commonWrapper from "./commonWrapper.vue";
 import BaseTag from "@/components/BaseTag.vue";
@@ -393,6 +396,7 @@ import BaseTag from "@/components/BaseTag.vue";
 export default {
   name: "productInfo",
   components: {
+    DiscountExplanation,
     MerchantName,
     BaseTag,
     commonWrapper

@@ -1,6 +1,25 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {loadShared}=require('./ranking_shared_loader.cjs');
 const {priceExplanation}=loadShared('priceExplanation');
+const {productPriceSummary}=loadShared('priceExplanation');
+
+test('price details use the displayed server amount and do not turn reference prices into discounts',()=>{
+  const result=productPriceSummary({price:'100.00',ot_price:'180.00',vip_price:'80.00'});
+  assert.equal(result.amount,'100.00');assert.equal(result.reference,'180.00');assert.equal(result.saving,'');
+  assert(result.rows.some(row=>row.label==='SVIP会员价'&&row.amount==='80.00'&&row.note.includes('会员')));
+});
+test('confirmed SKU prices explain the exact discount in cents and allow a zero payable price',()=>{
+  const result=productPriceSummary({price:'100.10',ot_price:'120.00'},'90.05');
+  assert.equal(result.amount,'90.05');assert.equal(result.saving,'10.05');
+  assert.equal(productPriceSummary({price:'12.34'},0).saving,'12.34');
+  assert.equal(productPriceSummary({price:'12.34'},'20.00').saving,'');
+});
+test('missing or malformed prices never become a free price or a made-up discount',()=>{
+  for(const price of [undefined,null,'',-1,'NaN','1e2','0.001']){
+    const result=productPriceSummary({price,ot_price:'900'});
+    assert.equal(result.amount,'');assert.equal(result.saving,'');assert.equal(result.reference,'');
+  }
+});
 
 test('product cards identify conditional membership prices without promising a final discount',()=>{
   assert.match(priceExplanation('product',{product:{vip_price:'8.50'}}).join(' '),/付费会员/);

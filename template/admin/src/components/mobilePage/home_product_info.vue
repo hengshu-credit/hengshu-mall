@@ -84,7 +84,7 @@
             <div class="price-row">
               <div v-if="item.checkList.includes(0)" class="main-price-wrap" :style="{ color: finalPriceColor }">
                 <span class="label">到手价</span>
-                <span class="price" :style="{ fontSize: priceFontSize + 'px' }">¥{{previewStore.price || '0.00'}}</span>
+                <span class="price" :style="{ fontSize: priceFontSize + 'px' }">¥{{previewStore.price || '0.00'}}</span><span class="price-chevron-preview">›</span>
               </div>
               <div v-if="item.checkList.includes(1)" class="ot-price-wrap" :style="{ color: sellingPriceColor }">
                 <span class="label">售价</span>
@@ -104,7 +104,7 @@
             </div>
           </div>
 
-          <div v-if="item.name === 'name' && item.show && previewStore.seller_shop_id && previewStore.merchant_name && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:12px;color:#999;margin-top:8px">{{previewStore.merchant_name}}</div>
+          <merchant-label v-if="item.name === 'name' && item.show && previewStore.seller_shop_id && previewStore.merchant_name && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" :name="previewStore.merchant_name" />
 
           <!-- Data Section -->
           <div v-if="item.name === 'data' && item.show" class="data-section">
@@ -141,10 +141,12 @@
 </template>
 
 <script>
+import MerchantLabel from '@/components/merchantDecoration/MerchantLabel.vue';
 import { mapState } from 'vuex';
 import productPreview from '@/mixins/productPreview';
 
 export default {
+  components: { MerchantLabel },
   mixins:[productPreview],
   name: 'home_product_info',
   cname: '商品信息',
@@ -1017,3 +1019,5 @@ export default {
   }
 }
 </style>
+
+<style scoped>.price-chevron-preview{margin-left:4px;font-size:18px;font-weight:400}</style>

@@ -49,7 +49,7 @@
                   >
                     {{ item.store_name || '华为荣耀畅享平板换屏服务 屏幕换外屏主板维修' }}
                   </div>
-<div v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:11px;color:#999;margin:4px 0">{{ item.merchant_name || '商户店铺名称' }}</div>
+<merchant-label v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" :name="item.merchant_name" />
                   <img v-if="checkboxInfo.indexOf(1) != -1" src="../../assets/images/goods01.png" />
                 </div>
                 <div
@@ -64,7 +64,7 @@
                     }"
                   >
                     <span>￥</span>{{ item.price ? $HandlePrice(item.price, 0) : 33
-                    }}<span>{{ item.price ? $HandlePrice(item.price, 1) : '' }}</span>
+                    }}<span>{{ item.price ? $HandlePrice(item.price, 1) : '' }}</span><span v-if="Number(item.ot_price) > Number(item.price)" class="price-reference-preview">¥{{ item.ot_price }}</span><span class="price-chevron-preview">›</span>
                   </div>
                   <img class="img" v-if="checkboxInfo.indexOf(5) != -1" src="../../assets/images/goods02.png" />
                 </div>
@@ -170,7 +170,7 @@
                   >
                     {{ item.store_name || '这里是商品名称展示区域,商品名称展示区域,商品名称展示区域' }}
                   </div>
-<div v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:11px;color:#999;margin:4px 0">{{ item.merchant_name || '商户店铺名称' }}</div>
+<merchant-label v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" :name="item.merchant_name" />
                   <img v-if="checkboxInfo.indexOf(1) != -1" src="../../assets/images/goods01.png" />
                 </div>
                 <div class="price acea-row row-middle">
@@ -182,7 +182,7 @@
                     }"
                   >
                     <span>￥</span>{{ item.price ? $HandlePrice(item.price, 0) : 77
-                    }}<span>{{ item.price ? $HandlePrice(item.price, 1) : '' }}</span>
+                    }}<span>{{ item.price ? $HandlePrice(item.price, 1) : '' }}</span><span v-if="Number(item.ot_price) > Number(item.price)" class="price-reference-preview">¥{{ item.ot_price }}</span><span class="price-chevron-preview">›</span>
                   </div>
                   <img class="img" v-if="checkboxInfo.indexOf(5) != -1" src="../../assets/images/goods02.png" />
                 </div>
@@ -267,7 +267,7 @@
                 >
                   {{ item.store_name || '商品名称商品商名称商品商…' }}
                 </div>
-<div v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:11px;color:#999;margin:4px 0">{{ item.merchant_name || '商户店铺名称' }}</div>
+<merchant-label v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" :name="item.merchant_name" />
                 <img v-if="checkboxInfo.indexOf(1) != -1" src="../../assets/images/goods01.png" />
                 <div class="price acea-row row-middle">
                   <div
@@ -278,7 +278,7 @@
                     }"
                   >
                     <span>￥</span>{{ item.price ? $HandlePrice(item.price, 0) : 77
-                    }}<span>{{ item.price ? $HandlePrice(item.price, 1) : '' }}</span>
+                    }}<span>{{ item.price ? $HandlePrice(item.price, 1) : '' }}</span><span v-if="Number(item.ot_price) > Number(item.price)" class="price-reference-preview">¥{{ item.ot_price }}</span><span class="price-chevron-preview">›</span>
                   </div>
                   <img v-if="checkboxInfo.indexOf(5) != -1" src="../../assets/images/goods02.png" />
                 </div>
@@ -354,7 +354,7 @@
                   }"
                 >
                   <div class="line2">{{ item.store_name || '这里是标题这里是标题这...' }}</div>
-<div v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:11px;color:#999;margin:4px 0">{{ item.merchant_name || '商户店铺名称' }}</div>
+<merchant-label v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" :name="item.merchant_name" />
                 </div>
                 <div
                   class="price"
@@ -364,7 +364,7 @@
                   }"
                 >
                   <span>￥</span>{{ item.price ? $HandlePrice(item.price, 0) : 77
-                  }}<span>{{ item.price ? $HandlePrice(item.price, 1) : '' }}</span>
+                  }}<span>{{ item.price ? $HandlePrice(item.price, 1) : '' }}</span><span v-if="Number(item.ot_price) > Number(item.price)" class="price-reference-preview">¥{{ item.ot_price }}</span><span class="price-chevron-preview">›</span>
                 </div>
               </div>
             </div>
@@ -422,7 +422,7 @@
                     >
                       {{ item.store_name || '商品名称商品商名称商品商…' }}
                     </div>
-<div v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" style="font-size:11px;color:#999;margin:4px 0">{{ item.merchant_name || '商户店铺名称' }}</div>
+<merchant-label v-if="configObj && (configObj.showMerchantName === undefined ? colorStyle.showMerchantName : configObj.showMerchantName)" :name="item.merchant_name" />
                   </div>
                   <div class="price" v-if="checkboxInfo.indexOf(2) != -1">
                     <div
@@ -432,7 +432,7 @@
                       }"
                     >
                       <span>￥</span>{{ item.price ? $HandlePrice(item.price, 0) : 77
-                      }}<span>{{ item.price ? $HandlePrice(item.price, 1) : '' }}</span>
+                      }}<span>{{ item.price ? $HandlePrice(item.price, 1) : '' }}</span><span v-if="Number(item.ot_price) > Number(item.price)" class="price-reference-preview">¥{{ item.ot_price }}</span><span class="price-chevron-preview">›</span>
                     </div>
                   </div>
                 </div>
@@ -458,10 +458,12 @@
 </template>
 
 <script>
+import MerchantLabel from '@/components/merchantDecoration/MerchantLabel.vue';
 import decorationProducts from '@/mixins/decorationProducts';
 import { mapState } from 'vuex';
 // import theme from "@/mixins/theme";
 export default {
+  components: { MerchantLabel },
   mixins: [decorationProducts],
   name: 'home_goods_list',
   cname: '商品列表',
@@ -1631,4 +1633,8 @@ export default {
     margin-top: 3px;
   }
 }
+</style>
+
+<style scoped>
+.price-reference-preview{margin-left:5px;font-size:10px!important;font-weight:400;color:#aaa;text-decoration:line-through;white-space:nowrap}.price-chevron-preview{margin-left:4px;font-size:15px!important;font-weight:400}
 </style>
