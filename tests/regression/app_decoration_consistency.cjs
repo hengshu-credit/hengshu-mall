@@ -110,8 +110,8 @@ test('Android image URL adaptation preserves originals and external hosts', () =
   const {displayMedia}=loadShared('displayMedia');
   const origin='https://mall.test',source={image:origin+'/uploads/a.avif',slides:['/uploads/b.avif','/uploads/c.png'],description:'<img src="/uploads/d.avif">',external:'https://cdn.test/a.avif'};
   const result=displayMedia(source,origin);
-  assert.equal(result.image,origin+'/api/media/image?path=%2Fuploads%2Fa.avif');
-  assert.equal(result.slides[0],origin+'/api/media/image?path=%2Fuploads%2Fb.avif');
+  assert.equal(result.image,origin+'/api/media/image?path=%2Fuploads%2Fa.avif&format=auto');
+  assert.equal(result.slides[0],origin+'/api/media/image?path=%2Fuploads%2Fb.avif&format=auto');
   assert.equal(result.slides[1],source.slides[1]);assert.equal(result.external,source.external);
   assert.match(result.description,/api\/media\/image\?path=%2Fuploads%2Fd.avif/);assert.equal(source.image,origin+'/uploads/a.avif');
   assert.deepEqual(displayMedia(result,origin),result,'display URL rewrite is idempotent');

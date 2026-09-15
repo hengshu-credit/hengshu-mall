@@ -16,7 +16,7 @@ class Observer {
 }
 const uni = {
   $on: (name, fn) => listeners.add(fn), $off: (name, fn) => listeners.delete(fn), getWindowInfo: () => ({ windowHeight: 800 }),
-  createSelectorQuery() { queries++; return { in() { return this; }, select() { return this; }, boundingClientRect(fn) { fn({ top: imageTop }); return this; }, exec() {} }; },
+  createSelectorQuery() { queries++; return { in() { return this; }, select() { return this; }, boundingClientRect(fn) { fn({ top: imageTop, bottom: imageTop + 120, height: 120 }); return this; }, exec() {} }; },
 };
 let visibility;
 function load(file) {
@@ -98,3 +98,53 @@ for (const flags of [{ H5: true }, { MP: true, MP_WEIXIN: true }, { APP_PLUS: tr
   } finally { fallback.beforeDestroy.call(image); }
 }
 console.log('PASS: H5 without IntersectionObserver, mini-program and App fallback visibility');
+
+for (const flags of [{ APP_PLUS: true }, { MP: true, MP_WEIXIN: true }]) {
+  platform = flags;
+  const callbacks = new Map(), disconnected = new Set();
+  uni.createIntersectionObserver = owner => ({
+    relativeToViewport(margins) { assert.equal(margins.bottom, 200); return this; },
+    observe(selector, callback) { callbacks.set(owner, callback); },
+    disconnect() { disconnected.add(owner); },
+  });
+  const options = load('components/easy-loadimage/easy-loadimage.vue').default;
+  const cards = Array.from({ length: 40 }, () => mountImage(options));
+  assert.equal(cards.filter(card => card.loadImg).length, 0, 'Native offscreen images must wait for visibility');
+  assert.equal(listeners.size, 0, 'Native visibility must work without page scroll events');
+  callbacks.get(cards[0])({ intersectionRatio: 0.5 });
+  assert.equal(cards[0].loadImg, true);
+  assert(disconnected.has(cards[0]), 'Loaded native images stop observing');
+  cards[1].imageSrc = '/replacement.png';
+  options.watch.imageSrc.call(cards[1]);
+  assert.equal(cards[1].loadImg, false, 'Offscreen source replacement must remain lazy');
+  callbacks.get(cards[1])({ intersectionRatio: 1 });
+  assert.equal(cards[1].loadImg, true, 'Nested scrolling loads the newly visible card');
+  options.beforeDestroy.call(cards[2]); cards[2]._isDestroyed = true;
+  callbacks.get(cards[2])({ intersectionRatio: 1 });
+  assert.equal(cards[2].loadImg, false, 'Late native callbacks cannot revive detached cards');
+  cards.forEach(card => options.beforeDestroy.call(card));
+  assert.equal(disconnected.size, 40);
+}
+console.log('PASS: App/MP observers defer offscreen images, nested-scroll visibility, replacement and teardown');
+
+(async () => {
+  platform = { APP_PLUS: true };
+  // Simulate a cold WebView attaching after the observer's initial notification.
+  uni.createIntersectionObserver = () => ({ relativeToViewport() { return this; }, observe() {}, disconnect() {} });
+  const options = load('components/easy-loadimage/easy-loadimage.vue').default;
+  imageTop = 300;
+  const visible = mountImage(options), detached = mountImage(options);
+  options.beforeDestroy.call(detached); detached._isDestroyed = true;
+  try {
+    await new Promise(resolve => setTimeout(resolve, 350));
+    assert.equal(visible.loadImg, true, 'Initial visible images must recover when the native observer misses startup');
+    assert.equal(detached.loadImg, false, 'The initial layout check must be cancelled on teardown');
+    imageTop = 1800;
+    const offscreen = mountImage(options);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 350));
+      assert.equal(offscreen.loadImg, false, 'The startup fallback must not download offscreen images');
+    } finally { options.beforeDestroy.call(offscreen); }
+    console.log('PASS: cold native observer recovery, offscreen deferral and initial-check cancellation');
+  } finally { options.beforeDestroy.call(visible); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

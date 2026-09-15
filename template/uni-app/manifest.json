@@ -2,8 +2,8 @@
     "name" : "物色",
     "appid" : "__UNI__159D54B",
     "description" : "物色",
-    "versionName" : "6.0.15",
-    "versionCode" : 615,
+    "versionName" : "6.0.17",
+    "versionCode" : 617,
     "transformPx" : false,
     "sassImplementationName" : "node-sass",
     /* 5+App特有相关 */

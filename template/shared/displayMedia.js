@@ -5,7 +5,7 @@ export function displayImageUrl(value, origin) {
   let path = value.startsWith(base + '/') ? value.slice(base.length) : value;
   if (path.startsWith('/_compat/images/uploads/')) path = path.slice('/_compat/images'.length);
   if (!/^\/uploads\/[^?#]+\.avif(?:[?#].*)?$/i.test(path)) return value;
-  return base + '/api/media/image?path=' + encodeURIComponent(path.split(/[?#]/)[0]);
+  return base + '/api/media/image?path=' + encodeURIComponent(path.split(/[?#]/)[0]) + '&format=auto';
 }
 
 export function displayMedia(value, origin) {

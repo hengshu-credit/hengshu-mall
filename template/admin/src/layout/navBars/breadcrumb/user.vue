@@ -36,7 +36,7 @@
       ></i>
     </div>
     <div class="layout-navbars-breadcrumb-user-icon mr10" v-db-click @click="openMobelPage">
-      <i title="商城页面" class="el-icon-mobile-phone"></i>
+      <i title="打开商城 H5" class="el-icon-mobile-phone"></i>
     </div>
     <el-dropdown :show-timeout="70" @command="onDropdownCommand">
       <span class="layout-navbars-breadcrumb-user-link">
@@ -107,8 +107,10 @@ export default {
       this.isDot = status;
     },
     openMobelPage() {
-      // 获取域名
-      window.open(window.location.origin, '_blank');
+      // 站点根路径可能重定向到后台，直接打开 H5 首页。
+      const url = new URL('/pages/index/index', window.location.origin);
+      if (process.env.NODE_ENV === 'development' && url.port === '1617') url.port = '8011';
+      window.open(url.href, '_blank', 'noopener,noreferrer');
     },
     /**
      * 打开新弹窗

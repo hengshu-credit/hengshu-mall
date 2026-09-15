@@ -17,6 +17,9 @@ import colors from "@/mixins/color.js";
 import Cache from "@/utils/cache";
 import { debug } from "util";
 import { applyTheme, startThemeRefresh, stopThemeRefresh } from "@/utils/theme.js";
+// #ifdef APP-PLUS
+import { prefetchHome } from "@/utils/homeStartup";
+// #endif
 
 export default {
   globalData: {
@@ -113,6 +116,9 @@ export default {
   },
   async onLaunch(option) {
     uni.hideTabBar();
+    // #ifdef APP-PLUS
+    prefetchHome();
+    // #endif
     let that = this;
     basicConfig().then((res) => {
       uni.setStorageSync("BASIC_CONFIG", res.data);

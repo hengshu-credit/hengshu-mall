@@ -70,8 +70,9 @@ async function createServer(){
    if(u.pathname==='/__requests')return send({requests,imageResults});
    if(u.pathname==='/api/media/image'){
     await media(u.searchParams.get('path'));
-    const r=await fetch((process.env.CRMEB_AUDIT_MEDIA_PHP||'http://127.0.0.1:18028')+req.url),b=Buffer.from(await r.arrayBuffer());
-    imageResults.push({path:u.searchParams.get('path'),status:r.status,type:r.headers.get('content-type'),png:b.subarray(0,8).toString('hex')==='89504e470d0a1a0a'});
+    const r=await fetch((process.env.CRMEB_AUDIT_MEDIA_PHP||'http://127.0.0.1:18028')+req.url,{headers:{Accept:req.headers.accept||'*/*'}}),b=Buffer.from(await r.arrayBuffer());
+    const png=b.subarray(0,8).toString('hex')==='89504e470d0a1a0a',jpeg=b.subarray(0,3).toString('hex')==='ffd8ff',avif=b.subarray(4,8).toString()==='ftyp'&&b.subarray(8,40).includes(Buffer.from('avif'));
+    imageResults.push({path:u.searchParams.get('path'),status:r.status,type:r.headers.get('content-type'),png,jpeg,avif});
     res.writeHead(r.status,{'Content-Type':r.headers.get('content-type')||'application/octet-stream'});return res.end(b);
    }
    if(u.pathname.startsWith('/uploads/')){const file=await media(u.pathname);res.setHeader('Content-Type',({'avif':'image/avif','png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','gif':'image/gif'})[file.split('.').pop()]||'application/octet-stream');return fs.createReadStream(file).pipe(res);}

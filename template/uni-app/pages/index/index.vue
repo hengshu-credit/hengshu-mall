@@ -140,6 +140,7 @@ import { SUBSCRIBE_MESSAGE } from "@/config/cache";
 // #endif
 import { mapGetters, mapMutations } from "vuex";
 import { getDiy, getDiyVersion, getThemeInfo } from "@/api/api.js";
+import { loadHome } from "@/utils/homeStartup";
 import { getCartCounts } from "@/api/order.js";
 import { getCategoryList, getProductslist } from "@/api/store.js";
 import { goShopDetail } from "@/libs/order.js";
@@ -733,7 +734,7 @@ export default {
       this.homeLoading = true;
       let data = {};
       if (this.themeId) data.theme_id = this.themeId;
-      return getThemeInfo("home", data)
+      return loadHome(data)
         .then((res) => {
           uni.setStorageSync("diyData", JSON.stringify(res.data));
           this.setDiyData(res.data);

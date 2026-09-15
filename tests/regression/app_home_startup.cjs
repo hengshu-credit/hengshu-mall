@@ -12,7 +12,7 @@ const methods = component.properties.find(n => n.key.name === 'methods');
 const method = methods.value.properties.find(n => n.key?.name === 'getDiyData');
 let response, fail, calls = 0;
 const load = vm.runInNewContext('(function ' + source.slice(method.start, method.end) + ')', {
-  getThemeInfo() { calls++; return fail ? Promise.reject(response) : Promise.resolve(response); },
+  loadHome() { calls++; return fail ? Promise.reject(response) : Promise.resolve(response); },
   uni: { setStorageSync() {}, hideLoading() {}, showToast() {} },
 });
 const page = { themeId: 0, errorNetwork: false, homeLoading: false, homeErrorMessage: '',

@@ -5,7 +5,6 @@
       :key="imageSrc"
       :src="imageSrc"
       :mode="mode || 'aspectFill'"
-      lazy-load
       v-if="loadImg && !isLoadError"
       v-show="showImg"
       :style="[imgStyle]"
@@ -117,7 +116,7 @@ export default {
           .select("#" + id)
           .boundingClientRect((data) => {
             if (!data || that._isDestroyed) return;
-            if (data.top - that.viewHeight < 0) {
+            if (data.height > 0 && data.bottom > -200 && data.top < that.viewHeight + 200) {
               that.loadVisibleImage();
             }
           })
@@ -158,6 +157,7 @@ export default {
   },
   methods: {
     stopVisibility() {
+      clearTimeout(this._visibilityTimer);
       if (this._stopVisibility) this._stopVisibility();
       this._stopVisibility = null;
       if (this._imageObserver) this._imageObserver.disconnect();
@@ -171,19 +171,31 @@ export default {
       this._stopVisibility = observeImageVisibility(this.$el, this.loadVisibleImage);
       if (this._stopVisibility) return;
       // #endif
-      // Native image loading must not depend on page-level scroll events:
-      // decorated pages and scroll-view containers can scroll independently.
+      // Observe in the view layer: nested scroll-view containers don't emit the
+      // page's global scroll event. Offscreen cards must not compete with home.
+      // #ifndef H5
+      if (uni.createIntersectionObserver) {
+        try {
+          this._imageObserver = uni.createIntersectionObserver(this);
+          this._imageObserver.relativeToViewport({ bottom: 200, top: 200 }).observe('#' + this.uid, result => {
+            if (result.intersectionRatio > 0) this.loadVisibleImage();
+          });
+          // #ifdef APP-PLUS
+          // A cold-start WebView can attach after the initial observer entry.
+          // One layout check after attachment keeps the first screen moving;
+          // subsequent/nested scrolling stays with the observer.
+          this._visibilityTimer = setTimeout(this.onScroll, 300);
+          // #endif
+          return;
+        } catch (error) {
+          this.stopVisibility();
+        }
+      }
+      // #endif
       // #ifdef APP-PLUS
+      // Very old runtimes still need a safe fallback for nested scrollers.
       this.loadVisibleImage();
       return;
-      // #endif
-      // #ifdef MP
-      if (uni.createIntersectionObserver) {
-        this._imageObserver = uni.createIntersectionObserver(this);
-        this._imageObserver.relativeToViewport({ bottom: 200 }).observe('#' + this.uid, result => {
-          if (result.intersectionRatio > 0) this.loadVisibleImage();
-        });
-      }
       // #endif
       uni.$on("scroll", this.scrollFn);
       this.init();
@@ -226,7 +238,7 @@ export default {
     },
   },
   mounted() {
-    this.startVisibility();
+    this.$nextTick(this.startVisibility);
   },
   beforeDestroy() {
     this.stopVisibility();

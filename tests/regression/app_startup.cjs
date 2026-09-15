@@ -123,5 +123,5 @@ function guideHarness(platform) {
   request.get('theme', {}, { noAuth: true, dedupe: true, timeout: 1200 });
   request.get('theme', {}, { noAuth: true, dedupe: true, timeout: 100000 });
   assert.deepEqual(sent.map(item => item.timeout), [1200, 100000, 1200, 100000]);
-  console.log('PASS startup: first-render splash close, disabled/enabled/video ads, configured duration, daily skip, 1.2s deadline, late responses, cleanup, H5/MP behavior and request timeout isolation');
+  console.log('PASS startup: first-render splash close, disabled/enabled/video ads, configured duration, daily ad bypass, 1.2s deadline, late responses, cleanup, H5/MP behavior and request timeout isolation');
 })().catch(error => { console.error(error); process.exitCode = 1; });

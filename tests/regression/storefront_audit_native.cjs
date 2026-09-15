@@ -30,6 +30,10 @@ async function main(){
   run('push',staged+'/.',target);run('shell','am','start','-n','com.hengshucredit.mall/io.dcloud.PandoraEntry');await pause(2000);
   if(!process.env.CRMEB_AUDIT_SCOPE_ONLY && !process.env.CRMEB_AUDIT_SQUARE_ONLY && !process.env.CRMEB_AUDIT_TABS_ONLY){
   await navigate('/pages/index/index',false,60000);
+  if(process.env.CRMEB_AUDIT_FIRST_SCREEN){
+   const firstScreen=await ready(`(()=>{var cards=[...document.querySelectorAll('.menu .easy-loadimage')].filter(e=>{var r=e.getBoundingClientRect();return r.width>0&&r.top<innerHeight&&r.bottom>0;});var loaded=cards.filter(e=>{var image=e.querySelector('.origin-img'),img=image&&image.querySelector('img');return image&&getComputedStyle(image).display!=='none'&&img&&img.naturalWidth>0;});return {ready:cards.length>0&&loaded.length===cards.length,cards:cards.length,loaded:loaded.length};})()`);
+   await capture('home-first-screen',firstScreen);
+  }
   const home=await ready(`(()=>{var list=document.querySelectorAll('.goodList');if(!list.length)return {ready:false};var last=list[list.length-1],imgs=[...last.querySelectorAll('img')].filter(i=>i.src.includes('/api/media/image'));last.scrollIntoView({block:'center'});return {ready:last.textContent.includes('iPhone 17')&&imgs.some(i=>i.naturalWidth>0),headers:document.querySelectorAll('.goodList .header-box').length,products:last.textContent,images:imgs.map(i=>({loaded:i.naturalWidth>0,width:i.getBoundingClientRect().width}))};})()`);
   assert.equal(home.headers,0);for(let i=0;i<5;i++){run('shell','input','swipe','500','1450','500','450','350');await pause(300);}await capture('home',home);
   await ready(`(()=>{var price=document.querySelector('.goodList .price-detail-trigger');if(!price)return {ready:false};price.scrollIntoView({block:'center'});return {ready:true};})()`);
@@ -98,7 +102,7 @@ async function main(){
    assert(trail.some(url=>url.includes('storefront/shop/1/theme/category')&&url.includes('shop_page_id=42')));
    assert(trail.some(url=>url.includes('storefront/product/1/theme')&&url.includes('shop_page_id=42')));
   }
-  const results=await get('/__requests');assert(results.imageResults.length>0&&results.imageResults.every(x=>x.status===200&&x.png),'every requested compatible image returns PNG');
+  const results=await get('/__requests');assert(results.imageResults.length>0&&results.imageResults.every(x=>x.status===200&&((x.png&&x.type==='image/png')||(x.jpeg&&x.type==='image/jpeg')||(x.avif&&x.type==='image/avif'))),'every requested image has matching format bytes and Content-Type');
  }finally{
   run('shell','am','force-stop','com.hengshucredit.mall');run('push',backup+'/.',target);run('reverse','--remove','tcp:'+auditPort);
  }
