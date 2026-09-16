@@ -19,7 +19,7 @@
         @touchmove.stop.prevent="moveHandle"
       >
         <view class="pictrue" @click="showImg()">
-          <image :src="attr.productSelect.image"></image>
+          <product-image ref="productImage" :product="attr.productSelect" :fallback-src="fallbackImage" />
         </view>
         <view class="text">
           <view class="line2 store-name">
@@ -200,9 +200,12 @@
 
 <script>
 import colors from "@/mixins/color";
+import ProductImage from '@/components/productImage';
 export default {
+  components: { ProductImage },
   mixins: [colors],
   props: {
+    fallbackImage: { type: String, default: '' },
     attr: {
       type: Object,
       default: () => {},
@@ -265,9 +268,11 @@ export default {
       return false;
     },
     getpreviewImage: function () {
+      const image = this.$refs.productImage && this.$refs.productImage.imageSrc;
+      if (!image || image.startsWith('/static/')) return;
       uni.previewImage({
-        urls: this.attr.productSelect.image.split(","),
-        current: this.attr.productSelect.image,
+        urls: [image],
+        current: image,
       });
     },
     goCat: function () {

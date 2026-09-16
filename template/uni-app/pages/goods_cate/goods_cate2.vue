@@ -75,6 +75,7 @@
       @cart="getCartList(0)" @checkout="subOrder" @heightChange="checkoutHeight = $event" />
     <cartList :cartData="cartData" @closeList="closeList" @ChangeCartNumDan="ChangeCartList" @ChangeSubDel="ChangeSubDel" @ChangeOneDel="ChangeOneDel"></cartList>
 		<productWindow
+			:fallback-image="storeInfo.image"
 			:attr="attr"
 			:isShow="1"
 			:iSplus="1"

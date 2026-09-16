@@ -609,6 +609,17 @@ class StoreCartServices extends BaseServices
      * @email 442384644@qq.com
      * @date 2023/02/16
      */
+    protected function cartImage(array $product): string
+    {
+        $main = trim((string)($product['image'] ?? ''));
+        $sku = trim((string)($product['attrInfo']['image'] ?? ''));
+        // A single default specification follows the current product cover.
+        // Multi-spec products retain their selected SKU image. No stored order
+        // snapshot or product record is changed by this display normalization.
+        $single = isset($product['spec_type']) && (int)$product['spec_type'] === 0;
+        return $main !== '' && ($single || $sku === '') ? $main : $sku;
+    }
+
     public function handleCartList(int $uid, array $cartList, array $addr = [], int $shipping_type = 1)
     {
         if (!$cartList) return [$cartList, [], []];
@@ -675,7 +686,7 @@ class StoreCartServices extends BaseServices
                 $item['productInfo']['attrInfo'] = $item['attrInfo'] ?? [];
             }
             $item['attrStatus'] = isset($item['productInfo']['attrInfo']['stock']) && $item['productInfo']['attrInfo']['stock'];
-            $item['productInfo']['attrInfo']['image'] = $item['productInfo']['attrInfo']['image'] ?? $item['productInfo']['image'] ?? '';
+            $item['productInfo']['attrInfo']['image'] = $this->cartImage($item['productInfo']);
             $item['productInfo']['attrInfo']['suk'] = $item['productInfo']['attrInfo']['suk'] ?? '已失效';
             if (isset($item['productInfo']['attrInfo'])) {
                 $item['productInfo']['attrInfo'] = get_thumb_water($item['productInfo']['attrInfo']);

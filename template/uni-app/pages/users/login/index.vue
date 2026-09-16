@@ -98,6 +98,22 @@
 			</view>
 		</view>
 		<Verify @success="success" :captchaType="captchaType" :imgSize="{ width: '330px', height: '155px' }" ref="verify"></Verify>
+		<view v-if="protocolConfirmVisible" class="login-protocol-layer" @touchmove.stop.prevent>
+			<view class="login-protocol-mask" @click="finishLoginProtocol(false)"></view>
+			<view class="login-protocol-card" role="dialog" aria-modal="true" :aria-label="$t('登录授权')" @touchmove.stop>
+				<view class="login-protocol-title">{{ $t('登录授权') }}</view>
+				<view class="login-protocol-description">{{ $t('登录前，请阅读并同意以下协议') }}</view>
+				<view class="login-protocol-links">
+					<text @click="privacy(4)">{{ $t('《用户协议》') }}</text>
+					<text class="login-protocol-separator">{{ $t('与') }}</text>
+					<text @click="privacy(3)">{{ $t('《隐私协议》') }}</text>
+				</view>
+				<view class="login-protocol-actions">
+					<button class="login-protocol-decline" @click="finishLoginProtocol(false)">{{ $t('不同意') }}</button>
+					<button class="login-protocol-agree" @click="finishLoginProtocol(true)">{{ $t('同意并登录') }}</button>
+				</view>
+			</view>
+		</view>
 	</view>
 </template>
 <script>
@@ -177,25 +193,29 @@ export default {
 		// this.getCode();
 		this.getLogoImage();
 	},
+	onUnload() {
+		this.finishLoginProtocol(false);
+	},
 	methods: {
+		dismissAppOverlay() {
+			if (!this.protocolConfirmVisible) return false;
+			this.finishLoginProtocol(false);
+			return true;
+		},
 		confirmLoginProtocol(login) {
 			if (this.protocolConfirmVisible) return;
+			this._protocolLogin = login;
+			if (uni.hideKeyboard) uni.hideKeyboard();
 			this.protocolConfirmVisible = true;
-			uni.showModal({
-				title: this.$t('用户协议与隐私协议'),
-				content: this.$t('是否同意《用户协议》和《隐私协议》并继续登录？'),
-				confirmText: this.$t('同意并登录'),
-				cancelText: this.$t('不同意'),
-				success: (res) => {
-					this.protocolConfirmVisible = false;
-					if (!res.confirm) return;
-					this.protocol = true;
-					login();
-				},
-				fail: () => {
-					this.protocolConfirmVisible = false;
-				}
-			});
+		},
+		finishLoginProtocol(accepted) {
+			if (!this.protocolConfirmVisible) return;
+			const login = this._protocolLogin;
+			this._protocolLogin = null;
+			this.protocolConfirmVisible = false;
+			if (!accepted) return;
+			this.protocol = true;
+			if (login) login();
 		},
 		ChangeIsDefault(e) {
 			this.$set(this, 'protocol', !this.protocol);
@@ -665,6 +685,85 @@ export default {
 <style>
 page {
 	background: #fff;
+}
+</style>
+<style scoped lang="scss">
+.login-protocol-layer {
+	position: fixed;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 11000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 32rpx;
+	box-sizing: border-box;
+}
+.login-protocol-mask {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background: rgba(20, 24, 33, .48);
+}
+.login-protocol-card {
+	position: relative;
+	width: 100%;
+	max-width: 620rpx;
+	max-height: 80vh;
+	overflow-y: auto;
+	padding: 44rpx 36rpx 36rpx;
+	box-sizing: border-box;
+	border-radius: 28rpx;
+	background: #fff;
+	box-shadow: 0 16rpx 64rpx rgba(0, 0, 0, .12);
+	text-align: center;
+}
+.login-protocol-title {
+	font-size: 36rpx;
+	line-height: 1.4;
+	font-weight: 600;
+	color: #20242c;
+}
+.login-protocol-description {
+	margin-top: 24rpx;
+	font-size: 28rpx;
+	line-height: 1.75;
+	color: #606570;
+}
+.login-protocol-links {
+	margin-top: 8rpx;
+	font-size: 28rpx;
+	line-height: 1.8;
+	color: var(--view-theme, #ff4081);
+}
+.login-protocol-separator { color: #606570; }
+.login-protocol-actions {
+	display: flex;
+	margin-top: 36rpx;
+	button {
+		flex: 1;
+		min-width: 0;
+		margin: 0;
+		padding: 0 12rpx;
+		font-size: 28rpx;
+		line-height: 88rpx;
+		border-radius: 16rpx;
+		&::after { border: 0; }
+	}
+	.login-protocol-decline {
+		color: #606570;
+		background: #f3f4f6;
+	}
+	.login-protocol-agree {
+		margin-left: 20rpx;
+		color: #fff;
+		font-weight: 600;
+		background: var(--view-theme, #ff4081);
+	}
 }
 </style>
 <style lang="scss">

@@ -20,7 +20,7 @@ const {startMedia}=require('./commerce_fixture_services.cjs');
       await page.goto(fixture.origin+url);await page.locator(selector).first().waitFor({timeout:30000});
       await page.getByText(/iPhone 17/).first().waitFor({timeout:30000});
       await page.locator(selector).first().scrollIntoViewIfNeeded();
-      await page.waitForFunction(()=>[...document.querySelectorAll('img')].some(i=>i.src.includes('/uploads/')&&i.naturalWidth>0));
+      await page.waitForFunction(()=>[...document.querySelectorAll('img')].some(i=>(i.src.includes('/uploads/')||i.src.includes('/api/media/image'))&&i.naturalWidth>0));
       const file=path.join(out,'browser-'+name+'.png');await page.screenshot({path:file});screenshots.push(file);
       await page.reload();await page.locator(selector).first().waitFor({timeout:30000});
       console.log('PASS: current production H5 saved/reloaded '+name);

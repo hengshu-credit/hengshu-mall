@@ -56,9 +56,9 @@ async function main() {
   assert.equal(sha(Buffer.from(h5)), JSON.parse(fs.readFileSync(path.join(app, 'release.json'))).h5EntrySha256);
   console.log('PASS: mobile H5 build and referenced entry assets are included');
   const config = JSON.parse(compose(['config', '--format', 'json']));
-  assert.equal(Object.keys(config.services).length, 9);
+  assert.deepEqual(Object.keys(config.services).sort(), ['commerce', 'jd-crawler', 'media-display', 'mysql', 'nginx', 'phpfpm', 'queue', 'redis', 'timer', 'workerman'].sort());
   assert(config.services['media-display'], 'AVIF display service is required by the Android client');
-  for (const name of ['queue', 'timer', 'workerman']) {
+  for (const name of ['queue', 'timer', 'workerman', 'commerce']) {
     assert(!config.services[name].profiles?.length, 'workers must start by default');
     assert.equal(config.services[name].labels['com.hengshu.release'], config.services.phpfpm.labels['com.hengshu.release']);
     assert(!config.services[name].labels['com.hengshu.release'].includes('__RELEASE_ID__'));

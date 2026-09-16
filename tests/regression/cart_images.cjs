@@ -1,0 +1,42 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.resolve(__dirname, '../..');
+const Vue = require(path.join(root, 'template/admin/node_modules/vue'));
+const { compiler, transform } = require('./theme_component_harness.cjs');
+const source = compiler.parseComponent(fs.readFileSync(path.join(root, 'template/uni-app/components/productImage/index.vue'), 'utf8'));
+assert.deepEqual(compiler.compile(source.template.content).errors, []);
+const mod = { exports: {} };
+new Function('module', 'exports', transform(source.script.content))(mod, mod.exports);
+const options = mod.exports.default;
+const fail = (image, src = image.imageSrc) => image.onImageError({ currentTarget: { dataset: { src } } });
+(async () => {
+  for (const image of ['', '  ', null, undefined, false]) {
+    const vm = new Vue({ ...options, propsData: { product: { attrInfo: { image }, image: '/main.png' } } });
+    assert.equal(vm.imageSrc, '/main.png', 'Empty SKU images must use the main product image');
+    vm.$destroy();
+  }
+  const vm = new Vue({ ...options, propsData: { product: { attrInfo: { image: '/sku.png' }, image: '/main.png' } } });
+  assert.equal(vm.imageSrc, '/sku.png', 'A valid SKU image stays first');
+  fail(vm);
+  assert.equal(vm.imageSrc, '/main.png', 'A 404 or decoding failure must fall back to the product image');
+  fail(vm);
+  assert.equal(vm.imageSrc, '/static/easy-loadimage/loading.png');
+  fail(vm);
+  assert.equal(vm.imageSrc, '', 'Even a missing packaged placeholder must not create an infinite retry');
+  const original = { attrInfo: { image: '/new-sku.png' }, image: '/main.png' };
+  vm.product = original;
+  await Vue.nextTick();
+  fail(vm, '/sku.png');
+  assert.equal(vm.imageSrc, '/new-sku.png', 'Late errors from an old SKU must not suppress the replacement');
+  assert.equal(original.attrInfo.image, '/new-sku.png', 'Display fallback must not mutate cart or product data');
+  vm.product = { image: ' /same.png ', attrInfo: { image: '/same.png' } };
+  await Vue.nextTick();
+  fail(vm);
+  assert.equal(vm.imageSrc, '/static/easy-loadimage/loading.png', 'The same URL must not be requested twice');
+  vm.product = null;
+  await Vue.nextTick();
+  assert.equal(vm.imageSrc, '/static/easy-loadimage/loading.png', 'Deleted product relations retain a placeholder');
+  vm.$destroy();
+  console.log('PASS cart images: empty/failed SKU, main-image fallback, placeholder, bounded retries, replacement and unchanged cart data');
+})().catch(error => { console.error(error); process.exitCode = 1; });

@@ -5,7 +5,7 @@ const root=path.resolve(__dirname,'../..'),out=path.join(root,'.build/storefront
 const origin='http://127.0.0.1:'+port;
 const read=name=>JSON.parse(fs.readFileSync(path.join(out,'live',name+'.json'))).data;
 const remap=value=>JSON.parse(JSON.stringify(value).replaceAll('https://mall.hengshucredit.com',origin));
-async function createServer(){
+async function createServer(options = {}){
  const h5=path.resolve(process.env.CRMEB_AUDIT_H5||path.join(out,'h5'));
  const home=remap(read('home')),category=remap(read('category_theme')),cart=remap(read('cart_theme')),detail=remap(read('detail_theme'));
  const product=remap(read('detail1')),catalog=remap(read('products_shop1')),shop=remap(read('shop1'));
@@ -17,6 +17,8 @@ async function createServer(){
  const sku=Object.values(product.productValue)[0]||{};
  const row={id:701,product_id:1,cart_num:2,truePrice:product.storeInfo.price,trueStock:product.storeInfo.stock,attrStatus:true,status:true,min_qty:1,
   productInfo:{...product.storeInfo,merchant_name:shop.name,attrInfo:{...sku,suk:sku.suk||'默认',image:sku.image||product.storeInfo.image}}};
+ const cartRows=options.cartRows ? remap(options.cartRows) : [row];
+ const invalidCartRows=options.invalidCartRows ? remap(options.invalidCartRows) : [];
  let command={seq:0},reports=[],navMode='home';const requests=[],imageResults=[];
  async function media(filePath){
   if(!/^\/uploads\/[\w/.-]+$/.test(filePath)||filePath.includes('..'))throw Error('Invalid media path');
@@ -89,18 +91,21 @@ async function createServer(){
     else if(name==='products')data=catalog.filter(x=>!u.searchParams.get('ids')||u.searchParams.get('ids').split(',').includes(String(x.id)));
     else if(name==='storefront/products')data={list:catalog,count:catalog.length};
     else if(name==='product/detail/1')data=product;
+    else if(name==='v2/get_attr/1/0')data={...product,productAttr:[{attr_name:'规格',attr_values:['默认']}],productValue:{'默认':{...product.storeInfo,image:origin+'/uploads/legacy-sku.jpg.avi',unique:product.spec_unique,suk:'默认'}}};
+    else if(name==='order/detail/image-audit'&&options.order)data=remap(options.order);
     else if(name.startsWith('product/real_price/'))data={real_price:product.storeInfo.price,member_price:product.storeInfo.price,ot_price:product.storeInfo.ot_price};
     else if(name==='storefront/shop/1')data=shop;
     else if(name==='storefront/shop/1/follow')data={followed:false,follower_count:1};
     else if(name==='storefront/shop/1/theme/home')data=saved&&u.searchParams.get('shop_page_id')==='42'?{page:saved.home,palette:saved.theme,shop_id:1,theme_id:42}:{...shopHome,page:shopHome.page?.value?shopHome.page:loadShared('merchantDecoration').defaultShopPage()};
     else if(name==='storefront/shop/1/theme/category')data=saved&&u.searchParams.get('shop_page_id')==='42'?{page:saved.category,palette:saved.theme,shop_id:1,theme_id:42}:shopCategory;
     else if(name==='storefront/product/1/theme')data={page:detail,palette:saved&&u.searchParams.get('shop_page_id')==='42'?saved.theme:{theme_color:'#ff4081'},shop_id:1};
-    else if(name==='cart/count')data={count:2,ids:[701]};
+    else if(name==='cart/count')data={count:cartRows.reduce((n,item)=>n+Number(item.cart_num),0),ids:cartRows.map(item=>item.id)};
     else if(name==='v2/diy/sign')data={continuousSignDays:0,signGivePoint:0,signList:[[]]};
     else if(name==='seckill/index')data={seckillTime:[],seckillTimeIndex:-1};
-    else if(['pink','combination/list','bargain/list','reply/list/1','v2/cart_list'].includes(name))data=[];
-    else if(name==='cart/list')data={valid:u.searchParams.get('status')==='2'?[]:[row],invalid:[]};
-    else if(name==='cart/full_reduction_quote')data={pay_price:(Number(row.truePrice)*2).toFixed(2),full_reduction_price:'0.00'};
+    else if(name==='v2/cart_list')data=options.cartRows ? cartRows : [];
+    else if(['pink','combination/list','bargain/list','reply/list/1'].includes(name))data=[];
+    else if(name==='cart/list')data={valid:u.searchParams.get('status')==='0'||u.searchParams.get('status')==='2'?[]:cartRows,invalid:u.searchParams.get('status')==='0'?invalidCartRows:[]};
+    else if(name==='cart/full_reduction_quote')data={pay_price:cartRows.reduce((total,item)=>total+Number(item.truePrice)*Number(item.cart_num),0).toFixed(2),full_reduction_price:'0.00'};
     else if(name==='user')data={uid:9999,nickname:'隔离验收用户',orderStatusNum:{},diy_data:{value:0}};
     else if(name==='menu/user')data={diy_data:{value:0},routine_my_menus:[]};
     else if(name==='v2/get_today_coupon')data={list:[]};

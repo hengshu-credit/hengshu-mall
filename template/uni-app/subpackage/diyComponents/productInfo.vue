@@ -40,7 +40,7 @@
                 </view>
               </view>
               <!-- 图片项 -->
-              <image v-else :src="item" mode="aspectFill" class="slide-image"></image>
+              <product-image v-else :src="item" :fallback-src="productData.image" mode="aspectFill" class="slide-image" />
             </swiper-item>
           </swiper>
           <!-- 镜像效果 -->
@@ -391,11 +391,13 @@
 import DiscountExplanation from '@/components/discountExplanation/index.vue';
 import MerchantName from '@/components/merchantName/index.vue';
 import commonWrapper from "./commonWrapper.vue";
+import ProductImage from '@/components/productImage';
 import BaseTag from "@/components/BaseTag.vue";
 
 export default {
   name: "productInfo",
   components: {
+    ProductImage,
     DiscountExplanation,
     MerchantName,
     BaseTag,

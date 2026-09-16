@@ -110,6 +110,7 @@
       @ChangeOneDel="ChangeOneDel"
     ></cartList>
     <productWindow
+      :fallback-image="storeInfo.image"
       :attr="attr"
       :minQty="storeInfo.min_qty"
       :isShow="1"

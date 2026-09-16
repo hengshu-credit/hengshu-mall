@@ -56,6 +56,7 @@ async function exercise(label, read, calls, success, fail, changeScope) {
   const request = load('template/uni-app/utils/request.js', {
     '@/config/app': { HTTP_REQUEST_URL: 'http://local', HEADER: { 'content-type': 'application/json' }, TOKENNAME: 'Authori-zation', TIMEOUT: 100000 },
     '../libs/login': { toLogin() {}, checkLogin: () => true }, '../store': { state }, './lang.js': { t: t => t },
+    '../../shared/displayMedia': require('./ranking_shared_loader.cjs').loadShared('displayMedia'),
   }, { uni: { request: options => calls.push(options), getStorageSync: key => key === 'locale' ? locale : '', showModal() {} } }).default;
   const api = load('template/uni-app/api/api.js', { '@/utils/request.js': request });
   const success = call => call.success({ data: { status: 200, data: { marker: 'original' } } });

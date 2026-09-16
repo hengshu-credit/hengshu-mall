@@ -8,13 +8,15 @@ const before=sourceState(),env={...process.env,NODE_PATH:path.join(root,'tests/t
 const method=['admin_routes','admin_tags_lifecycle','request_completion','config_requests','cart_loading','chat_socket','h5_category','h5_lazy_images','full_reduction_frontend','full_reduction_mobile','product_description','product_detail_empty','product_recommendation_race','product_brand_frontend','merchant_frontend','storefront_frontend','decoration_scope','decoration_catalog','page_actions','main_navigation','theme_page_navigation','discount_explanation','ranking_assets','ranking_detail'];
 method.push('transfer_request','release_gate');
 method.push('home_prefetch','app_startup','app_home_startup');
+method.push('cart_images');
 const phpMethod=['invoice_ownership','apple_auth','cart_decoration','category_decoration','decoration_controls','page_module_operations','theme_palette','page_actions','theme_import_decoration','payment_transport','commerce_lock','commerce_delivery_failure'];
+phpMethod.push('cart_merchant_metadata');
 const suites={
   method:[...method.map(name=>[node,path.join(__dirname,name+'.cjs')]),...phpMethod.map(name=>[php,path.join(__dirname,name+'.php')]),[python,path.join(__dirname,'media_display.py')]],
   database:['commerce_database.php','commerce_refund.php','commerce_tasks.php','commerce_concurrency.php','commerce_theme_roundtrip.php','product_quality.php','payment_database.php','payment_dispatch.php','payment_nested_dispatch.php'].map(file=>[php,path.join(__dirname,file)]),
   http:[[python,path.join(__dirname,'commerce_http.py')]],
-  browser:[[node,path.join(__dirname,'commerce_browser.cjs')],[node,path.join(__dirname,'product_recommendations.cjs')],[node,path.join(__dirname,'commerce_admin_browser.cjs')]],
-  native:[[node,path.join(__dirname,'commerce_native.cjs')]],
+  browser:[[node,path.join(__dirname,'commerce_browser.cjs')],[node,path.join(__dirname,'product_recommendations.cjs')],[node,path.join(__dirname,'commerce_admin_browser.cjs')],[node,path.join(__dirname,'cart_images_browser.cjs')]],
+  native:[[node,path.join(__dirname,'commerce_native.cjs')],[node,path.join(__dirname,'cart_images_native.cjs')]],
 };
 if(!suites[group])throw Error('Use method, database, http, browser or native');
 fs.mkdirSync(out,{recursive:true});const results=[];

@@ -10,8 +10,7 @@
 			<view class="list">
 				<view class="item acea-row row-between-wrapper" v-for="(item,index) in cartData.cartList" :key="index">
 					<view class="pictrue">
-						<image v-if="item.productInfo.attrInfo" :src='item.productInfo.attrInfo.image'></image>
-						<image v-else :src='item.productInfo.image'></image>
+						<product-image :product="item.productInfo" />
 						<view class="mantle" v-if="!item.status || !item.attrStatus"></view>
 					</view>
 					<view class="txtPic">
@@ -42,7 +41,9 @@
 </template>
 
 <script>
+	import ProductImage from '@/components/productImage';
 	export default {
+		components: { ProductImage },
 		props: {
 			cartData: {
 				type: Object,

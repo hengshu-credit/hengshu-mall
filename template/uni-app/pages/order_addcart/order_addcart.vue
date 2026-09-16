@@ -61,7 +61,7 @@
                   class="picTxt acea-row row-between-wrapper"
                 >
                   <view class="pictrue">
-                    <image :src="cartProductImage(item)" mode="aspectFill"></image>
+                    <product-image :product="item.productInfo" />
                   </view>
                   <view class="text">
                     <view
@@ -94,22 +94,23 @@
                     class="carnum acea-row row-center-wrapper"
                     v-if="item.attrStatus"
                   >
-                    <view class="reduce" @click.stop="subCart(cartList.valid.indexOf(item))">-</view>
-                    <!-- <view class='num'>{{item.cart_num}}</view> -->
+                    <button class="quantity-button reduce" :disabled="disabledChangeNumber" aria-label="减少商品数量" @click.stop="subCart(cartList.valid.indexOf(item))">−</button>
                     <view class="num">
                       <input
                         type="number"
                         v-model="item.cart_num"
+                        aria-label="商品数量"
                         @click.stop
                         @input="iptCartNum(cartList.valid.indexOf(item))"
                         @blur="blurInput(cartList.valid.indexOf(item))"
                       />
                     </view>
-                    <view
-                      class="plus"
-                      :class="item.numAdd && !disabledChangeNumber ? 'on' : ''"
+                    <button
+                      class="quantity-button plus"
+                      :disabled="disabledChangeNumber || adding || item.numAdd"
+                      aria-label="增加商品数量"
                       @click.stop="addCart(cartList.valid.indexOf(item))"
-                      >+</view
+                      >+</button
                     >
                   </view>
                 </navigator>
@@ -144,7 +145,7 @@
               <view class="item acea-row row-between-wrapper">
                 <view class="invalid">{{ $t(`失效`) }}</view>
                 <view class="pictrue">
-                  <image :src="cartProductImage(item)" mode="aspectFill"></image>
+                  <product-image :product="item.productInfo" />
                 </view>
                 <view class="text acea-row row-column-between">
                   <view class="line1 name">{{
@@ -227,6 +228,7 @@
       </view>
     </view>
     <productWindow
+      :fallback-image="storeInfo.image"
       :attr="attr"
       :isShow="1"
       :iSplus="1"
@@ -274,6 +276,7 @@ import authorize from "@/components/Authorize";
 // #endif
 import pageFooter from "@/components/pageFooter/index.vue";
 import PageTitle from '@/subpackage/diyComponents/pageTitle.vue';
+import ProductImage from '@/components/productImage';
 import colors from "@/mixins/color";
 import { HTTP_REQUEST_URL, DEBOUNCETIME } from "@/config/app";
 import { Throttle } from "@/utils/validate.js";
@@ -284,6 +287,7 @@ import { normalizeCartPage, cartPageStyles } from '../../../shared/cartPageConfi
 
 export default {
   components: {
+    ProductImage,
     DiscountExplanation,
     PageTitle,
     pageFooter,
@@ -813,10 +817,6 @@ export default {
     },
     openCartShop(shop) {
       if (shop.id) this.$util.JumpPath('/pages/merchant/shop?id=' + shop.id);
-    },
-    cartProductImage(item) {
-      const product = item.productInfo || {};
-      return (product.attrInfo || {}).image || product.image || '/static/easy-loadimage/loading.png';
     },
     checkboxChange: function (event, shop) {
       let that = this;
@@ -1410,44 +1410,50 @@ export default {
 }
 
 .shoppingCart .list .item .picTxt .carnum {
-  height: 47rpx;
+  height: 64rpx;
   position: absolute;
   bottom: 0rpx;
   right: 0;
+  overflow: hidden;
+  border: 1rpx solid #e5e5e5;
+  border-radius: 10rpx;
+  background: #fff;
 }
 
-.shoppingCart .list .item .picTxt .carnum view {
-  border: 1rpx solid #a4a4a4;
-  width: 66rpx;
+.shoppingCart .list .item .picTxt .carnum .quantity-button {
+  width: 64rpx;
   text-align: center;
   height: 100%;
-  line-height: 40rpx;
-  font-size: 28rpx;
-  color: #a4a4a4;
+  line-height: 62rpx;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  background: #fff;
+  font-size: 34rpx;
+  color: #333;
 }
 
-.shoppingCart .list .item .picTxt .carnum .reduce {
-  border-right: 0;
-  border-radius: 3rpx 0 0 3rpx;
+.shoppingCart .list .item .picTxt .carnum .quantity-button::after {
+  border: 0;
 }
 
-.shoppingCart .list .item .picTxt .carnum .reduce.on {
-  border-color: #e3e3e3;
-  color: #dedede;
-}
-
-.shoppingCart .list .item .picTxt .carnum .plus {
-  border-left: 0;
-  border-radius: 0 3rpx 3rpx 0;
-}
-
-.shoppingCart .list .item .picTxt .carnum .plus.on {
-  border-color: #e3e3e3;
-  color: #dedede;
+.shoppingCart .list .item .picTxt .carnum .quantity-button[disabled] {
+  color: #c5c5c5;
+  background: #fafafa;
 }
 
 .shoppingCart .list .item .picTxt .carnum .num {
+  width: 72rpx;
+  height: 100%;
+  background: #f5f5f5;
   color: #282828;
+}
+
+.shoppingCart .list .item .picTxt .carnum .num input {
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  font-size: 28rpx;
 }
 
 .shoppingCart .invalidGoods {

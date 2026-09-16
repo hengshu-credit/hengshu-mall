@@ -33,6 +33,13 @@ async function run(response, options = {}, networkFailure = false) {
   assert.equal(deniedResult.modals, 1);
   assert.equal(deniedResult.value, denied, '402 must preserve the API error payload');
   assert.equal((await run({ status: 200, data: 'ok' })).state, 'fulfilled');
+  const original = { storeInfo: { image: 'http://synthetic.invalid/uploads/main.avif', slider_image: ['http://synthetic.invalid/uploads/second.avif'] }, cartInfo: [{ productInfo: { image: 'http://synthetic.invalid/uploads/snapshot.avif', attrInfo: { image: 'https://vendor.invalid/legacy.jpg.avi', price: '123.45' } } }] };
+  const media = await run({ status: 200, data: original });
+  assert.match(media.value.data.storeInfo.slider_image[0], /\/api\/media\/image\?path=/);
+  assert.match(media.value.data.cartInfo[0].productInfo.image, /\/api\/media\/image\?path=/);
+  assert.equal(media.value.data.cartInfo[0].productInfo.attrInfo.image, 'https://vendor.invalid/legacy.jpg.avi');
+  assert.equal(media.value.data.cartInfo[0].productInfo.attrInfo.price, '123.45');
+  assert.equal(original.storeInfo.image, 'http://synthetic.invalid/uploads/main.avif', 'Display URLs never overwrite the original data');
   const authResult = await run({ status: 401 });
   assert.equal(authResult.state, 'rejected'); assert.equal(authResult.logins, 1);
   const ordinary = await run({ status: 400, msg: 'Invalid' });

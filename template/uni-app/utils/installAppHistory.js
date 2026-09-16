@@ -25,11 +25,15 @@ export function installAppHistory(Vue) {
   function finishFailure() { pending = null; internalBack = false; refresh(); }
   function move(delta) {
     if (pending) return;
+    const pages = getCurrentPages();
+    const current = pages[pages.length - 1];
+    const pageVm = current && current.$vm;
+    // Give a visible page dialog first refusal before navigating away.
+    if (delta < 0 && pageVm && typeof pageVm.dismissAppOverlay === 'function' && pageVm.dismissAppOverlay()) return;
     const target = history.plan(delta);
     if (!target) return;
     pending = target;
     refresh();
-    const pages = getCurrentPages();
     const existing = pages.findIndex(page => pageUrl(page) === target.url);
     const callbacks = {
       success() { if (pending === target) { history.commit(target); pending = null; } internalBack = false; refresh(); },

@@ -153,3 +153,17 @@ assert.equal('/' + pages[0].route, category, 'Messages from hidden or unrelated 
 nativeMessages.plusMessage({ data: { ...message, direction: -1, requestId: 'three' } });
 assert.equal('/' + pages[0].route, home);
 console.log('PASS: native APP lifecycle adapter, tab stack destruction, Back handling and navigation failure recovery');
+nativeUni.navigateTo({ url: '/pages/users/login/index' });
+let overlayOpen = true, dismissals = 0;
+pages[pages.length - 1].$vm.dismissAppOverlay = () => {
+  if (!overlayOpen) return false;
+  overlayOpen = false; dismissals++; return true;
+};
+const beforeOverlayBack = nativeCalls.length;
+mixin.onBackPress();
+assert.equal(dismissals, 1);
+assert.equal(nativeCalls.length, beforeOverlayBack, 'Closing an authorization dialog must not navigate or change route history');
+assert.equal('/' + pages[pages.length - 1].route, '/pages/users/login/index');
+mixin.onBackPress();
+assert.equal('/' + pages[0].route, home, 'Once the dialog is closed, ordinary Back must still work');
+console.log('PASS: page overlay gets Back priority without changing navigation history');

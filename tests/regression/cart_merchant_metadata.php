@@ -26,6 +26,7 @@ namespace app\services\merchant {
 namespace {
     require __DIR__ . '/../../crmeb/app/services/order/StoreCartServices.php';
     class CartProbe extends \app\services\order\StoreCartServices {
+        public function imageFor(array $product): string { return $this->cartImage($product); }
         public function handleCartList(int $uid, array $cartList, array $addr = [], int $shipping_type = 1) { return [$cartList, $cartList, []]; }
     }
     function check($condition, $message) { if (!$condition) throw new \RuntimeException($message); }
@@ -36,6 +37,14 @@ namespace {
         ['id' => '103', 'product_id' => 3, 'productInfo' => null],
     ];
     $service = new CartProbe($dao);
+    $single = ['spec_type' => 0, 'image' => '/uploads/main.avif', 'attrInfo' => ['image' => 'https://vendor.invalid/stale.jpg.avi']];
+    check($service->imageFor($single) === '/uploads/main.avif', 'Default single SKU must follow the current local product cover');
+    check($single['attrInfo']['image'] === 'https://vendor.invalid/stale.jpg.avi', 'Choosing a display image must not mutate stored input');
+    $single['spec_type'] = 1;
+    check($service->imageFor($single) === 'https://vendor.invalid/stale.jpg.avi', 'Real multi-spec SKU images retain their identity');
+    $single['attrInfo']['image'] = '  ';
+    check($service->imageFor($single) === '/uploads/main.avif', 'Blank multi-spec images fall back to the cover');
+    check($service->imageFor([]) === '', 'Missing product information remains representable');
     $result = $service->getUserCartList(77, 1);
     check($dao->where['uid'] === 77, 'Cart ownership scope must remain intact');
     check(count(\app\services\merchant\MerchantProducts::$calls) === 1, 'Shop summaries must be fetched in one batch');

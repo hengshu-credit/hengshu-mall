@@ -29,8 +29,7 @@
 				@click="jumpCon(item)">
 				<view class="item acea-row row-between-wrapper">
 					<view class='pictrue' :class="{gray:!item.is_valid}">
-						<image :src='item.productInfo.attrInfo.image' v-if="item.productInfo.attrInfo"></image>
-						<image :src='item.productInfo.image' v-else></image>
+						<product-image :product="item.productInfo" />
 					</view>
 					<view class='text'>
 						<view class='acea-row row-between-wrapper'>
@@ -80,8 +79,10 @@
 </template>
 
 <script>
+	import ProductImage from '@/components/productImage';
 	import { mapGetters } from 'vuex'
 	export default {
+		components: { ProductImage },
 		computed: mapGetters(['uid']),
 		props: {
 			// 订单状态

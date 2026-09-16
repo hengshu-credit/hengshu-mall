@@ -115,7 +115,8 @@
         @share="listenerActionSheet"
       ></productBottom>
       <!-- 组件 -->
-      <productWindow
+    <productWindow
+      :fallback-image="storeInfo.image"
         :attr="attr"
         :isShow="1"
         :iSplus="1"

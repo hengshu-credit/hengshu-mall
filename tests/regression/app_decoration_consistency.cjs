@@ -91,7 +91,8 @@ test('cart shop selection, original row indexes, quantities and checkout quote s
   assert.deepEqual(vm.selectValue,[1,2,3]);assert.deepEqual(quotes.at(-1),['1','2','3']);assert.equal(vm.selectCountPrice,'40.20');
   vm.selectShop(vm.cartShops[0],{detail:{value:[]}});await tick();assert.deepEqual(vm.selectValue,[2]);
   vm.checkboxAllChange({detail:{value:['all']}});await tick();assert.deepEqual(vm.selectValue,[1,2,3,5]);assert.equal(vm.isAllSelect,true);
-  assert.equal(vm.cartProductImage(vm.cartList.valid[0]),'/main.png');
+  const thumbnail=state(load('template/uni-app/components/productImage/index.vue'),{product:vm.cartList.valid[0].productInfo});
+  assert.equal(thumbnail.imageSrc,'/main.png');
   vm.openCartShop(vm.cartShops[1]);assert.equal(jumps.at(-1),'/pages/merchant/shop?id=9');
   vm.footerswitch=false;vm.selectShop(vm.cartShops[0],{detail:{value:['shop-8']}});assert.ok(vm.selectValue.includes(4));
 });
