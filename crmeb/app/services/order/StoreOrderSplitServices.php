@@ -373,6 +373,7 @@ class StoreOrderSplitServices extends BaseServices
                 $new_cart_info[$field] = bcsub((string)$cart_info[$field], (string)$field_number, $scale);
             }
         }
+        $new_cart_info = \app\services\order\PriceExplanationServices::attachToCart([$new_cart_info], ['gift_price' => '0.00'])[0];
         return $new_cart_info;
     }
 

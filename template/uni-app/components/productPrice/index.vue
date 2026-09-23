@@ -1,5 +1,5 @@
 <template>
-  <discount-explanation mode="product" :context="{product,displayedPrice:money}">
+  <discount-explanation mode="product" :context="{product,displayedPrice:money,explanation:product.price_explanation}">
     <view class="product-price-amount">
       <base-money v-if="summary.amount" v-bind="$attrs" :money="summary.amount" />
       <text v-else>—</text>

@@ -237,7 +237,7 @@
               v-if="item.name === 'price' && item.show"
               class="price-section"
             >
-              <discount-explanation mode="product" :context="{product:displayInfo,displayedPrice:displayInfo.real_price}">
+              <discount-explanation mode="product" :context="{product:displayInfo,displayedPrice:displayInfo.real_price,explanation:displayInfo.price_explanation}">
               <view class="price-row">
                 <view
                   v-if="item.checkList.includes(0)"
@@ -454,7 +454,7 @@ export default {
           if (sku.stock || sku.stock === 0) stock = sku.stock;
         }
       }
-      return { price, ot_price, vip_price, stock, fsales, unit_name, real_price };
+      return { price, ot_price, vip_price, stock, fsales, unit_name, real_price, price_explanation: this.priceData.price_explanation || null };
     },
     sliderImage() {
       const images = this.productData.slider_image || [];

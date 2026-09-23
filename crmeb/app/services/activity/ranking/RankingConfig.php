@@ -49,6 +49,8 @@ class RankingConfig
         if ($data['end_time'] && $data['end_time'] <= $data['start_time']) throw new AdminException('结束时间须晚于开始时间');
         $data['window_days'] = self::integer($input['window_days']??30,0,90,'统计周期');
         if (!in_array($data['window_days'],[0,7,30,90],true)) throw new AdminException('统计周期不正确');
+        // Legacy/API callers retain the historical raw ratio; the admin form opts new rules into 3-review smoothing.
+        $data['rating_min_reviews'] = self::integer($input['rating_min_reviews'] ?? 0, 0, 1000, '好评率最低评价数');
         $data['match_mode']=$input['match_mode']??'all';
         if (!in_array($data['match_mode'],['all','any'],true)) throw new AdminException('条件关系不正确');
         $data['condition_tree']=isset($input['condition_tree'])?RankingConditionTree::validate($input['condition_tree'],$data['entity_type']):null;
@@ -136,7 +138,10 @@ class RankingConfig
         if (!$candidates) return ['list'=>[],'candidate_count'=>0];
         $ranges=[];
         foreach ($rule['metrics'] as $metric) {
-            $values=array_column($candidates,$metric['field']);
+            $values=array_map(function($candidate)use($metric,$rule){
+                if($metric['field']==='rating'&&(int)$candidate['reviews']>0&&(int)($rule['rating_min_reviews']??0)>0){$sample=(int)($rule['rating_min_reviews']??0);return ((float)$candidate['rating']*(int)$candidate['reviews']+50*$sample)/((int)$candidate['reviews']+$sample);}
+                return (float)($candidate[$metric['field']]??0);
+            },$candidates);
             $ranges[$metric['field']]=[min($values),max($values)];
         }
         $adjustments=array_column($rule['adjustments'],null,'id');
@@ -144,6 +149,10 @@ class RankingConfig
             $score=0; $parts=[];
             foreach ($rule['metrics'] as $metric) {
                 $field=$metric['field']; [$min,$max]=$ranges[$field]; $raw=(float)$row[$field];
+                if ($field==='rating' && (int)$row['reviews'] > 0 && (int)($rule['rating_min_reviews']??0) > 0) {
+                    $sample=(int)($rule['rating_min_reviews']??0);
+                    $raw=((float)$row['rating'] * (int)$row['reviews'] + 50 * $sample) / ((int)$row['reviews'] + $sample);
+                }
                 $normalized=$max>$min ? 100*($raw-$min)/($max-$min) : ($max>0?100:0);
                 if ($metric['direction']==='asc' && $max>$min) $normalized=100-$normalized;
                 // No reviews never outrank reviewed products by requesting ascending rating.

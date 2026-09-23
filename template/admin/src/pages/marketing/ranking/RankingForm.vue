@@ -26,6 +26,7 @@
           <el-tab-pane label="3 排序与权重" name="score">
             <el-form label-width="95px" size="small">
               <el-form-item label="统计周期"><el-select v-model="form.window_days"><el-option v-for="item in periods" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item>
+              <el-form-item label="好评率门槛"><el-input-number v-model="form.rating_min_reviews" :min="0" :max="1000" :precision="0" /> <span class="hint">低于该评价数按50%先验平滑；0为不平滑</span></el-form-item>
               <el-form-item label="排序方式"><el-radio-group v-model="form.sort_mode" @change="changeMode"><el-radio-button label="single">单指标</el-radio-button><el-radio-button label="composite">综合分</el-radio-button></el-radio-group></el-form-item>
             </el-form>
             <div v-for="(metric, i) in form.metrics" :key="i" class="metric-row">
@@ -45,8 +46,8 @@
               <label>加减分 <el-input-number v-model="item.bonus" size="mini" :min="-100" :max="100" :precision="2" /></label>
               <el-input v-model="item.reason" size="small" maxlength="100" placeholder="必填：本次调整原因" />
             </div>
-            <el-alert title="成交件数按周期内已支付且未退款的有效子订单统计，扣除退款件数；不使用虚拟销量。好评率=4星及以上已审核普通商品评价数/评价总数。店铺指标汇总当前在售商品。" type="info" :closable="false" />
-            <p class="hint">周期影响成交和评价指标；售价、库存、在售商品数使用当前值。无评价好评率按0处理，建议同时设置最低评价数。</p>
+            <el-alert title="成交件数按周期内已支付叶订单明细统计，扣除已退款件数；商品转店后按成交时店铺快照汇总。好评率=4星及以上已审核普通商品评价数/评价总数。" type="info" :closable="false" />
+            <p class="hint">周期影响成交和评价指标；售价、库存、在售商品数使用当前值。无评价按0分，最低评价数可对小样本好评率进行50%先验平滑。</p>
           </el-tab-pane>
         </el-tabs>
       </div>

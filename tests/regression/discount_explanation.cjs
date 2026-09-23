@@ -41,7 +41,25 @@ test('order explanation uses saved activity snapshots and never calculates from 
   const result=priceExplanation('order',{snapshot}).join(' ');
   assert.equal(result.split('成交时满减').length,2);assert.match(result,/成交.*快照/);assert.match(result,/退款.*分摊/);
 });
+test('split order explanations aggregate compact line snapshots',()=>{
+  const snapshot={cartInfo:[
+    {price_explanation:{payable_amount:'9.00',line_items:[{kind:'sku_price',label:'规格售价',amount:'10.00',source_id:'cart:1'}]}},
+    {price_explanation:{payable_amount:'18.00',line_items:[{kind:'sku_price',label:'规格售价',amount:'20.00',source_id:'cart:2'},{kind:'coupon',label:'优惠券抵扣',amount:'-2.00',source_id:'coupon:1'}]}}
+  ]};
+  const result=priceExplanation('order',{snapshot}).join(' ');
+  assert.match(result,/规格售价.*30.00/);assert.match(result,/优惠券抵扣.*2.00/);assert.match(result,/应付金额.*27.00/);
+});
 test('exclusive checkout explains eligibility and unknown activity amounts are not fabricated',()=>{
   const result=priceExplanation('confirm',{exclusive:true,activities:[{name:'活动',discount:'unknown'}]}).join(' ');
   assert.match(result,/专属活动.*优惠券/);assert.doesNotMatch(result,/NaN|0.00|unknown/);
+});
+test('server price explanation rows are rendered without re-deriving discounts',()=>{
+  const explanation={payable_amount:'89.46',line_items:[
+    {label:'规格售价',amount:'100.00'},
+    {label:'会员价格优惠',amount:'-10.00'},
+    {label:'配送运费',amount:'-0.54'}
+  ]};
+  const result=priceExplanation('confirm',{explanation}).join(' ');
+  assert.match(result,/规格售价.*100.00/);assert.match(result,/会员价格优惠.*优惠.*10.00/);assert.match(result,/应付金额.*89.46/);
+  assert.doesNotMatch(result,/当前售价|已计入优惠/);
 });

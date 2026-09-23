@@ -11,6 +11,8 @@ use app\services\merchant\MerchantVault;
 use app\services\product\product\ProductBrandInstaller;
 use crmeb\exceptions\AdminException;
 use crmeb\exceptions\ApiException;
+use crmeb\services\CacheService;
+use think\facade\Config;
 use think\facade\Db;
 
 class RankingServices extends BaseServices
@@ -21,6 +23,7 @@ class RankingServices extends BaseServices
         $config=json_decode($row['config'],true);
         if (!is_array($config)) throw new AdminException('榜单配置损坏');
         unset($row['config']); $row=array_replace($config,$row);
+        if (!isset($row['rating_min_reviews'])) $row['rating_min_reviews']=0;
         foreach (['id','page_id','version','enabled','priority','top_n','start_time','end_time','update_time'] as $key) $row[$key]=(int)$row[$key];
         $row['status']=RankingConfig::status($row,time());
         $row['page_url']='/pages/annex/special/index?theme_id='.$row['page_id'];
@@ -123,16 +126,25 @@ class RankingServices extends BaseServices
         [$page,$limit,$default]=$this->getPageValue(); $count=(clone $query)->count();
         return ['list'=>$query->order($type==='customer'?'uid desc':'id desc')->page(max(1,$page),min(200,max(1,$limit?:$default)))->select()->toArray(),'count'=>$count];
     }
-    /** Aggregate real paid leaf-order quantities, excluding refunded units and unpaid orders. */
+    /** Aggregate paid leaf-order quantities, removing refunded units and preserving sale-owner snapshots. */
     public function candidates(int $days, int $now): array
     {
+        // Candidate data is visitor-independent. Reuse a short-lived snapshot so
+        // every public request does not rescan all orders and decrypt every shop.
+        $useCache=(string)Config::get('cache.default','file')==='redis';
+        $cacheKey='ranking:candidates:v2:'.(int)$days.':'.intdiv($now,30);
+        if($useCache){$cached=CacheService::get($cacheKey,null);if(is_array($cached)&&isset($cached['product'],$cached['shop']))return $cached;}
         MerchantInstaller::ensure(); ProductBrandInstaller::ensureSchema();
-        $sales=Db::name('store_order_cart_info')->alias('c')->join('store_order o','o.id=c.oid')->where('o.paid',1)->where('o.pid','<>',-1)->where('o.refund_status',0)->where('o.is_system_del',0)->where('o.pay_time','<=',$now);
+        $sales=Db::name('store_order_cart_info')->alias('c')->join('store_order o','o.id=c.oid')->leftJoin('store_product p','p.id=c.product_id')->where('o.paid',1)->where('o.pid','<>',-1)->where('o.is_system_del',0)->where('o.pay_time','<=',$now)->where('c.cart_num','>',0);
         $reviews=Db::name('store_product_reply')->where('is_del',0)->where('status',1)->where('reply_type','product')->where('add_time','<=',$now);
         if ($days) { $sales->where('o.pay_time','>=',$now-$days*86400); $reviews->where('add_time','>=',$now-$days*86400); }
-        $sales=$sales->group('c.product_id')->field('c.product_id,SUM(GREATEST(c.cart_num-c.refund_num,0)) as sales')->select()->toArray();
+        // Keep partially refunded orders in the denominator and remove only refunded units.
+        // New cart snapshots carry merchant.id, preserving the sale owner after a product moves.
+        $sales=$sales->group(['c.product_id','sale_shop_id'])->field("c.product_id,COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(c.cart_info,'$.merchant.id')), ''),p.seller_shop_id) as sale_shop_id,SUM(GREATEST(c.cart_num-c.refund_num,0)) as sales")->select()->toArray();
         $reviews=$reviews->group('product_id')->field('product_id,COUNT(*) as reviews,SUM(CASE WHEN product_score>=4 THEN 1 ELSE 0 END) as positive,SUM(CASE WHEN product_score BETWEEN 1 AND 5 THEN product_score ELSE 0 END) as score_total,SUM(CASE WHEN product_score BETWEEN 1 AND 5 THEN 1 ELSE 0 END) as rated_count')->select()->toArray();
-        $sales=array_column($sales,'sales','product_id'); $reviews=array_column($reviews,null,'product_id');
+        $salesByProduct=[]; $salesByShop=[];
+        foreach($sales as $sale){$productId=(int)$sale['product_id'];$shopId=(int)$sale['sale_shop_id'];$quantity=(int)$sale['sales'];$salesByProduct[$productId]=($salesByProduct[$productId]??0)+$quantity;if($shopId>0)$salesByShop[$shopId]=($salesByShop[$shopId]??0)+$quantity;}
+        $reviews=array_column($reviews,null,'product_id');
         $products=MerchantProducts::constrain(Db::name('store_product')->where('is_show',1)->where('is_del',0))->field('id,store_name as name,image,price,stock,seller_shop_id as shop_id,cate_id,label_list')->select()->toArray();
         $parents=Db::name('store_category')->column('pid','id'); $brands=[];
         foreach (Db::name('store_product_brand_relation')->field('product_id,brand_id')->select()->toArray() as $relation) $brands[$relation['product_id']][]=(int)$relation['brand_id'];
@@ -144,7 +156,7 @@ class RankingServices extends BaseServices
         }
         foreach ($products as &$row) {
             $row['id']=(int)$row['id']; $row['shop_id']=(int)$row['shop_id'];
-            $row['sales']=(int)($sales[$row['id']]??0); $row['reviews']=(int)($reviews[$row['id']]['reviews']??0); $row['positive']=(int)($reviews[$row['id']]['positive']??0);
+            $row['sales']=(int)($salesByProduct[$row['id']]??0); $row['reviews']=(int)($reviews[$row['id']]['reviews']??0); $row['positive']=(int)($reviews[$row['id']]['positive']??0);
             $row['rating']=$row['reviews'] ? 100*$row['positive']/$row['reviews'] : 0;
             $row['score_total']=(int)($reviews[$row['id']]['score_total']??0); $row['rated_count']=(int)($reviews[$row['id']]['rated_count']??0);
             $row['rating_score']=$row['rated_count']?round($row['score_total']/$row['rated_count'],1):null;
@@ -153,15 +165,17 @@ class RankingServices extends BaseServices
             foreach (array_filter(array_map('intval',explode(',',$row['cate_id']))) as $category) while ($category && !isset($categories[$category])) { $categories[$category]=true; $category=(int)($parents[$category]??0); }
             $row['category_ids']=array_keys($categories); $row['label_ids']=array_filter(array_map('intval',explode(',',(string)$row['label_list']))); $row['brand_ids']=$brands[$row['id']]??[];
             if (isset($shops[$row['shop_id']])) {
-                $shop=&$shops[$row['shop_id']]; $shop['product_count']++; $shop['sales']+=$row['sales']; $shop['reviews']+=$row['reviews']; $shop['positive']+=$row['positive']; $shop['score_total']+=$row['score_total']; $shop['rated_count']+=$row['rated_count'];
+                $shop=&$shops[$row['shop_id']]; $shop['product_count']++; $shop['reviews']+=$row['reviews']; $shop['positive']+=$row['positive']; $shop['score_total']+=$row['score_total']; $shop['rated_count']+=$row['rated_count'];
             }
         }
         unset($row,$shop);
-        foreach ($shops as &$shop) { $shop['rating']=$shop['reviews']?100*$shop['positive']/$shop['reviews']:0; $shop['rating_score']=$shop['rated_count']?round($shop['score_total']/$shop['rated_count'],1):null; }
+        foreach ($shops as &$shop) { $shop['sales']=(int)($salesByShop[$shop['id']]??0); $shop['rating']=$shop['reviews']?100*$shop['positive']/$shop['reviews']:0; $shop['rating_score']=$shop['rated_count']?round($shop['score_total']/$shop['rated_count'],1):null; }
         $shopProducts=[];
         foreach($products as $product){$owner=$product['shop_id'];if(!isset($shops[$owner]))continue;$shopProducts[$owner][]=array_intersect_key($product,array_flip(['id','name','image','price','sales','reviews','rating']));usort($shopProducts[$owner],function($a,$b){return($b['sales']<=>$a['sales'])?:($a['id']<=>$b['id']);});$shopProducts[$owner]=array_slice($shopProducts[$owner],0,6);}
         foreach($shops as &$shop)$shop['products']=$shopProducts[$shop['id']]??[];unset($shop);
-        return ['product'=>$products,'shop'=>array_values($shops)];
+        $result=['product'=>$products,'shop'=>array_values($shops)];
+        if($useCache)CacheService::set($cacheKey,$result,30,'ranking');
+        return $result;
     }
     public function preview(array $input): array
     {
@@ -176,7 +190,7 @@ class RankingServices extends BaseServices
     }
     private function publicRule(array $rule): array
     {
-        return array_intersect_key($rule,array_flip(['id','name','description','entity_type','top_n','page_id','page_url','window_days']));
+        return array_intersect_key($rule,array_flip(['id','name','description','entity_type','top_n','page_id','page_url','window_days','rating_min_reviews']));
     }
     public function publicRanking(int $id,int $uid=0): array
     {

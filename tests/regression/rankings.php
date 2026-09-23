@@ -27,6 +27,8 @@ checkRank('all conditions intersect',Config::rank($pool,$all)['candidate_count']
 $all['match_mode']='any'; checkRank('any conditions union',Config::rank($pool,$all)['candidate_count']===2);
 $composite=Config::validate(array_replace($base,['sort_mode'=>'composite','metrics'=>[['field'=>'sales','direction'=>'desc','weight'=>50],['field'=>'rating','direction'=>'desc','weight'=>50]]]));
 checkRank('composite normalization and deterministic tie',array_column(Config::rank($pool,$composite)['list'],'id')===[1,3]);
+$smoothed=Config::validate(array_replace($base,['rating_min_reviews'=>3,'metrics'=>[['field'=>'rating','direction'=>'desc','weight'=>100]]]));
+checkRank('rating minimum sample smooths small reviewed candidates and keeps no-review candidates at zero',Config::rank([['id'=>1,'reviews'=>1,'rating'=>100],['id'=>2,'reviews'=>10,'rating'=>80],['id'=>3,'reviews'=>0,'rating'=>0]],$smoothed)['list'][0]['id']===2);
 checkRank('end time exclusive',Config::status(['enabled'=>1,'start_time'=>0,'end_time'=>100],100)==='ended');
 checkRank('empty pool supported',Config::rank([],$rule)===['list'=>[],'candidate_count'=>0]);
 function rankingDecoration($appearance) { return app\services\diy\RankingDecorationConfig::validatePage(['value'=>[['name'=>'marketingRanking','rankingId'=>1,'limit'=>10,'appearance'=>$appearance]]]); }
@@ -77,6 +79,8 @@ app()->make(app\services\diy\ThemeServices::class)->saveTheme($info['page_id'],[
 checkRank('complete canvas survives database save and reload exactly',json_decode(Db::name('theme')->where('id',$info['page_id'])->value('home_data'),true)['value']['1000']['appearance']['canvas']===$canvasFixtures['tmall_product']);
 $result=$services->publicRanking($id);
 checkRank('real paid quantities exclude parent refunded unpaid old orders',array_column($result['list'],'id')===[3,2] && $services->preview($base)['candidate_count']===3);
+$salesPreview=$services->preview(array_replace($base,['top_n'=>3]));$salesById=[];foreach($salesPreview['list'] as $entry)$salesById[$entry['id']]=$entry['sales'];
+checkRank('partial refunds remove refunded units instead of dropping the whole paid order',($salesById[1]??0)===1008);
 checkRank('public data does not disclose boosts or filter internals',!isset($result['list'][0]['adjustment']) && !isset($result['ranking']['conditions']));
 checkRank('product outside TOP N has no badge',$services->productRankings(1)===[]);
 $priority=$services->saveRanking(0,array_replace($base,['name'=>'优先推荐榜','priority'=>50,'top_n'=>3]));

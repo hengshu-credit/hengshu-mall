@@ -7,5 +7,5 @@ export function fields(type) {
 export function metrics(type) { return Object.keys(metricLabels).filter(key => type === 'shop' ? !['price', 'stock'].includes(key) : key !== 'product_count'); }
 export function defaults() {
   return { id: 0, name: '', description: '', entity_type: 'product', enabled: 0, priority: 0, top_n: 20, start_time: 0, end_time: 0,
-    window_days: 30, match_mode: 'all', conditions: [], exclude_ids: [], sort_mode: 'single', metrics: [{ field: 'sales', direction: 'desc', weight: 100 }], adjustments: [], version: 0 };
+    window_days: 30, rating_min_reviews: 3, match_mode: 'all', conditions: [], exclude_ids: [], sort_mode: 'single', metrics: [{ field: 'sales', direction: 'desc', weight: 100 }], adjustments: [], version: 0 };
 }

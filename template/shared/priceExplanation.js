@@ -7,7 +7,13 @@ function cents(value) {
 }
 const money = value => (value / 100).toFixed(2);
 
-export function productPriceSummary(product = {}, displayedPrice) {
+export function productPriceSummary(product = {}, displayedPrice, explanation = null) {
+  if (explanation && Array.isArray(explanation.line_items)) {
+    const amount = explanation.payable_amount === undefined ? '' : Number(explanation.payable_amount).toFixed(2);
+    const rows = explanation.line_items.map(row => ({ label: row.label, amount: Math.abs(Number(row.amount)).toFixed(2), discount: Number(row.amount) < 0, total: false, note: row.applied === false ? '当前未满足使用条件。' : '' }));
+    rows.push({ label: '应付金额', amount, total: true });
+    return { amount, reference: '', saving: '', rows };
+  }
   const base = cents(product.price);
   const current = cents(displayedPrice === undefined ? product.price : displayedPrice);
   const reference = cents(product.ot_price), vip = cents(product.vip_price);
@@ -25,6 +31,13 @@ export function productPriceSummary(product = {}, displayedPrice) {
 }
 
 export function priceExplanation(mode, context = {}) {
+  if (context.explanation && Array.isArray(context.explanation.line_items)) {
+    const rows = context.explanation.line_items;
+    const payable = context.explanation.payable_amount;
+    const lines = rows.map(row => `${row.label}：${Number(row.amount) < 0 ? '优惠 ' : ''}¥${Math.abs(Number(row.amount)).toFixed(2)}`);
+    if (payable !== undefined) lines.push(`应付金额：¥${Number(payable).toFixed(2)}`);
+    return lines;
+  }
   if (context.pending) return ['正在计算优惠，完成后请确认金额。'];
   if (context.error) return ['优惠尚未确认，请重新计算后提交。'];
   const lines = [];
@@ -35,6 +48,19 @@ export function priceExplanation(mode, context = {}) {
   }
   let activities = context.activities || [];
   if (mode === 'order') {
+    const saved = ((context.snapshot || {}).cartInfo || []).map(item => item.price_explanation).filter(Boolean);
+    if (saved.length) {
+      const rows = [], index = new Map(); let payable = 0;
+      saved.forEach(item => {
+        payable += Number(item.payable_amount || 0);
+        (item.line_items || []).forEach(row => {
+          const key = row.kind === 'sku_price' ? 'sku_price' : `${row.kind}:${row.source_id || row.label}`;
+          if (!index.has(key)) { index.set(key, rows.length); rows.push({...row, amount: Number(row.amount || 0).toFixed(2)}); }
+          else rows[index.get(key)].amount = (Number(rows[index.get(key)].amount) + Number(row.amount || 0)).toFixed(2);
+        });
+      });
+      return priceExplanation(mode, { explanation: { line_items: rows, payable_amount: payable.toFixed(2) } });
+    }
     activities = ((context.snapshot || {}).cartInfo || []).map(item => item.full_reduction_activity).filter(Boolean);
     lines.push('金额依据成交时保存的价格与优惠快照。退款按商品行已分摊实付款计算。');
   }

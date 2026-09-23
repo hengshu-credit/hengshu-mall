@@ -263,7 +263,7 @@
 					<view class='money'>-{{$t(`￥`)}}{{parseFloat(priceGroup.storePostageDiscount).toFixed(2)}}</view>
 				</view>
 				<view class='item acea-row row-between-wrapper' v-if="Number(full_reduction_price) > 0"><view>满减优惠：</view><view class='money'>-{{$t(`￥`)}}{{Number(full_reduction_price).toFixed(2)}}</view></view>
-				<discount-explanation mode="confirm" :context="{activities:reductionActivities,pending:pricingLoading,error:pricingError,exclusive:!!(pinkId||BargainId||combinationId||seckillId||discountId)}" />
+				<discount-explanation mode="confirm" :context="{activities:reductionActivities,explanation:priceExplanationData,pending:pricingLoading,error:pricingError,exclusive:!!(pinkId||BargainId||combinationId||seckillId||discountId)}" />
                 <view v-if="pricingLoading" class='item'>正在计算优惠…</view>
 				<view v-if="pricingError" class='item font-color' @tap="computedPrice">{{pricingError}}，点击重试</view>
 				<view class='item acea-row row-between-wrapper' v-if="coupon_price > 0">
@@ -444,6 +444,7 @@ import DiscountExplanation from "@/components/discountExplanation/index.vue";
 				coupon_price: 0, //优惠券抵扣金额
 				full_reduction_price: '0.00',
                 reductionActivities: [],
+                priceExplanationData: null,
 				pricingLoading: false,
 				pricingError: '',
 				pricingRequestId: 0,
@@ -809,8 +810,9 @@ import DiscountExplanation from "@/components/discountExplanation/index.vue";
 						this.totalPrice = result.pay_price;
 						this.integral_price = result.deduction_price;
 						this.coupon_price = result.coupon_price;
-						this.full_reduction_price = result.full_reduction_price || '0.00';
+                        this.full_reduction_price = result.full_reduction_price || '0.00';
                         this.reductionActivities = result.full_reduction_activities || [];
+                        this.priceExplanationData = result.price_explanation || null;
 						this.integral = this.useIntegral ? result.SurplusIntegral : this.usable_integral;
 						this.$set(this.priceGroup, 'storePostage', shippingType == 1 ? 0 : result.pay_postage);
 						this.$set(this.priceGroup, 'storePostageDiscount', result.storePostageDiscount);

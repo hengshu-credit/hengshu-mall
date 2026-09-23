@@ -34,7 +34,7 @@ export default {
   data:()=>({expanded:false}),
   computed:{
     lines(){return priceExplanation(this.mode,this.context);},
-    summary(){return productPriceSummary(this.context.product,this.context.displayedPrice);},
+    summary(){return productPriceSummary(this.context.product,this.context.displayedPrice,this.context.explanation);},
   },
   watch:{'context.product.id'(){this.expanded=false;},'context.displayedPrice'(){this.expanded=false;}},
 };

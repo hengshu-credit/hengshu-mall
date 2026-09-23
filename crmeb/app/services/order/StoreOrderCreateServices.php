@@ -471,6 +471,7 @@ class StoreOrderCreateServices extends BaseServices
                 /** @var StoreOrderCartInfoServices $cartServices */
                 $cartServices = app()->make(StoreOrderCartInfoServices::class);
                 [$cartInfo, $spread_ids] = $createService->computeOrderProductTruePrice($cartInfo, $priceData, $addressId, $uid, $order);
+                $cartInfo = PriceExplanationServices::attachToCart($cartInfo, $priceData);
                 $cartServices->updateCartInfo($orderId, $cartInfo);
             }
 

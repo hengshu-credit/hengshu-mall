@@ -2784,11 +2784,13 @@ class StoreProductServices extends BaseServices
         $cateId = explode(',', (string)$cateId);
         $cateId = array_merge($cateId, $storeCategoryService->cateIdByPid($cateId));
         $cateId = array_diff($cateId, [0]);
+        $priceBeforeCoupon = $realPrice;
         $list = app()->make(StoreCouponIssueServices::class)->getPcIssueCouponList($uid, $cateId, $id);
         usort($list, function ($a, $b) {
             return $b['coupon_price'] - $a['coupon_price'];
         });
         $time = time();
+        $appliedCoupon = null;
         foreach ($list as $item) {
             // 优惠券不在使用时间范围内
             if ($item['start_use_time'] != 0 && ($item['start_use_time'] > $time || $item['end_use_time'] < $time)) {
@@ -2807,12 +2809,20 @@ class StoreProductServices extends BaseServices
             }
             // 满足优惠券使用门槛
             if ($realPrice >= $item['use_min_price']) {
-                $realPrice = bcsub($realPrice, $item['coupon_price'], 2);
+                $couponAmount = min((float)$realPrice, (float)$item['coupon_price']);
+                $realPrice = bcsub($realPrice, (string)$couponAmount, 2);
                 if ($realPrice < 0) $realPrice = 0;
+                $appliedCoupon = ['id' => (int)$item['id'], 'name' => (string)($item['coupon_title'] ?? $item['title'] ?? $item['name'] ?? '可用优惠券'), 'amount' => number_format($couponAmount, 2, '.', '')];
                 break;
             }
         }
-        return ['real_price' => $realPrice, 'price' => $price, 'is_vip' => $isVip, 'product_is_vip' => $productIsVip, 'member_price' => $memberPrice, 'level_price' => $levelPrice, 'user_is_member' => $isMember, 'ot_price' => $otPrice];
+        $rows = [['kind'=>'sku_price','label'=>'规格售价','amount'=>(string)$price,'source_id'=>'sku:'.$unique,'applied'=>true]];
+        $memberDiscount = bcsub((string)$price, (string)$priceBeforeCoupon, 2);
+        if (bccomp($memberDiscount, '0.00', 2) > 0) $rows[]=['kind'=>'member_price','label'=>$isVip ? '会员价格优惠' : '等级价格优惠','amount'=>'-'.$memberDiscount,'source_id'=>$isVip?'member:paid':'member:level','applied'=>true];
+        if ($appliedCoupon) $rows[]=['kind'=>'coupon','label'=>$appliedCoupon['name'],'amount'=>'-'.$appliedCoupon['amount'],'source_id'=>'coupon:'.$appliedCoupon['id'],'applied'=>true];
+        $trace=hash('sha256',json_encode([$rows,(string)$realPrice],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
+        $explanation=['currency'=>'CNY','goods_amount'=>(string)$price,'line_items'=>$rows,'payable_amount'=>(string)$realPrice,'calculated_at'=>time(),'pricing_version'=>'product-v1','trace_id'=>$trace];
+        return ['real_price' => $realPrice, 'price' => $price, 'is_vip' => $isVip, 'product_is_vip' => $productIsVip, 'member_price' => $memberPrice, 'level_price' => $levelPrice, 'user_is_member' => $isMember, 'ot_price' => $otPrice, 'price_explanation'=>$explanation];
     }
 
     /**

@@ -137,6 +137,7 @@ class StoreOrderComputedServices extends BaseServices
             'pay_price' => $payPrice > 0 ? $payPrice : 0,
             'pay_postage' => $payPostage,
             'coupon_price' => $couponPrice ?? 0,
+            'coupon_id' => $couponId,
             'full_reduction_price' => $fullReduction['full_reduction_price'],
             'full_reduction_cart' => $fullReduction['lines'],
             'full_reduction_activities' => $fullReduction['activities'],
@@ -149,6 +150,7 @@ class StoreOrderComputedServices extends BaseServices
             'isStoreFreePostage' => $isStoreFreePostage ?? false,
             'storeFreePostage' => $storeFreePostage ?? 0
         ];
+        $result['price_explanation'] = PriceExplanationServices::quote($cartInfo, $result);
         $this->paramData = [];
         return $result;
     }
