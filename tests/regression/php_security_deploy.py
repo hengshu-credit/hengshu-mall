@@ -27,6 +27,12 @@ class RuntimeDeployment(unittest.TestCase):
     def test_source_parses(self):
         ast.parse(SOURCE.read_text(encoding='utf-8'))
 
+    def test_docker_image_identity_formats(self):
+        receipt = {'imageId': 'sha256:' + '1' * 64, 'imageConfigDigest': 'sha256:' + '2' * 64}
+        self.assertTrue(deploy.expected_image(receipt['imageId'], receipt))
+        self.assertTrue(deploy.expected_image(receipt['imageConfigDigest'], receipt))
+        self.assertFalse(deploy.expected_image('sha256:' + '3' * 64, receipt))
+
 
 if __name__ == '__main__':
     unittest.main()

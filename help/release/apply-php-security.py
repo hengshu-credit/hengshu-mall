@@ -48,6 +48,12 @@ def patched_compose(source):
     return result
 
 
+def expected_image(actual, receipt):
+    # Containerd-backed Docker may expose the OCI index digest as Id, while
+    # classic Docker exposes the image config digest from the same saved image.
+    return actual in {receipt['imageId'], receipt['imageConfigDigest']}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('mall', type=Path)
@@ -104,7 +110,7 @@ def main():
             raise RuntimeError('Package checksum failed: ' + name)
     run(['docker', 'load', '-i', str(package / 'php-image.tar')])
     actual_image = json.loads(run(['docker', 'image', 'inspect', IMAGE]))[0]['Id']
-    if actual_image != receipt['imageId']:
+    if not expected_image(actual_image, receipt):
         raise RuntimeError('Loaded image identity mismatch')
     print(run(['docker', 'run', '--rm', '--network', 'none', '--entrypoint', 'php', IMAGE] + VERIFY[1:]).strip(), flush=True)
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')

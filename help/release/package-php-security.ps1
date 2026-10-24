@@ -23,12 +23,16 @@ try {
     Invoke-Checked docker @('save', '-o', (Join-Path $bundle 'php-image.tar'), $image)
     $imageInfo = (& docker image inspect $image | ConvertFrom-Json)[0]
     if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect security image' }
+    $manifest = @((& tar -xOf (Join-Path $bundle 'php-image.tar') manifest.json | ConvertFrom-Json) | Where-Object {$_.RepoTags -contains $image})
+    if ($LASTEXITCODE -ne 0 -or $manifest.Count -ne 1) { throw 'Cannot identify image in Docker archive' }
+    $configHash = [IO.Path]::GetFileName($manifest[0].Config) -replace '\.json$', ''
+    if ($configHash -notmatch '^[0-9a-f]{64}$') { throw 'Invalid image config digest' }
     $files = [ordered]@{}
     Get-ChildItem -LiteralPath $bundle -File -Recurse | Sort-Object FullName | ForEach-Object {
         $relative = [IO.Path]::GetRelativePath($bundle, $_.FullName).Replace('\', '/')
         $files[$relative] = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     }
-    $receipt = [ordered]@{image=$image; imageId=$imageInfo.Id; upstreamCommit='712e60f9edfd03f0960fc4fc3c2c375f42b90aa2'; files=$files}
+    $receipt = [ordered]@{image=$image; imageId=$imageInfo.Id; imageConfigDigest="sha256:$configHash"; upstreamCommit='712e60f9edfd03f0960fc4fc3c2c375f42b90aa2'; files=$files}
     [IO.File]::WriteAllText((Join-Path $bundle 'runtime.json'), ($receipt | ConvertTo-Json -Depth 5) + "`n", [Text.UTF8Encoding]::new($false))
     Invoke-Checked tar @('-czf', $output, '-C', $stage, 'php-security-20261024')
     $hash = (Get-FileHash -LiteralPath $output -Algorithm SHA256).Hash.ToLowerInvariant()
