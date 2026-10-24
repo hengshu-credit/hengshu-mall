@@ -35,7 +35,10 @@ services:
   # php 容器
   phpfpm:
     container_name: crmeb_php
-    image: ccr.ccs.tencentyun.com/crmebky_php/php:v7.4
+    image: hengshu-php:7.4.33-security-20261024
+    build:
+      context: ../runtime/php
+      dockerfile: php.Dockerfile
     restart: always
     environment:
       TZ: Asia/Shanghai

@@ -7,7 +7,10 @@ services:
       - ../../crmeb/public/uploads:/media:ro
     networks: [app_net]
   php-storage-init:
-    image: ccr.ccs.tencentyun.com/crmebky_php/php:v7.4
+    image: hengshu-php:7.4.33-security-20261024
+    build:
+      context: ../runtime/php
+      dockerfile: php.Dockerfile
     profiles: [tools]
     entrypoint: [sh, /init-php-storage.sh]
     volumes:

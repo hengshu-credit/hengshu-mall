@@ -1,5 +1,5 @@
 param(
-    [string]$PhpImage = 'ccr.ccs.tencentyun.com/crmebky_php/php:v7.4',
+    [string]$PhpImage = 'hengshu-php:7.4.33-security-20261024',
     [string]$MysqlImage = 'ccr.ccs.tencentyun.com/crmebky_php/mysql:v8.0.45'
 )
 $ErrorActionPreference = 'Stop'

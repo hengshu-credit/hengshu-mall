@@ -66,7 +66,7 @@ async function main() {
   assert.equal(config.services['jd-crawler'].environment.JD_CRAWLER_TOKEN, '');
   assert.equal(config.services['jd-crawler'].ports[0].host_ip, '127.0.0.1');
   cp.execFileSync('docker', ['run', '--rm', '-i', '--entrypoint', 'bash', '-v', app + ':/fixture:ro',
-    'ccr.ccs.tencentyun.com/crmebky_php/php:v7.4', '-s'], {
+    'hengshu-php:7.4.33-security-20261024', '-s'], {
     input: fs.readFileSync(path.join(__dirname, 'test-start.sh')), stdio: ['pipe', 'inherit', 'inherit'], timeout: 60000,
   });
   console.log('PASS: Compose accepts existing .env without JD setup; all workers enabled; startup/update guards passed');
@@ -125,7 +125,7 @@ async function main() {
     const php = '$c=stream_context_create(["http"=>["header"=>"Authorization: Bearer ".getenv("TOKEN")]]);'
       + '$r=json_decode(file_get_contents("http://jd-crawler:8091/health",false,$c),true); if(!$r) exit(1); echo "reachable";';
     const result = cp.execFileSync('docker', ['run', '--rm', '--network', project + '_default', '-e', 'TOKEN=' + initial.JD_CRAWLER_TOKEN,
-      '--entrypoint', 'php', 'ccr.ccs.tencentyun.com/crmebky_php/php:v7.4', '-r', php]).toString();
+      '--entrypoint', 'php', 'hengshu-php:7.4.33-security-20261024', '-r', php]).toString();
     assert.equal(result, 'reachable');
     const logs = compose(['logs', '--no-color', 'jd-crawler']);
     for (const secret of Object.values(initial)) assert(!logs.includes(secret), 'Credentials leaked into startup logs');

@@ -13,6 +13,6 @@ try {
         Start-Sleep -Seconds 1
     }
     if(!$ready){throw 'Isolated MySQL did not become ready'}
-    docker run --rm --network "container:$storefrontContainer" -e CRMEB_AUDIT_DATABASE=crmeb_merchant_test -e CRMEB_MERCHANT_STORAGE=/tmp/merchant-private -e "CRMEB_MERCHANT_KEY=$storefrontTestKey" --entrypoint php --mount "type=bind,source=$storefrontRoot,target=/var/test,readonly" -v crmeb_php_vendor:/var/test/crmeb/vendor:ro ccr.ccs.tencentyun.com/crmebky_php/php:v7.4 "/var/test/tests/regression/$TestFile"
+    docker run --rm --network "container:$storefrontContainer" -e CRMEB_AUDIT_DATABASE=crmeb_merchant_test -e CRMEB_MERCHANT_STORAGE=/tmp/merchant-private -e "CRMEB_MERCHANT_KEY=$storefrontTestKey" --entrypoint php --mount "type=bind,source=$storefrontRoot,target=/var/test,readonly" -v crmeb_php_vendor:/var/test/crmeb/vendor:ro hengshu-php:7.4.33-security-20261024 "/var/test/tests/regression/$TestFile"
     if($LASTEXITCODE -ne 0){throw 'Storefront regressions failed'}
 } finally { docker stop $storefrontContainer | Out-Null }

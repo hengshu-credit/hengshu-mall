@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+php -d open_basedir=/usr/local /usr/local/lib/php-security/verify.php
 cd /var/www
 mkdir -p runtime backup public/uploads public/theme
 touch .env .constant

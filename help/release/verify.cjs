@@ -58,7 +58,7 @@ async function main() {
   compose = ['compose', '-p', project, '--env-file', envFile, '-f', path.join(app, 'compose.yml')];
   docker(['config', '--quiet']);
   record('Compose configuration');
-  cp.execFileSync('docker', ['run','--rm','-i','--entrypoint','bash','-v',app+':/fixture:ro','ccr.ccs.tencentyun.com/crmebky_php/php:v7.4','-s'], {input:fs.readFileSync(path.join(__dirname,'test-start.sh')),timeout:60000,stdio:['pipe','inherit','inherit']});
+  cp.execFileSync('docker', ['run','--rm','-i','--entrypoint','bash','-v',app+':/fixture:ro','hengshu-php:7.4.33-security-20261024','-s'], {input:fs.readFileSync(path.join(__dirname,'test-start.sh')),timeout:60000,stdio:['pipe','inherit','inherit']});
   record('startup script password generation and data protection');
   console.log('Starting isolated test containers');
   try {

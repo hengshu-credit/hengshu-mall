@@ -4,6 +4,8 @@
 
 需要已安装 Docker 和 Docker Compose。下面使用 `docker-compose` 命令；若服务器使用插件命令，将它替换为 `docker compose`。使用支持 Compose Specification 的当前版本。
 
+PHP 安全更新：所有 PHP 容器统一使用 `hengshu-php:7.4.33-security-20261024`，包内 `php-runtime/` 以固定摘要校验并编译 PHP 官方的 CVE-2026-109618 / CVE-2026-109619 回补。首次构建需要时间。PHP-FPM、队列、定时任务、交易补偿、长连接均需重建；更新后执行 `docker-compose exec -T phpfpm php -d open_basedir=/usr/local /usr/local/lib/php-security/verify.php` 验证，不能只检查仍为 7.4.33 的版本号。此为紧急兼容回补，PHP 7.4 的长期版本迁移仍需单独完成。
+
 ## 1. 上传一个文件并启动
 
 本地需安装后台依赖，并在项目 `HBuilderX` 目录准备带 uni-app 编译器的 HBuilderX；服务器不需要这些工具。本地源码执行 `./package.ps1 -Update` 生成 `dist/hengshu-mall-update.tar.gz`，添加 `-Verify` 可验证更新包和采集容器。将这一个 tar.gz 上传到服务器 `/root/hengshu-mall/`。

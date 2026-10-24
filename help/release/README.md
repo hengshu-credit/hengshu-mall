@@ -6,7 +6,7 @@
 
 京东服务首次启动自动生成持久化凭据。服务健康后执行 `docker compose exec jd-crawler python -m jd_crawler.bootstrap show`，按照输出在本机建立 SSH 转发、打开 noVNC 并登录京东。后台服务地址填 `http://jd-crawler:8091`，密钥填输出中的 `JD_CRAWLER_TOKEN`。京东登录态和凭据在 `jd-crawler-data` 卷中，日常停止不要使用 `down -v`。
 
-PHP 固定使用当前项目兼容的 7.4，本次未做 PHP 8 迁移。首次启动需联网拉取镜像；这不是包含 Docker 镜像的离线安装包。管理后台前端不需要在服务器安装 Node。
+PHP 使用带官方安全回补的 7.4.33 镜像，修复 CVE-2026-109618、CVE-2026-109619；构建来源和验证见源码 `help/runtime/php/README.md`。首次启动需联网拉取镜像并构建 PHP；这不是包含 Docker 镜像的离线安装包。PHP 7.4 已结束常规维护，仍需安排受支持版本迁移。管理后台前端不需要在服务器安装 Node。
 
 ## 1. 启动服务
 

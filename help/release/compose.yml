@@ -1,7 +1,10 @@
 name: crmeb-mall
 
 x-php: &php
-  image: ccr.ccs.tencentyun.com/crmebky_php/php:v7.4
+  image: hengshu-php:7.4.33-security-20261024
+  build:
+    context: ./php-runtime
+    dockerfile: php.Dockerfile
   working_dir: /var/www
   restart: unless-stopped
   labels:

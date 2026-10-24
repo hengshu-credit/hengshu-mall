@@ -76,6 +76,7 @@ function copyCrawler(source, target) {
 }
 copyCrawler(crawlerRoot, path.join(stage, 'jd-crawler'));
 copyCrawler(path.join(root, 'services/media-display'), path.join(stage, 'media-display'));
+copyCrawler(path.join(root, 'help/runtime/php'), path.join(stage, 'php-runtime'));
 // Update mode does not carry any installer files or write its environment template.
 fs.copyFileSync(path.join(__dirname, 'env.example'), path.join(stage, '.env.example'));
 fs.mkdirSync(path.join(stage, 'deploy'));
@@ -88,7 +89,8 @@ const info = { createdAt: new Date().toISOString(), commit: git('rev-parse', 'HE
   sourceState, schema: { commerce_reliability: 1, product_quality: 1, merchant: 4 },
   configurationContract: 'decoration-context-2026-09-14',
   native: { bundled: false, appServiceSha256: appBuild.entrySha256, sourceDigest: appBuild.sourceDigest, sourceManifestVersion: (fs.readFileSync(path.join(root,'template/uni-app/manifest.json'),'utf8').match(/"versionName"\s*:\s*"([^"]+)"/)||[])[1] || null },
-  domain: 'mall.hengshucredit.com', mode: update ? 'existing-installation-update' : 'fresh-install', php: '7.4',
+  domain: 'mall.hengshucredit.com', mode: update ? 'existing-installation-update' : 'fresh-install', php: '7.4.33-security-20261024',
+  phpSecurityCommit: '712e60f9edfd03f0960fc4fc3c2c375f42b90aa2',
   backendFiles: copied, seedUploadReferences: seedUploads.size, bundledSeedUploads: seedCopied,
   missingSeedUploads: seedUploads.size - seedCopied, adminEntrySha256: sha(fs.readFileSync(index)), h5EntrySha256: sha(fs.readFileSync(h5Index)),
   includes: ['PHP backend and vendor', 'admin production build', 'mobile H5 production build', ...(update ? [] : ['installer seed SQL']), 'deployment configuration', 'independent JD crawler and browser', 'AVIF display service', 'commerce recovery worker'],

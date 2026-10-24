@@ -1,0 +1,6 @@
+*
+!php.Dockerfile
+!build.sh
+!php-security.patch
+!security.ini
+!verify.php

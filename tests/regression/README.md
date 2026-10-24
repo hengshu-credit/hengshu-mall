@@ -3,10 +3,12 @@
 Run from PowerShell with Docker and Node.js available:
 
 ```powershell
+docker build -f help/runtime/php/php.Dockerfile -t hengshu-php:7.4.33-security-20261024 help/runtime/php
+& ./HBuilderX/plugins/node/node.exe tests/regression/php_security.cjs
 ./tests/regression/run.ps1
 ```
 
-The runner mounts the current checkout read-only and uses PHP 7.4. It creates its own MySQL container, without host ports or external networking, and removes it on completion. It never uses the running mall's database, Redis, payment gateway or credentials. The fixed database name/password are disposable test fixtures only.
+The runner mounts the current checkout read-only and uses PHP 7.4.33 with the official CVE-2026-109618 / CVE-2026-109619 backport. Build that image first. It creates its own MySQL container, without host ports or external networking, and removes it on completion. It never uses the running mall's database, Redis, payment gateway or credentials. The fixed database name/password are disposable test fixtures only.
 
 The default images match this repository's local development stack. Pass `-PhpImage` / `-MysqlImage` to select compatible images. PHP needs the repository's usual extensions, including PDO MySQL, BCMath and OpenSSL; the mounted repository needs its existing `crmeb/vendor` dependencies.
 
