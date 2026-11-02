@@ -38,7 +38,7 @@ export default {
   name: "homeIdex",
   props: {
     navH: {
-      type: String | Number,
+      type: [String, Number],
       default: "",
     },
     returnShow: {
@@ -58,7 +58,7 @@ export default {
       default: false,
     },
     sysHeight: {
-      type: String | Number,
+      type: [String, Number],
       default: "",
     },
   },

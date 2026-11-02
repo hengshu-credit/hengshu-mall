@@ -1,5 +1,5 @@
 <template>
-  <view :style="colorStyle">
+  <view :style="[colorStyle, commonPageStyle]">
     <!-- 头部 -->
 
     <!-- #ifndef APP-PLUS -->
@@ -444,6 +444,7 @@ import { getUserInfo } from "@/api/user.js";
 import { TOKENNAME } from "@/config/app.js";
 // #endif
 import colors from "@/mixins/color.js";
+import commonPage from '@/mixins/commonPage';
 import menuIcon from "@/components/menuIcon.vue";
 import parser from "@/components/jyf-parser/jyf-parser";
 import cusPreviewImg from "@/components/cusPreviewImg/index.vue";
@@ -454,7 +455,8 @@ let sysHeight = uni.getWindowInfo().statusBarHeight + "px";
 
 export default {
   computed: mapGetters(["isLogin"]),
-  mixins: [colors, sharePoster],
+  commonPageKey: 'activityDetail',
+  mixins: [colors, commonPage, sharePoster],
   components: {
     productConSwiper,
     productWindow: productWindow,

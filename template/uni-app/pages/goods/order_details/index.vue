@@ -1,5 +1,5 @@
 <template>
-	<view :style="colorStyle">
+	<view :style="[colorStyle, commonPageStyle]">
 		<view class="order-details">
 			<!-- 给header上与data上加on为退款订单-->
 			<view class="header bg-color acea-row row-middle" :class="isGoodsReturn ? 'on' : ''">
@@ -577,6 +577,7 @@ import { mapGetters } from 'vuex';
 import authorize from '@/components/Authorize';
 // #endif
 import colors from '@/mixins/color';
+import commonPage from '@/mixins/commonPage';
 import invoicePicker from '../components/invoicePicker/index.vue';
 import invoiceModal from '../components/invoiceModal/index.vue';
 import giftModal from '../order_pay_status/components/giftModal.vue';
@@ -584,6 +585,7 @@ import zbCode from '@/components/zb-code/zb-code.vue';
 import { HTTP_REQUEST_URL } from '@/config/app.js';
 import { userShare } from '@/api/user.js';
 export default {
+	commonPageKey: 'orderDetail',
 	components: {
         DiscountExplanation,
 		home,
@@ -596,7 +598,7 @@ export default {
 		authorize
 		// #endif
 	},
-	mixins: [colors],
+	mixins: [colors, commonPage],
 	data() {
 		return {
 			imgHost: HTTP_REQUEST_URL,
@@ -1613,7 +1615,7 @@ export default {
 }
 
 .order-details .nav {
-	background-color: #fff;
+	background-color: var(--common-page-card-background);
 	font-size: 26rpx;
 	color: #282828;
 	padding: 25rpx 0;
@@ -1647,7 +1649,7 @@ export default {
 .order-details .address {
 	font-size: 26rpx;
 	color: #868686;
-	background-color: #fff;
+	background-color: var(--common-page-card-background);
 	padding: 35rpx 30rpx;
 	margin-bottom: 12rpx;
 	.icon {

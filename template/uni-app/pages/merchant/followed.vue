@@ -1,6 +1,6 @@
 <template>
-  <view class="followed-page" :style="colorStyle"
-    ><view v-if="!isLogin" class="state"
+  <view class="followed-page" :style="[colorStyle, commonPageStyle]"
+      ><view v-if="!isLogin" class="state"
       ><view>登录后查看已关注店铺</view
       ><button @tap="login">去登录</button></view
     ><template v-else
@@ -32,7 +32,7 @@
           : error
           ? error + "，点击重试"
           : !shops.length
-          ? "你还没有关注店铺"
+          ? commonPageText("你还没有关注店铺", "empty_text")
           : shops.length < count
           ? "加载更多"
           : "已展示全部关注店铺"
@@ -45,8 +45,10 @@ import colors from "@/mixins/color";
 import { getFollowedShops, setShopFollow } from "@/api/storefront";
 import { toLogin } from "@/libs/login";
 import { shopUrl } from "../../../shared/merchantDecoration";
+import commonPage from "@/mixins/commonPage";
 export default {
-  mixins: [colors],
+  commonPageKey: "merchantFollowed",
+  mixins: [colors, commonPage],
   data: () => ({
     shops: [],
     count: 0,
@@ -138,9 +140,9 @@ export default {
 }
 .followed-card {
   padding: 24rpx;
-  background: #fff;
-  border-radius: 24rpx;
-  margin-bottom: 24rpx;
+  background: var(--common-page-card-background);
+  border-radius: var(--common-page-card-radius);
+  margin-bottom: var(--common-page-card-gap);
 }
 .shop-main {
   display: flex;
@@ -168,6 +170,7 @@ export default {
 }
 .name {
   font-size: 30rpx;
+  color: var(--common-page-card-title);
 }
 .description {
   color: #999;

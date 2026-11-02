@@ -1,5 +1,5 @@
 <template>
-	<view :style="colorStyle">
+	<view :style="[colorStyle, commonPageStyle]">
 		<view class='newsDetail'>
 			<view class='title'>{{articleInfo.title || ''}}</view>
 			<view class='list acea-row row-middle'>
@@ -52,6 +52,7 @@
 	import home from '@/components/home';
 	import parser from "@/components/jyf-parser/jyf-parser";
 	import colors from "@/mixins/color";
+	import commonPage from "@/mixins/commonPage";
 	import {
 		userShare
 	} from "@/api/user.js";
@@ -61,7 +62,8 @@
 			home,
 			parser
 		},
-		mixins: [colors],
+		commonPageKey: 'newsDetail',
+		mixins: [colors, commonPage],
 		data() {
 			return {
 				id: 0,

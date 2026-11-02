@@ -12,7 +12,23 @@ spl_autoload_register(function ($class) use ($prefixes) {
     }
 });
 function getLang($value, $replace = []) { return $value; }
+if (!function_exists('mb_strlen')) { function mb_strlen($value) { return strlen($value); } }
 function categoryCheck($label, $value) { if (!$value) throw new RuntimeException($label); echo "PASS: $label\n"; }
+$legacyCategoryStatus = 0;
+function app() {
+    global $legacyCategoryStatus;
+    return new class($legacyCategoryStatus) {
+        private $status;
+        public function __construct($status) { $this->status = $status; }
+        public function make($class) {
+            return new class($this->status) {
+                private $status;
+                public function __construct($status) { $this->status = $status; }
+                public function getColorChange($name) { return $name === 'category' ? $this->status : 0; }
+            };
+        }
+    };
+}
 use app\services\diy\CategoryPageConfig;
 foreach ([1, '2', '3'] as $old) categoryCheck('legacy category layout remains readable', CategoryPageConfig::read($old)['status'] === (int)$old);
 categoryCheck('style 2 preserves original large-image presentation', CategoryPageConfig::read('2')['product_layout'] === 'large');
@@ -50,3 +66,7 @@ $service->saveTheme(17, ['tid' => 0, 'title' => '', 'type' => 'category', 'value
 categoryCheck('theme save stores complete category configuration', json_decode($dao->saved['category_data'], true) === $config);
 categoryCheck('cover path uses layout number rather than JSON', $dao->saved['category_image'] === '/statics/images/cate1.png');
 categoryCheck('theme API returns compatible status plus decoration settings', $service->getThemeInfo(17, 'category') === $config);
+$dao->saved['category_data'] = '1';
+$dao->saved['page_type'] = 'theme';
+$legacyCategoryStatus = 2;
+categoryCheck('legacy page-management category style is visible in the theme API', $service->getThemeInfo(17, 'category')['status'] === 2);

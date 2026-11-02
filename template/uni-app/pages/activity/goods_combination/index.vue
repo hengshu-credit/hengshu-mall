@@ -1,5 +1,5 @@
 <template>
-	<view class="group-list" :style="colorStyle">
+	<view class="group-list" :style="[colorStyle, commonPageStyle]">
 		<view class="swiper" v-if="bannerList.length">
 			<swiper indicator-dots="true" :autoplay="true" :circular="circular" :interval="interval"
 				:duration="duration" indicator-color="rgba(0,0,0,0.3)">
@@ -73,12 +73,14 @@
 	} from '../../../utils/SubscribeMessage.js';
 	import home from '@/components/home/index.vue'
 	import colors from "@/mixins/color";
+	import commonPage from "@/mixins/commonPage";
 	let app = getApp();
 	export default {
 		components: {
 			home
 		},
-		mixins: [colors],
+		commonPageKey: 'activityList',
+		mixins: [colors, commonPage],
 		data() {
 			return {
 				pinkPeople: [],

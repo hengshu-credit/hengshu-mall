@@ -55,6 +55,7 @@ export default {
         { key: 'detail', name: '商品详情', icon: 'iconic_commodity' },
         { key: 'cart', name: '购物车', icon: 'iconic_commodity' },
         { key: 'user', name: '个人中心', icon: 'icona-ic_user1' },
+        { key: 'common', name: '通用页面', icon: 'iconic_commodity' },
         { key: 'theme', name: '商城风格', icon: 'iconic_zhuti' },
       ],
     };

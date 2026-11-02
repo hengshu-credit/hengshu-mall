@@ -250,7 +250,7 @@
 </template>
 
 <script>
-import { getMember, memberSave } from '@/api/diy';
+import { getMember, memberSave, themeInfo, themeSave } from '@/api/diy';
 import uploadPic from './components/uploadPic';
 export default {
   name: 'users',
@@ -432,16 +432,36 @@ export default {
     },
     onSubmit() {
       this.userData.routine_my_menus = this.MyMenus.concat(this.storeMenu);
+      this._themeSyncFailed = false;
       this.$emit('parentFun', true);
       memberSave(this.userData)
-        .then((res) => {
+        .then(async (res) => {
+          try {
+            await this.syncMemberStyle();
+          } catch (error) {
+            this._themeSyncFailed = true;
+            // The legacy settings remain saved; surface the theme sync issue
+            // so operators can reopen the unified user-page editor.
+            this.$message.warning(error.msg || '个人中心主题样式同步失败');
+          }
           this.$emit('parentFun', false);
-          this.$message.success(res.msg);
+          if (!this._themeSyncFailed) this.$message.success(res.msg);
         })
         .catch((err) => {
           this.$message.error(err.msg);
           this.$emit('parentFun', false);
         });
+    },
+    async syncMemberStyle() {
+      const [theme, user] = await Promise.all([themeInfo(0, 'all'), themeInfo(0, 'user')]);
+      const themeId = Number(theme.data && theme.data.id) || 0;
+      const page = user.data || {};
+      const member = Object.values(page.value || {}).find(item => item && item.name === 'member');
+      if (!themeId || !member) return;
+      const status = Math.max(0, Math.min(4, Number(this.userData.status || 1) - 1));
+      member.styleConfig = { ...(member.styleConfig || {}), tabVal: status };
+      await themeSave(themeId, { type: 'user', value: page, tid: 0 });
+      this._themeSyncFailed = false;
     },
   },
 };

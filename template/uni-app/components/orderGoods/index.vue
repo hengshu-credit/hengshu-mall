@@ -159,7 +159,7 @@
 				default: 0,
 			},
 			is_gift: {
-				type: Number | String,
+				type: [Number, String],
 				default: 0,
 			},
 			gift_uid: {

@@ -15,9 +15,10 @@ function load(file, platform = {APP_PLUS:true, APP:true}) {
   const mod = {exports:{}};
   new Function('module','exports','require','uni','getApp', transform(preprocess(sfc.script.content, platform, {type:'js'})))(mod, mod.exports, id => {
     if (id.includes('shared/')) return loadShared(id.split('/').pop());
-    if (id === 'vuex') return {mapGetters:()=>({}),mapState:()=>({})};
+    if (id === 'vuex') return {mapGetters:()=>({}),mapState:()=>({}),mapMutations:()=>({})};
     if (id.startsWith('@/api/')) return api;
     if (id.includes('merchantTheme')) return {merchantPaletteStyle:palette=>palette ? 'theme:'+palette.theme_color : ''};
+    if (id.includes('@/utils/cache')) return {__esModule:true,default:{get:()=>null,set:()=>{}}};
     if (id.includes('validate')) return {Throttle:fn=>fn};
     if (id.includes('config/app')) return {HTTP_REQUEST_URL:'https://mall.test'};
     return {};
@@ -59,6 +60,86 @@ test('hidden/deleted modules and backgrounds disappear when the decoration chang
   assert.match(options.template,/<richText/);assert.match(options.template,/<videos/);
   vm.setDiyData({value:{nav:{name:'mainNavigation'}}}); assert.ok(vm.footerConfigData);
   vm.setDiyData({title:'Empty'}); assert.equal(vm.styleConfig.length,0);assert.equal(vm.footerConfigData,null);assert.equal(vm.bgPic,'');assert.equal(vm.bgColor,'');
+});
+
+test('home and micro page backgrounds clear when saved configuration removes them', () => {
+  for (const file of ['template/uni-app/pages/index/index.vue', 'template/uni-app/pages/annex/special/index.vue']) {
+    const vm = state(load(file));
+    vm.setDiyData({ is_bg_color: 1, color_picker: '#123456', is_bg_pic: 1, bg_pic: '/old.png', bg_tab_val: 2, value: {} });
+    assert.equal(vm.bgColor, '#123456');
+    assert.equal(vm.bgPic, '/old.png');
+    vm.setDiyData({ is_bg_color: 0, is_bg_pic: 0, value: {} });
+    assert.equal(vm.bgColor, '');
+    assert.equal(vm.bgPic, '');
+    assert.equal(vm.bgTabVal, 0);
+  }
+});
+
+test('user navigation fallback respects hidden and disabled page navigation', () => {
+  const options = load('template/uni-app/pages/user/index.vue');
+  const vm = state(options);
+  vm.currentDiyData = { value: { nav: { name: 'mainNavigation', isHide: true, effectConfig: { tabVal: 1 } } } };
+  assert.equal(vm.hasPageNavigation, false);
+  vm.currentDiyData = { value: { nav: { name: 'mainNavigation', isHide: false, effectConfig: { tabVal: 0 } } } };
+  assert.equal(vm.hasPageNavigation, false);
+  vm.currentDiyData = { value: { nav: { name: 'mainNavigation', isHide: false, effectConfig: { tabVal: 1 } } } };
+  assert.equal(vm.hasPageNavigation, true);
+});
+
+test('APP components declare Vue union props with runtime constructors', () => {
+  const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+    const file = path.join(dir, entry.name);
+    return entry.isDirectory() ? walk(file) : entry.name.endsWith('.vue') ? [file] : [];
+  });
+  for (const file of walk(path.join(root, 'template/uni-app'))) {
+    const source = fs.readFileSync(file, 'utf8');
+    assert.doesNotMatch(source, /type:\s*(?:String\s*\|\s*Number|Number\s*\|\s*String|Boolean\s*\|)/, file + ' has an invalid Vue prop type');
+  }
+});
+
+test('generic APP pages consume the shared common-page decoration contract', () => {
+  const pages = {
+    'template/uni-app/pages/goods/goods_list/index.vue': 'goodsList',
+    'template/uni-app/pages/goods/goods_search/index.vue': 'goodsSearch',
+    'template/uni-app/pages/goods/order_list/index.vue': 'orderList',
+    'template/uni-app/pages/goods/order_details/index.vue': 'orderDetail',
+    'template/uni-app/pages/merchant/street.vue': 'merchantStreet',
+    'template/uni-app/pages/merchant/followed.vue': 'merchantFollowed',
+    'template/uni-app/pages/merchant/ranking.vue': 'merchantRanking',
+    'template/uni-app/pages/points_mall/index.vue': 'pointsMall',
+    'template/uni-app/pages/extension/news_list/index.vue': 'newsList',
+    'template/uni-app/pages/extension/news_details/index.vue': 'newsDetail',
+    'template/uni-app/pages/activity/goods_seckill/index.vue': 'activityList',
+    'template/uni-app/pages/activity/goods_combination/index.vue': 'activityList',
+    'template/uni-app/pages/activity/goods_bargain/index.vue': 'activityList',
+    'template/uni-app/pages/activity/presell/index.vue': 'activityList',
+    'template/uni-app/pages/activity/goods_seckill_details/index.vue': 'activityDetail',
+    'template/uni-app/pages/activity/goods_combination_details/index.vue': 'activityDetail',
+    'template/uni-app/pages/activity/goods_bargain_details/index.vue': 'activityDetail',
+    'template/uni-app/pages/activity/presell_details/index.vue': 'activityDetail',
+    'template/uni-app/pages/goods/order_pay_status/index.vue': 'orderPayStatus',
+    'template/uni-app/pages/users/user_coupon/index.vue': 'userSubpage',
+  };
+  for (const [file, key] of Object.entries(pages)) {
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
+    assert.match(source, /@\/mixins\/commonPage/ , file + ' missing common page mixin');
+    assert.match(source, new RegExp(`commonPageKey:\\s*['"]${key}['"]`), file + ' missing page key');
+    assert.match(source, /commonPageStyle/, file + ' does not apply common page style');
+  }
+});
+
+test('common-page controls are wired to real consumers and desktop preview units', () => {
+  const shared = loadShared('commonPageConfig');
+  const style = shared.commonPageStyle({ card_radius: 18, card_gap: 9 }, 'goodsList', 'px');
+  assert.equal(style['--common-page-card-radius'], '18px');
+  assert.equal(style['--common-page-card-gap'], '9px');
+  assert.ok(shared.COMMON_PAGE_CONTROLS.goodsList.includes('listLayout'));
+  assert.ok(shared.COMMON_PAGE_CONTROLS.goodsList.includes('recommend'));
+  const goodsList = fs.readFileSync(path.join(root, 'template/uni-app/pages/goods/goods_list/index.vue'), 'utf8');
+  assert.match(goodsList, /v-if="commonPage\.show_search"/);
+  assert.match(goodsList, /commonPage\.show_recommend/);
+  const orderList = fs.readFileSync(path.join(root, 'template/uni-app/pages/goods/order_list/index.vue'), 'utf8');
+  assert.doesNotMatch(orderList, /border-radius: var\(--common-page-card-radius\);\s*border-radius: 6rpx/);
 });
 
 test('selected products keep their order, ignore unrelated API results and stale replies', async () => {

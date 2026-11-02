@@ -1,5 +1,5 @@
 <template>
-	<view class="main-warper" style="background-color: var(--view-theme); padding-bottom: 50rpx" :style="colorStyle">
+	<view class="main-warper" style="background-color: var(--view-theme); padding-bottom: 50rpx" :style="[colorStyle, commonPageStyle]">
 		<view class="bargain">
 			<!-- #ifndef APP-PLUS || MP -->
 			<view class="iconfont icon-xiangzuo" v-if="retunTop" @tap="goBack" :style="'top:' + navH + 'px'"></view>
@@ -288,6 +288,7 @@ import parser from '@/components/jyf-parser/jyf-parser';
 import { TOKENNAME, HTTP_REQUEST_URL } from '@/config/app.js';
 const app = getApp();
 import colors from '@/mixins/color';
+import commonPage from '@/mixins/commonPage';
 
 export default {
 	components: {
@@ -302,7 +303,8 @@ export default {
 	/**
 	 * 页面的初始数据
 	 */
-	mixins: [colors],
+	commonPageKey: 'activityDetail',
+	mixins: [colors, commonPage],
 	data() {
 		return {
 			imgHost: HTTP_REQUEST_URL,

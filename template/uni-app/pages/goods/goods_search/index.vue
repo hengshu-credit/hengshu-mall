@@ -1,12 +1,12 @@
 <template>
-	<view class="wrapper" :style="colorStyle">
+	<view class="wrapper" :style="[colorStyle, commonPageStyle]">
 		<scroll-view :scroll-top="scrollTop" scroll-y="true" class="scroll-Y" @scroll="scroll" @scrolltolower="scrollLower">
 			<view class='searchGood'>
-				<view class='search acea-row row-between-wrapper'>
+				<view v-if="commonPage.show_search" class='search acea-row row-between-wrapper'>
 					<view class='input acea-row row-between-wrapper'>
 						<text class='iconfont icon-sousuo'></text>
 						<input type='text' v-model='searchValue' @confirm="inputConfirm" focus
-							:placeholder='$t(`搜索商品名称`)' placeholder-class='placeholder' @input="setValue"></input>
+							:placeholder='commonPageText($t(`搜索商品名称`), "search_placeholder")' placeholder-class='placeholder' @input="setValue"></input>
 					</view>
 					<view class='bnt' @tap='searchBut'>{{$t(`搜索`)}}</view>
 				</view>
@@ -38,7 +38,7 @@
 				<view class='pictrue' v-if="bastList.length == 0">
 					<image :src="imgHost + '/statics/images/noSearch.png'"></image>
 				</view>
-				<recommend :hostProduct='hostProduct' v-if="bastList.length == 0 && page > 1"></recommend>
+				<recommend :hostProduct='hostProduct' v-if="commonPage.show_recommend && bastList.length == 0 && page > 1"></recommend>
 			</view>
 		</scroll-view>
 		<home></home>
@@ -62,16 +62,18 @@
 	import recommend from '@/components/recommend';
 	import home from '@/components/home';
 	import colors from "@/mixins/color";
+	import commonPage from "@/mixins/commonPage";
 	import {
 		HTTP_REQUEST_URL
 	} from '@/config/app';
 	export default {
+		commonPageKey: 'goodsSearch',
 		components: {
 			goodList,
 			recommend,
 			home
 		},
-		mixins: [colors],
+		mixins: [colors, commonPage],
 		data() {
 			return {
 				imgHost: HTTP_REQUEST_URL,
@@ -278,7 +280,7 @@
 
 	.searchGood .search .input {
 		width: 598rpx;
-		background-color: #f7f7f7;
+		background-color: var(--common-page-search-background);
 		border-radius: 33rpx;
 		padding: 0 35rpx;
 		box-sizing: border-box;
@@ -324,7 +326,7 @@
 
 	.searchGood .list .item {
 		font-size: 26rpx;
-		color: #454545;
+		color: var(--common-page-card-title);
 		padding: 0 21rpx;
 		height: 60rpx;
 		border-radius: 3rpx;

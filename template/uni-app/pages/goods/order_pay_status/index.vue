@@ -1,5 +1,5 @@
 <template>
-	<view :style="colorStyle">
+	<view :style="[colorStyle, commonPageStyle]">
 		<view class="payment-status" v-if="(!orderLottery || !order_pay_info.paid || is_gift) && loading && lotteryLoading">
 			<!--失败时： 用icon-iconfontguanbi fail替换icon-duihao2 bg-color-->
 			<view class="iconfont icons icon-duihao2 bg-color" v-if="order_pay_info.paid || order_pay_info.pay_type == 'offline'"></view>
@@ -116,6 +116,7 @@ import { mapGetters } from 'vuex';
 import authorize from '@/components/Authorize';
 // #endif
 import colors from '@/mixins/color';
+import commonPage from '@/mixins/commonPage';
 import { HTTP_REQUEST_URL } from '@/config/app';
 export default {
 	components: {
@@ -125,7 +126,8 @@ export default {
 		authorize
 		// #endif
 	},
-	mixins: [colors],
+	commonPageKey: 'orderPayStatus',
+	mixins: [colors, commonPage],
 	data() {
 		return {
 			imgHost: HTTP_REQUEST_URL,

@@ -1,5 +1,5 @@
 <template>
-	<view :style="colorStyle">
+	<view :style="[colorStyle, commonPageStyle]">
 		<view class="navbar acea-row row-around">
 			<view class="item acea-row row-center-wrapper" :class="{ on: navOn === 1 }" @click="onNav(1)">{{$t(`未使用`)}}
 			</view>
@@ -70,6 +70,7 @@
 	// #endif
 	import home from '@/components/home';
 	import colors from '@/mixins/color.js';
+	import commonPage from '@/mixins/commonPage';
 	import {
 		HTTP_REQUEST_URL
 	} from '@/config/app';
@@ -80,7 +81,8 @@
 			// #endif
 			home
 		},
-		mixins: [colors],
+		commonPageKey: 'userSubpage',
+		mixins: [colors, commonPage],
 		data() {
 			return {
 				imgHost: HTTP_REQUEST_URL,

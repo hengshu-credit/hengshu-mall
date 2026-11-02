@@ -10,6 +10,10 @@
 <script>
 import guide from '@/components/guide/index.vue';
 import { getOpenAdv } from '@/api/api.js';
+import { initRuntimeApiBase, runtimeApiBase } from '@/utils/runtimeApiBase.js';
+// #ifdef APP-PLUS
+import { prefetchHome } from '@/utils/homeStartup';
+// #endif
 export default {
 	components: {
 		guide
@@ -22,6 +26,14 @@ export default {
 		};
 	},
 	onLoad(options) {
+		options = options || {};
+		const previousApiBase = runtimeApiBase();
+		const currentApiBase = initRuntimeApiBase({ query: options || {} });
+		// App.onLaunch can prefetch before HBuilderX delivers --pageQuery to this
+		// page. Restart that handoff after applying the page-level override.
+		// #ifdef APP-PLUS
+		if (currentApiBase !== previousApiBase) prefetchHome();
+		// #endif
 		if (options.spid) {
 			this.indexUrl = this.indexUrl + '?spid=' + options.spid;
 		}

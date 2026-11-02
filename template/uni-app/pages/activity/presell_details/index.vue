@@ -1,5 +1,5 @@
 <template>
-	<view class="product-con" :style="colorStyle">
+	<view class="product-con" :style="[colorStyle, commonPageStyle]">
 		<view class="navbar" :style="{ height: navH + 'rpx', opacity: opacity }">
 			<view class="navbarH" :style="'height:' + navH + 'rpx;'">
 				<view class="navbarCon acea-row row-center-wrapper" :style="{ paddingRight: navbarRight + 'px' }">
@@ -272,6 +272,7 @@
 	import authorize from '@/components/Authorize';
 	// #endif
 	import colors from "@/mixins/color";
+	import commonPage from '@/mixins/commonPage';
 	import {HTTP_REQUEST_URL} from '@/config/app';
 	import cusPreviewImg from "@/components/cusPreviewImg/index.vue";
 	let app = getApp();
@@ -289,7 +290,8 @@
 			authorize
 			// #endif
 		},
-		mixins: [colors],
+		commonPageKey: 'activityDetail',
+		mixins: [colors, commonPage],
 		directives: {
 			trigger: {
 				inserted(el, binging) {

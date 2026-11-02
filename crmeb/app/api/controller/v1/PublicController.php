@@ -860,6 +860,14 @@ class PublicController
                 if (!empty($themeInfo[$imageKey])) $themeInfo[$imageKey] = set_file_url($themeInfo[$imageKey]);
             }
         }
+        if ($type === 'common' && is_array($themeInfo)) {
+            foreach ($themeInfo as &$pageConfig) {
+                if (is_array($pageConfig) && !empty($pageConfig['background_image'])) {
+                    $pageConfig['background_image'] = set_file_url($pageConfig['background_image']);
+                }
+            }
+            unset($pageConfig);
+        }
 
         if (in_array($type, ['home', 'detail', 'user', 'shop']) && $themeInfo) {
             foreach ($themeInfo['value'] as &$userDataItem) {

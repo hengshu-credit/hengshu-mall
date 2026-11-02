@@ -164,6 +164,15 @@ class ThemeServices extends BaseServices
             return MainNavigationConfig::read(json_decode($info['home_data'], true) ?: []);
         } elseif ($type == 'category') {
             $category = json_decode($info['category_data'] ?? '1', true);
+            // The legacy page-management screen stores the three category
+            // layouts in the diy table. Keep that setting visible to the
+            // current theme/category API while the theme still uses the old
+            // scalar category value. A fully structured category config is
+            // owned by the new theme editor and remains authoritative.
+            if (is_scalar($category)) {
+                $legacyStatus = $this->legacyCategoryStatus();
+                if ($legacyStatus) $category = $legacyStatus;
+            }
             if (is_array($category) && !empty($category['navigation'])) $category['navigation_mode'] = 'page';
             return CategoryPageConfig::read($category ?? 1);
         } elseif ($type == 'detail') {
@@ -173,6 +182,8 @@ class ThemeServices extends BaseServices
         } elseif ($type == 'shop') {
             if (!\app\services\merchant\MerchantThemeServices::isMerchant($info['page_type'] ?? '')) throw new AdminException('请选择商户主题');
             return \app\services\merchant\MerchantThemeServices::home(json_decode($info['home_data'] ?? '', true) ?: []);
+        } elseif ($type == 'common') {
+            return CommonPageConfig::pages((json_decode($info['theme_data'] ?? '', true) ?: [])['common_pages'] ?? []);
         } elseif ($type == 'cart') {
             return (json_decode($info['theme_data'] ?? '', true) ?: [])['cart_page'] ?? [];
         } elseif ($type == 'theme') {
@@ -225,7 +236,7 @@ class ThemeServices extends BaseServices
         if ($merchantTheme && $data['type'] === 'shop') $data['type'] = 'home';
         if ($merchantTheme) {
             if ($id && !\app\services\merchant\MerchantThemeServices::isMerchant($oldKind)) throw new AdminException('请选择商户主题');
-            if (!in_array($data['type'],['home','category','detail','theme'],true)) throw new AdminException('商户主题只支持首页、分类、详情及风格');
+            if (!in_array($data['type'],['home','category','detail','theme','common'],true)) throw new AdminException('商户主题页面类型不支持');
             $data['page_type']='merchant';
         }
         if ($data['type'] === 'shop') {
@@ -242,6 +253,7 @@ class ThemeServices extends BaseServices
         if ($data['type'] === 'navigation') return $this->saveNavigation((int)$id, $data['value']);
         if ($data['type'] === 'category') $data['value'] = CategoryPageConfig::validate($data['value']);
         if ($data['type'] === 'cart') $data['value'] = CartPageConfig::validate($data['value']);
+        if ($data['type'] === 'common') $data['value'] = CommonPageConfig::pages($data['value']);
         if (in_array($data['type'], ['home', 'detail', 'user'], true) && ($data['value']['navigation_mode'] ?? '') === 'page') $data['value'] = MainNavigationConfig::validatePage($data['value']);
         if (in_array($data['type'], ['home', 'detail', 'user'], true)) $data['value'] = PageActionsConfig::validatePage($data['value'], $data['type']);
         // 初始化待写入数组
@@ -345,6 +357,14 @@ class ThemeServices extends BaseServices
             case 'cart':
                 $palette = json_decode($saveData['theme_data'] ?? ($id ? $this->dao->value(['id'=>$id], 'theme_data') : ''), true) ?: [];
                 $palette['cart_page'] = $data['value'];
+                $saveData['theme_data'] = json_encode($palette);
+                $saveData['theme_data_update_time'] = time();
+                if ($type == 0) $saveData['theme_default_data'] = $saveData['theme_data'];
+                break;
+
+            case 'common':
+                $palette = json_decode($saveData['theme_data'] ?? ($id ? $this->dao->value(['id'=>$id], 'theme_data') : ''), true) ?: [];
+                $palette['common_pages'] = $data['value'];
                 $saveData['theme_data'] = json_encode($palette);
                 $saveData['theme_data_update_time'] = time();
                 if ($type == 0) $saveData['theme_default_data'] = $saveData['theme_data'];
@@ -791,6 +811,23 @@ class ThemeServices extends BaseServices
             return $home;
         }
         return ($home['name'] ?? '') === 'mainNavigation' && $page !== 'cart' ? [] : $home;
+    }
+
+    /**
+     * Read the old page-management category layout without making the theme
+     * service depend on the legacy API controller. Tests and CLI tools can
+     * instantiate ThemeServices without the application container, so the
+     * adapter fails closed there.
+     */
+    private function legacyCategoryStatus(): int
+    {
+        if (!function_exists('app')) return 0;
+        try {
+            $status = (int)app()->make(DiyServices::class)->getColorChange('category');
+            return in_array($status, [1, 2, 3], true) ? $status : 0;
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
 
     private function saveNavigation(int $id, $config): int

@@ -1,5 +1,5 @@
 <template>
-	<div :style="colorStyle">
+	<div :style="[colorStyle, commonPageStyle]">
 		<view class="flash-sale">
 			<view class="saleBox"></view>
 			<view class="header" v-if="timeList.length > 0">
@@ -73,12 +73,14 @@
 import { getSeckillIndexTime, getSeckillList } from '../../../api/activity.js';
 import home from '@/components/home/index.vue';
 import colors from '@/mixins/color.js';
+import commonPage from '@/mixins/commonPage';
 import { HTTP_REQUEST_URL } from '@/config/app';
 export default {
 	components: {
 		home
 	},
-	mixins: [colors],
+	commonPageKey: 'activityList',
+	mixins: [colors, commonPage],
 	data() {
 		return {
 			imgHost: HTTP_REQUEST_URL,

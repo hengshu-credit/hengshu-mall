@@ -662,13 +662,11 @@ export default {
       if (!data) return;
       this.currentDiyData = data;
       this.errorNetwork = false;
-      if (data.is_bg_color) {
-        this.bgColor = data.color_picker || "";
-      }
-      if (data.is_bg_pic) {
-        this.bgPic = data.bg_pic || "";
-        this.bgTabVal = data.bg_tab_val || "";
-      }
+      // Replace the complete page background state on every response. A
+      // saved theme may explicitly remove a previous color or image.
+      this.bgColor = data.is_bg_color ? data.color_picker || "" : "";
+      this.bgPic = data.is_bg_pic ? data.bg_pic || "" : "";
+      this.bgTabVal = data.is_bg_pic ? data.bg_tab_val || "" : 0;
       this.pageShow = 1;
       if (data.title) {
         uni.setNavigationBarTitle({

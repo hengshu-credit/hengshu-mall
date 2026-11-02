@@ -405,11 +405,11 @@ export default {
       default: 0,
     },
     replyChance: {
-      type: String | Number,
+      type: [String, Number],
       default: 0,
     },
     productId: {
-      type: Number | String,
+      type: [Number, String],
       default: 0,
     },
     goodList: {
@@ -644,9 +644,6 @@ export default {
       this.isFooter = val ? true : false;
       this.pdHeight = num;
       this.$emit("newDataStatus", { val, num });
-    },
-    reconnect() {
-      this.$emit("reconnect");
     },
   },
 };

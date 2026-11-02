@@ -1,5 +1,5 @@
 <template>
-	<view :style="colorStyle">
+	<view :style="[colorStyle, commonPageStyle]">
 		<view class='newsList'>
 			<view class='swiper' v-if="imgUrls.length > 0">
 				<swiper indicator-dots="true" :autoplay="autoplay" :circular="circular" :interval="interval"
@@ -93,6 +93,7 @@
 	} from '@/api/api.js';
 	import home from '@/components/home';
 	import colors from "@/mixins/color";
+	import commonPage from "@/mixins/commonPage";
 	import {
 		HTTP_REQUEST_URL
 	} from '@/config/app';
@@ -100,7 +101,8 @@
 		components: {
 			home
 		},
-		mixins: [colors],
+		commonPageKey: 'newsList',
+		mixins: [colors, commonPage],
 		data() {
 			return {
 				imgHost: HTTP_REQUEST_URL,

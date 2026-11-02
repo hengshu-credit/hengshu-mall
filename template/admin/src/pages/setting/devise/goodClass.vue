@@ -20,7 +20,8 @@
 </template>
 
 <script>
-import { colorChange, getColorChange } from '@/api/diy';
+import { colorChange, getColorChange, themeInfo, themeSave } from '@/api/diy';
+import { normalizeCategoryPage } from '../../../../../shared/categoryPageConfig';
 export default {
   name: 'goodClass',
   props: {},
@@ -32,6 +33,8 @@ export default {
         { image: require('@/assets/images/sort03.png'), name: '样式3' },
       ],
       activeStyle: '-1',
+      themeId: 0,
+      categoryConfig: null,
     };
   },
   created() {
@@ -39,8 +42,15 @@ export default {
   },
   methods: {
     getInfo() {
-      getColorChange('category').then((res) => {
-        this.activeStyle = res.data.status ? res.data.status - 1 : 0;
+      Promise.all([themeInfo(0, 'all'), themeInfo(0, 'category')]).then(([theme, category]) => {
+        this.themeId = Number(theme.data && theme.data.id) || 0;
+        this.categoryConfig = normalizeCategoryPage(category.data);
+        this.activeStyle = this.categoryConfig.status - 1;
+      }).catch(() => {
+        // Keep old installations usable until a theme record exists.
+        return getColorChange('category').then((res) => {
+          this.activeStyle = res.data.status ? res.data.status - 1 : 0;
+        });
       });
     },
     selectTap(index) {
@@ -49,8 +59,13 @@ export default {
     onSubmit(num) {
       this.$emit('parentFun', true);
       this.activeStyle = num == 1 ? 0 : this.activeStyle;
-      colorChange(num == 1 ? 1 : this.activeStyle + 1, 'category')
+      const status = num == 1 ? 1 : this.activeStyle + 1;
+      const save = this.themeId && this.categoryConfig
+        ? themeSave(this.themeId, { type: 'category', value: { ...this.categoryConfig, status }, tid: 0 })
+        : colorChange(status, 'category');
+      save
         .then((res) => {
+          if (this.categoryConfig) this.categoryConfig.status = status;
           this.$emit('parentFun', false);
           this.$message.success(res.msg);
         })

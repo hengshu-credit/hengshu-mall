@@ -85,7 +85,13 @@ export default {
   // computed: mapGetters(['isLogin','cartNum']),
   computed: {
     hasPageNavigation() {
-      return Object.values((this.currentDiyData || {}).value || {}).some(item => item && ['pageFoot', 'mainNavigation'].includes(item.name));
+      return Object.values((this.currentDiyData || {}).value || {}).some(item => {
+        if (!item || !['pageFoot', 'mainNavigation'].includes(item.name)) return false;
+        if (item.isHide === true || item.isHide === 1 || item.isHide === '1') return false;
+        // A page navigation component with its effect switched off must not
+        // suppress the platform navigation fallback.
+        return !item.effectConfig || Number(item.effectConfig.tabVal) !== 0;
+      });
     },
     pdHeights() {
       return { height: "100rpx" };

@@ -1,5 +1,5 @@
 <template>
-	<view :style="colorStyle">
+	<view :style="[colorStyle, commonPageStyle]">
 		<view class="my-order">
 			<view class="header bg-color">
 				<view class="picTxt acea-row row-between-wrapper">
@@ -127,7 +127,7 @@
 				{{ loadTitle }}
 			</view>
 			<view v-if="orderList.length == 0">
-				<emptyPage v-if="!loading" :title="$t(`暂无订单`)"></emptyPage>
+				<emptyPage v-if="!loading" :title="commonPageText($t(`暂无订单`), 'empty_text')"></emptyPage>
 				<view class="loadingicon acea-row row-center-wrapper">
 					<text class="loading iconfont icon-jiazai" :hidden="loading == false"></text>
 				</view>
@@ -150,7 +150,9 @@ import authorize from '@/components/Authorize';
 // #endif
 import emptyPage from '@/components/emptyPage.vue';
 import colors from '@/mixins/color.js';
+import commonPage from '@/mixins/commonPage';
 export default {
+	commonPageKey: 'orderList',
 	components: {
 		home,
 		emptyPage,
@@ -158,7 +160,7 @@ export default {
 		authorize
 		// #endif
 	},
-	mixins: [colors],
+	mixins: [colors, commonPage],
 	data() {
 		return {
 			loading: false, //是否加载中
@@ -451,7 +453,7 @@ export default {
 }
 
 .my-order .nav {
-	background-color: #fff;
+	background-color: var(--common-page-card-background);
 	width: 690rpx;
 	height: 140rpx;
 	border-radius: 6rpx;
@@ -487,8 +489,8 @@ export default {
 }
 
 .my-order .list .item {
-	background-color: #fff;
-	border-radius: 6rpx;
+	background-color: var(--common-page-card-background);
+	border-radius: var(--common-page-card-radius);
 	margin-bottom: 14rpx;
 	.gift {
 		padding: 26rpx 32rpx;

@@ -29,7 +29,7 @@
 	export default {
 		props: {
 			window: {
-				type: Boolean | String | Number,
+				type: [Boolean, String, Number],
 				default: false,
 			},
 			couponList: {

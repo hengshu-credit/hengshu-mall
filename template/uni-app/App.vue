@@ -17,6 +17,7 @@ import colors from "@/mixins/color.js";
 import Cache from "@/utils/cache";
 import { debug } from "util";
 import { applyTheme, startThemeRefresh, stopThemeRefresh } from "@/utils/theme.js";
+import { initRuntimeApiBase } from "@/utils/runtimeApiBase.js";
 // #ifdef APP-PLUS
 import { prefetchHome } from "@/utils/homeStartup";
 // #endif
@@ -116,6 +117,7 @@ export default {
   },
   async onLaunch(option) {
     uni.hideTabBar();
+    initRuntimeApiBase(option);
     // #ifdef APP-PLUS
     prefetchHome();
     // #endif

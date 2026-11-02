@@ -1,5 +1,5 @@
 <template>
-	<view :style="colorStyle">
+	<view :style="[colorStyle, commonPageStyle]">
 		<view class='flash-sale'>
 			<view class='header'>
 				<img mode="widthFix" class="presellBg" :src="picUrl" alt="">
@@ -81,6 +81,7 @@
 	} from '../../../api/activity.js';
 	import home from '@/components/home/index.vue'
 	import colors from "@/mixins/color";
+	import commonPage from "@/mixins/commonPage";
 	import {
 		HTTP_REQUEST_URL
 	} from '@/config/app';
@@ -91,7 +92,8 @@
 		components: {
 			home
 		},
-		mixins: [colors],
+		commonPageKey: 'activityList',
+		mixins: [colors, commonPage],
 		data() {
 			return {
 				imgHost: HTTP_REQUEST_URL,

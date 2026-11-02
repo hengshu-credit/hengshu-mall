@@ -38,7 +38,7 @@
 				}
 			},
 			lotteryNum: {
-				type: Number | String,
+				type: [Number, String],
 				default: 0
 			}
 		},

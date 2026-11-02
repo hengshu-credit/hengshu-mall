@@ -1,5 +1,5 @@
 <template>
-	<view :style="colorStyle" style="background-color: var(--view-theme); min-height: 100vh; padding-bottom: 1rpx">
+	<view :style="[colorStyle, commonPageStyle]" style="background-color: var(--view-theme); min-height: 100vh; padding-bottom: 1rpx">
 		<view class="bargain-list">
 			<!-- #ifndef APP-PLUS -->
 			<!-- 	<view class='iconfont icon-xiangzuo' @tap='goBack' :style="'top:'+ (navH/2  - 12) +'rpx'" v-if="returnShow">
@@ -53,9 +53,11 @@ import { mapGetters } from 'vuex';
 import authorize from '@/components/Authorize';
 // #endif
 import colors from '@/mixins/color';
+import commonPage from '@/mixins/commonPage';
 import { HTTP_REQUEST_URL } from '@/config/app.js';
 export default {
-	mixins: [colors],
+	commonPageKey: 'activityList',
+	mixins: [colors, commonPage],
 	components: {
 		home,
 		// #ifdef MP

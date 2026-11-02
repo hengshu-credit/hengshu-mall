@@ -1,5 +1,5 @@
 <template>
-	<view :style="colorStyle">
+	<view :style="[colorStyle, commonPageStyle]">
 		<view class="points-swiper">
 			<image class="bag" src="../../static/images/jf-head.png" mode=""></image>
 			<view class="swiper">
@@ -117,6 +117,7 @@
 		goShopDetail
 	} from '@/libs/order.js';
 	import colors from "@/mixins/color";
+	import commonPage from "@/mixins/commonPage";
 	import {
 		HTTP_REQUEST_URL
 	} from '@/config/app';
@@ -124,7 +125,8 @@
 		components: {
 			// swipers
 		},
-		mixins: [colors],
+		commonPageKey: 'pointsMall',
+		mixins: [colors, commonPage],
 		data() {
 			return {
 				imgHost: HTTP_REQUEST_URL,

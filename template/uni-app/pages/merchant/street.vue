@@ -1,9 +1,9 @@
 <template>
-  <view class="street-page" :style="colorStyle"
-    ><view class="street-search"
+  <view class="street-page" :style="[colorStyle, commonPageStyle]"
+    ><view v-if="commonPage.show_search" class="street-search"
       ><text class="iconfont icon-ic_search" /><input
         v-model="keyword"
-        placeholder="搜索店铺名称"
+        :placeholder="commonPageText('搜索店铺名称', 'search_placeholder')"
         confirm-type="search"
         @confirm="load(true)"
       /><text @tap="load(true)">搜索</text></view
@@ -31,7 +31,7 @@
         ? "加载更多"
         : shops.length
         ? "已展示全部店铺"
-        : "暂无营业店铺"
+        : commonPageText("暂无营业店铺", "empty_text")
     }}</view></view
   >
 </template>
@@ -40,8 +40,10 @@ import colors from "@/mixins/color";
 import { getShops } from "@/api/storefront";
 import { shopUrl } from "../../../shared/merchantDecoration";
 import { applyTheme } from "@/utils/theme";
+import commonPage from "@/mixins/commonPage";
 export default {
-  mixins: [colors],
+  commonPageKey: "merchantStreet",
+  mixins: [colors, commonPage],
   data: () => ({
     shops: [],
     keyword: "",
@@ -111,8 +113,8 @@ export default {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  border-radius: 40rpx;
-  background: #fff;
+  border-radius: var(--common-page-card-radius);
+  background: var(--common-page-search-background);
   padding: 18rpx 24rpx;
   font-size: 26rpx;
   margin-bottom: 24rpx;
@@ -126,10 +128,10 @@ export default {
   display: flex;
   align-items: center;
   gap: 20rpx;
-  background: #fff;
+  background: var(--common-page-card-background);
   padding: 26rpx;
-  border-radius: 24rpx;
-  margin-bottom: 22rpx;
+  border-radius: var(--common-page-card-radius);
+  margin-bottom: var(--common-page-card-gap);
 }
 .store-card image,
 .avatar {
@@ -152,6 +154,7 @@ export default {
 }
 .name {
   font-size: 30rpx;
+  color: var(--common-page-card-title);
 }
 .description {
   font-size: 24rpx;

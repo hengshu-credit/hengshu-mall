@@ -43,6 +43,7 @@
         <category-editor ref="categoryEditor" v-else-if="activeMenu === 'category'"></category-editor>
         <detail-editor ref="detailEditor" v-else-if="activeMenu === 'detail'"></detail-editor>
         <cart-editor ref="cartEditor" v-else-if="activeMenu === 'cart'"></cart-editor>
+        <common-page-editor ref="commonEditor" v-else-if="activeMenu === 'common'"></common-page-editor>
         <user-editor ref="userEditor" v-else-if="activeMenu === 'user'"></user-editor>
       </div>
     </div>
@@ -58,6 +59,7 @@ import CategoryEditor from './components/CategoryEditor.vue';
 import DetailEditor from './components/DetailEditor.vue';
 import UserEditor from './components/UserEditor.vue';
 import CartEditor from './components/CartEditor.vue';
+import CommonPageEditor from './components/CommonPageEditor.vue';
 import { saveThemeTitle, themeInfo, getProProduct, getDecorationProductDetail } from '@/api/diy';
 import MerchantSelect from '@/components/merchantSelect';
 
@@ -73,6 +75,7 @@ export default {
     DetailEditor,
     UserEditor,
     CartEditor,
+    CommonPageEditor,
   },
   data() {
     return {
@@ -207,6 +210,8 @@ export default {
           return 'userEditor';
         case 'cart':
           return 'cartEditor';
+        case 'common':
+          return 'commonEditor';
         default:
           return '';
       }

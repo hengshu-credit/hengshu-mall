@@ -1,9 +1,9 @@
 <template>
-	<view class="wrapper" :style="colorStyle">
+	<view class="wrapper" :class="{ 'common-search-enabled': commonPage.show_search }" :style="[colorStyle, commonPageStyle]">
 		<view class='productList'>
-			<view class='search bg-color acea-row row-between-wrapper'>
+			<view v-if="commonPage.show_search" class='search bg-color acea-row row-between-wrapper'>
 				<view class='input acea-row row-between-wrapper'><text class='iconfont icon-sousuo'></text>
-					<input :placeholder='$t(`搜索商品名称`)' placeholder-class='placeholder' confirm-type='search'
+						<input :placeholder='commonPageText($t(`搜索商品名称`), "search_placeholder")' placeholder-class='placeholder' confirm-type='search'
 						name="search" :value='where.keyword' @confirm="searchSubmit"></input>
 				</view>
 				<view class='iconfont' :class='is_switch==true?"icon-pailie":"icon-tupianpailie"' @click='Changswitch'>
@@ -72,9 +72,9 @@
 		<view class='noCommodity' v-if="productList.length==0 && where.page > 1">
 			<view class='emptyBox'>
 				<image :src="imgHost + '/statics/images/no-thing.png'"></image>
-				<view class="tips">{{$t(`暂无商品，去看点别的吧`)}}</view>
+							<view class="tips">{{commonPageText($t(`暂无商品，去看点别的吧`), 'empty_text')}}</view>
 			</view>
-			<recommend :hostProduct="hostProduct"></recommend>
+			<recommend v-if="commonPage.show_recommend" :hostProduct="hostProduct"></recommend>
 		</view>
 		<!-- #ifndef MP -->
 		<home></home>
@@ -102,7 +102,9 @@
 		HTTP_REQUEST_URL
 	} from '@/config/app';
 	import colors from '@/mixins/color.js';
+	import commonPage from '@/mixins/commonPage';
 	export default {
+		commonPageKey: 'goodsList',
 		computed: {
 			...mapGetters(['uid']),
 			showEmptyCategoryNavigation() {
@@ -114,7 +116,10 @@
 			recommend,
 			home
 		},
-		mixins: [colors],
+		mixins: [colors, commonPage],
+		watch: {
+			'commonPage.list_layout'(value) { this.is_switch = value !== 'list'; },
+		},
 		data() {
 			return {
 				imgHost: HTTP_REQUEST_URL,
@@ -336,7 +341,7 @@
 	.productList .search .input {
 		width: 640rpx;
 		height: 60rpx;
-		background-color: #fff;
+		background-color: var(--common-page-search-background);
 		border-radius: 50rpx;
 		padding: 0 20rpx;
 		box-sizing: border-box;
@@ -373,11 +378,14 @@
 		left: 0;
 		width: 100%;
 		font-size: 28rpx;
-		background-color: #fff;
+		background-color: var(--common-page-card-background);
 		margin-top: 86rpx;
 		top: 0;
 		z-index: 9;
 	}
+
+	.wrapper:not(.common-search-enabled) .productList .nav { margin-top: 0; }
+	.wrapper:not(.common-search-enabled) .productList .list { margin-top: 0; }
 
 	.productList .nav .item {
 		width: 25%;
@@ -407,8 +415,8 @@
 	.productList .list .item {
 		width: 345rpx;
 		margin-top: 20rpx;
-		background-color: #fff;
-		border-radius: 20rpx;
+		background-color: var(--common-page-card-background);
+		border-radius: var(--common-page-card-radius);
 	}
 
 	.productList .list .item.on {
@@ -449,7 +457,7 @@
 	.productList .list .item .text {
 		padding: 20rpx 17rpx 26rpx 17rpx;
 		font-size: 30rpx;
-		color: #222;
+		color: var(--common-page-card-title);
 	}
 
 	.productList .list .item .text.on {

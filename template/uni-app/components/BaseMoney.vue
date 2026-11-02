@@ -20,7 +20,7 @@
 				default: 2
 			},
 			money: {
-				type: String | Number,
+				type: [String, Number],
 				default: ""
 			},
 			// 删除线

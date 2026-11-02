@@ -48,6 +48,18 @@ H5 的 `manifest.json` → `h5.uniStatistics.enable` 保持 `false`。本地商�
 
 HBuilderX 位于项目根目录的 `HBuilderX/HBuilderX.exe`。启动脚本使用其自带的 Node 22，避免系统 Node 26 与旧版 Vue CLI 不兼容；仅管理后台开发进程设置 OpenSSL 兼容选项。
 
+Android 模拟器本地联调可以通过启动参数切换 API 地址，不需要修改 `template/uni-app/config/app.js`：
+
+```powershell
+./help/dev/run-app.ps1 -ApiBase http://localhost:8011 -DeviceId emulator-5554 -CleanCache
+```
+
+需要直接验收某个无必填对象参数的页面时，可以追加 `-PagePath pages/merchant/street`；带商品、订单或店铺 ID 的页面仍应从 APP 内按真实业务入口进入。
+
+脚本会把 Android 模拟器访问宿主机的 `localhost` 转成 `10.0.2.2`，然后只为本次调试编译指定地址。HBuilderX 5.24 的 Android 调试基座不会稳定把 `--pageQuery` 传给 UniApp 首屏，所以脚本在编译完成后关闭项目监听，再恢复 `config/app.js`；正在运行的 APP 保留本地调试包，源码仍是生产地址。调试结束后在 HBuilderX 中重新打开项目即可继续编辑。未传 `-ApiBase` 时使用编译配置中的生产地址。
+
+正式包或支持深链的调试入口仍可使用 `api_base`、`apiBase` 或 `debug_api_base` 查询参数；APP 会在启动时保存到 `debugApiBase`，后续请求和图片地址沿用该地址。清除调试地址可以在 APP 调试控制台执行 `uni.removeStorageSync('debugApiBase')` 后重启。
+
 首次使用需安装 HBuilderX 的 `uniapp-cli`、`compile-node-sass`、`compile-stylus` 插件。本次已安装。手动运行方式：导入 `template/uni-app`，选择“运行到浏览器 → Chrome”。管理后台编译日志在 `help/dev/.state/admin.log`，H5 日志在 HBuilderX 控制台。
 
 ## 数据与清理

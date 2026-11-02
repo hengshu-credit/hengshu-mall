@@ -1,5 +1,5 @@
 <template>
-  <view :style="colorStyle">
+  <view :style="[colorStyle, commonPageStyle]">
     <!-- #ifndef APP-PLUS -->
     <view class="navbar" :style="{ height: navH + 'rpx', opacity: opacity }">
       <view class="navbarH" :style="'height:' + navH + 'rpx;'">
@@ -492,6 +492,7 @@ import { getUserInfo } from "@/api/user.js";
 import { TOKENNAME } from "@/config/app.js";
 // #endif
 import colors from "@/mixins/color.js";
+import commonPage from '@/mixins/commonPage';
 import parser from "@/components/jyf-parser/jyf-parser";
 import cusPreviewImg from "@/components/cusPreviewImg/index.vue";
 import menuIcon from "@/components/menuIcon.vue";
@@ -519,7 +520,8 @@ export default {
     isLogin: "isLogin",
     userData: "userInfo",
   }),
-  mixins: [colors, sharePoster],
+  commonPageKey: 'activityDetail',
+  mixins: [colors, commonPage, sharePoster],
   data() {
     return {
       imgHost: HTTP_REQUEST_URL,

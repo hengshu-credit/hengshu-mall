@@ -1,5 +1,5 @@
 <template>
-  <view class="ranking-page" :style="colorStyle"
+  <view class="ranking-page" :style="[colorStyle, commonPageStyle]"
     ><view class="ranking-tabs"
       ><text :class="{ active: type === 'sales' }" @tap="change('sales')"
         >销量榜</text
@@ -7,11 +7,7 @@
         >好评榜</text
       ></view
     ><view class="ranking-description"
-      >{{
-        type === "rating"
-          ? "按已展示评价的好评率、评价数排序"
-          : "按实际销量排序"
-      }}
+      >{{ type === "rating" ? "按已展示评价的好评率、评价数排序" : "按实际销量排序" }}
       · TOP {{ top }}</view
     ><view
       v-for="item in products"
@@ -38,7 +34,7 @@
       class="state"
       @tap="load"
       >{{
-        loading ? "加载中…" : error ? error + "，点击重试" : "暂无上榜商品"
+        loading ? "加载中…" : error ? error + "，点击重试" : commonPageText("暂无上榜商品", "empty_text")
       }}</view
     ></view
   >
@@ -49,9 +45,11 @@ import { getRanking } from "@/api/storefront";
 import { applyTheme } from "@/utils/theme";
 import MerchantName from "@/components/merchantName";
 import EasyLoadimage from "@/components/easy-loadimage/easy-loadimage.vue";
+import commonPage from "@/mixins/commonPage";
 export default {
+  commonPageKey: "merchantRanking",
   components: { MerchantName, EasyLoadimage },
-  mixins: [colors],
+  mixins: [colors, commonPage],
   data: () => ({
     products: [],
     type: "sales",
@@ -134,9 +132,9 @@ export default {
   display: flex;
   align-items: center;
   gap: 20rpx;
-  border-radius: 24rpx;
-  background: #fff;
-  margin-bottom: 22rpx;
+  border-radius: var(--common-page-card-radius);
+  background: var(--common-page-card-background);
+  margin-bottom: var(--common-page-card-gap);
   padding: 24rpx;
 }
 .rank-number {

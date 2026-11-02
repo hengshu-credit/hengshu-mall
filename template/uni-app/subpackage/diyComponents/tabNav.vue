@@ -59,7 +59,7 @@ export default {
       default: () => {},
     },
     isFixed: {
-      type: Boolean | String | Number,
+      type: [Boolean, String, Number],
       default: false,
     },
     fromType: {

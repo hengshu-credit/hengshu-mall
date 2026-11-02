@@ -892,7 +892,7 @@ export default {
       default: null,
     },
     isSortType: {
-      type: String | Number,
+      type: [String, Number],
       default: 0,
     },
   },

@@ -150,7 +150,7 @@ export default {
       default: () => {},
     },
     isSortType: {
-      type: String | Number,
+      type: [String, Number],
       default: 0,
     },
   },
